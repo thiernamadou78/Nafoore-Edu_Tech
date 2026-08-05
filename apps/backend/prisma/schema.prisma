@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Mode pooling (PgBouncer) — utilisé au runtime
+  url       = env("DATABASE_URL")
+  // Connexion directe — utilisée par prisma migrate
+  directUrl = env("DIRECT_URL")
+}
+
+model Lead {
+  id               String        @id @default(cuid())
+  createdAt        DateTime      @default(now()) @map("created_at")
+  profile          String        // famille | mairie | entreprise | centre_formation_ecole_pro
+  name             String
+  email            String
+  phone            String?
+  message          String
+  organizationName String?       @map("organization_name")
+  status           String        @default("nouveau")
+  // nouveau | contacte | en_verification | valide | converti | rejete
+  assignedToId     String?       @map("assigned_to")
+  assignedTo       AdminAccount? @relation("AssignedLeads", fields: [assignedToId], references: [id], onDelete: SetNull)
+  convertedById    String?       @map("converted_by")
+  convertedBy      AdminAccount? @relation("ConvertedLeads", fields: [convertedById], references: [id], onDelete: SetNull)
+  convertedAt      DateTime?     @map("converted_at")
+  students         Student[]
+  notes            LeadNote[]
+  portalAccount    PortalAccount?
+  dispatchLogs     CredentialDispatchLog[]
+
+  @@map("leads")
+}
+
+model PortalAccount {
+  id                 String                  @id // = auth.users.id (Supabase Auth), jamais généré par Prisma
+  email              String                  @unique
+  fullName           String                  @map("full_name")
+  role               String                  // famille | mairie | entreprise | centre_formation_ecole_pro
+  mustChangePassword Boolean                 @default(true) @map("must_change_password")
+  status             String                  @default("invite") // invite | actif | suspendu
+  leadId             String                  @unique @map("lead_id")
+  lead               Lead                    @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  createdAt          DateTime                @default(now()) @map("created_at")
+  dispatchLogs       CredentialDispatchLog[]
+
+  @@map("portal_accounts")
+}
+
+model CredentialDispatchLog {
+  id              String        @id @default(cuid())
+  leadId          String        @map("lead_id")
+  lead            Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  portalAccountId String        @map("portal_account_id")
+  portalAccount   PortalAccount @relation(fields: [portalAccountId], references: [id], onDelete: Cascade)
+  sentById        String?       @map("sent_by")
+  sentBy          AdminAccount? @relation("CredentialDispatches", fields: [sentById], references: [id], onDelete: SetNull)
+  sentAt          DateTime      @default(now()) @map("sent_at")
+  deliveryStatus  String        // envoye | echec
+  emailProviderId String?       @map("email_provider_id")
+
+  @@map("credential_dispatch_logs")
+}
+
+model Student {
+  id             String            @id @default(cuid())
+  createdAt      DateTime          @default(now()) @map("created_at")
+  name           String
+  level          String            // college | lycee
+  subjects       String[]          @default([])
+  objectives     String?
+  isActive       Boolean           @default(true) @map("is_active")
+  photoPath      String?           @map("photo_path")
+  parentLeadId   String?           @map("parent_lead_id")
+  parentLead     Lead?             @relation(fields: [parentLeadId], references: [id], onDelete: SetNull)
+  teachers       StudentTeacher[]
+  sessions       Session[]
+  progressReports ProgressReport[]
+  documents      StudentDocument[]
+  teacherHistory StudentTeacherHistory[]
+
+  @@map("students")
+}
+
+model Teacher {
+  id          String                 @id @default(cuid())
+  name        String
+  subjects    String[]
+  verified    Boolean                @default(false)
+  bio         String?
+  zone        String?
+  email       String?
+  phone       String?
+  photoPath   String?                @map("photo_path")
+  application TeacherApplication?
+  students    StudentTeacher[]
+  sessions    Session[]
+  history     StudentTeacherHistory[]
+
+  @@map("teachers")
+}
+
+model Testimonial {
+  id        String  @id @default(cuid())
+  author    String
+  role      String
+  quote     String
+  published Boolean @default(false)
+
+  @@map("testimonials")
+}
+
+model FaqItem {
+  id        String  @id @default(cuid())
+  question  String
+  answer    String
+  order     Int     @default(0)
+  published Boolean @default(false)
+
+  @@map("faq_items")
+}
+
+model Service {
+  id          String  @id @default(cuid())
+  title       String
+  description String
+  icon        String?
+  order       Int     @default(0)
+
+  @@map("services")
+}
+
+// ─────────────────────────────────────────────
+// Super Admin — comptes, rôles (RBAC), audit trail
+// ─────────────────────────────────────────────
+
+model AdminAccount {
+  // = auth.users.id (Supabase Auth), fourni explicitement à la création,
+  // jamais généré côté Prisma.
+  id                    String               @id
+  email                 String               @unique
+  name                  String
+  isActive              Boolean              @default(true) @map("is_active")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  roles                 AdminAccountRole[]
+  activityLogs          ActivityLog[]
+  reviewedApplications  TeacherApplication[] @relation("ReviewedApplications")
+  assignedLeads         Lead[]               @relation("AssignedLeads")
+  convertedLeads        Lead[]               @relation("ConvertedLeads")
+  credentialDispatches  CredentialDispatchLog[] @relation("CredentialDispatches")
+  leadNotes             LeadNote[]
+  progressReports       ProgressReport[]
+  uploadedDocuments     StudentDocument[]
+  teacherHistoryEntries StudentTeacherHistory[]
+
+  @@map("admin_accounts")
+}
+
+model Role {
+  id       String             @id @default(cuid())
+  name     String             @unique // super_admin | admin | recruiter
+  accounts AdminAccountRole[]
+
+  @@map("roles")
+}
+
+model AdminAccountRole {
+  adminAccountId String       @map("admin_account_id")
+  roleId         String       @map("role_id")
+  adminAccount   AdminAccount @relation(fields: [adminAccountId], references: [id], onDelete: Cascade)
+  role           Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([adminAccountId, roleId])
+  @@map("admin_account_roles")
+}
+
+model ActivityLog {
+  id             String       @id @default(cuid())
+  adminAccountId String       @map("admin_account_id")
+  adminAccount   AdminAccount @relation(fields: [adminAccountId], references: [id], onDelete: Cascade)
+  action         String
+  targetTable    String?      @map("target_table")
+  targetId       String?      @map("target_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("activity_logs")
+}
+
+// ─────────────────────────────────────────────
+// Super Admin — recrutement & validation enseignants
+// ─────────────────────────────────────────────
+
+model TeacherApplication {
+  id                String        @id @default(cuid())
+  candidateName     String        @map("teacher_candidate_name")
+  candidateEmail    String        @map("teacher_candidate_email")
+  subjects          String[]
+  zone              String
+  status            String        @default("preselection")
+  // preselection | entretien_planifie | entretien_realise | valide | refuse | documents_requis
+  interviewDate     DateTime?     @map("interview_date")
+  interviewNotes    String?       @map("interview_notes")
+  reviewedById      String?       @map("reviewed_by")
+  reviewedBy        AdminAccount? @relation("ReviewedApplications", fields: [reviewedById], references: [id], onDelete: SetNull)
+  decidedAt         DateTime?     @map("decided_at")
+  createdTeacherId  String?       @unique @map("created_teacher_id")
+  createdTeacher    Teacher?      @relation(fields: [createdTeacherId], references: [id], onDelete: SetNull)
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  @@map("teacher_applications")
+}
+
+// ─────────────────────────────────────────────
+// Super Admin — Leads / CRM
+// ─────────────────────────────────────────────
+
+model LeadNote {
+  id             String       @id @default(cuid())
+  leadId         String       @map("lead_id")
+  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  adminAccountId String       @map("admin_account_id")
+  adminAccount   AdminAccount @relation(fields: [adminAccountId], references: [id], onDelete: Cascade)
+  note           String
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("lead_notes")
+}
+
+// ─────────────────────────────────────────────
+// Super Admin — Gestion des élèves
+// ─────────────────────────────────────────────
+
+model StudentTeacher {
+  studentId  String   @map("student_id")
+  teacherId  String   @map("teacher_id")
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher    Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  @@id([studentId, teacherId])
+  @@map("student_teachers")
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  studentId String    @map("student_id")
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId String?   @map("teacher_id")
+  teacher   Teacher?  @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  date      DateTime
+  status    String    @default("planifiee")
+  // planifiee | confirmee | realisee | annulee | reportee
+  attended  Boolean?
+  notes     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("sessions")
+}
+
+model ProgressReport {
+  id             String       @id @default(cuid())
+  studentId      String       @map("student_id")
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  adminAccountId String       @map("admin_account_id")
+  adminAccount   AdminAccount @relation(fields: [adminAccountId], references: [id], onDelete: Cascade)
+  period         String?
+  content        String
+  shareable      Boolean      @default(false)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("progress_reports")
+}
+
+model StudentDocument {
+  id           String       @id @default(cuid())
+  studentId    String       @map("student_id")
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  uploadedById String       @map("uploaded_by")
+  uploadedBy   AdminAccount @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  type         String
+  // bulletin | compte_rendu | autre
+  fileName     String       @map("file_name")
+  filePath     String       @map("file_path")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  @@map("student_documents")
+}
+
+model StudentTeacherHistory {
+  id             String       @id @default(cuid())
+  studentId      String       @map("student_id")
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId      String       @map("teacher_id")
+  teacher        Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  action         String
+  // assigned | unassigned
+  adminAccountId String       @map("admin_account_id")
+  adminAccount   AdminAccount @relation(fields: [adminAccountId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("student_teacher_history")
+}

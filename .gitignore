@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+*.log
+.turbo/
+
+# Scaffold Vite accidentel à la racine, sans lien avec les workspaces apps/*
+/NAFOORE/
