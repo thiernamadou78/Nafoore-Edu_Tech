@@ -9,6 +9,7 @@ async function bootstrap() {
   const allowedOrigins = [
     process.env.FRONTEND_URL || 'http://localhost:5173',
     process.env.ADMIN_URL || 'http://localhost:5174',
+    process.env.FAMILLE_URL || 'http://localhost:5175',
   ];
 
   app.enableCors({

@@ -58,7 +58,7 @@ model CredentialDispatchLog {
   sentById        String?       @map("sent_by")
   sentBy          AdminAccount? @relation("CredentialDispatches", fields: [sentById], references: [id], onDelete: SetNull)
   sentAt          DateTime      @default(now()) @map("sent_at")
-  deliveryStatus  String        // envoye | echec
+  deliveryStatus  String        @map("delivery_status") // envoye | echec
   emailProviderId String?       @map("email_provider_id")
 
   @@map("credential_dispatch_logs")
@@ -69,6 +69,8 @@ model Student {
   createdAt      DateTime          @default(now()) @map("created_at")
   name           String
   level          String            // college | lycee
+  school         String?
+  address        String?
   subjects       String[]          @default([])
   objectives     String?
   isActive       Boolean           @default(true) @map("is_active")

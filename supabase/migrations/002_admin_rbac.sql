@@ -8,8 +8,12 @@
 
 -- admin_accounts.id = auth.users.id (Supabase Auth) — pas de valeur par défaut,
 -- fourni explicitement à la création (voir script de seed du premier super admin).
+-- Pas de FK Postgres vers auth.users(id) : auth.users.id est UUID alors que cette
+-- colonne est TEXT (cohérence avec Prisma `String @id`) ; incompatible pour une
+-- contrainte FK. Le lien est maintenu par convention applicative, comme pour
+-- portal_accounts (voir migration 010).
 CREATE TABLE IF NOT EXISTS admin_accounts (
-  id          TEXT PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id          TEXT PRIMARY KEY,
   email       TEXT NOT NULL UNIQUE,
   name        TEXT NOT NULL,
   is_active   BOOLEAN NOT NULL DEFAULT true,

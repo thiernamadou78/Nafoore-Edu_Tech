@@ -17,6 +17,16 @@ export class CreateStudentDto {
   level: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  school?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  address?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   subjects?: string[];

@@ -12,6 +12,7 @@ import { StudentsModule } from './students/students.module';
 import { PhotosModule } from './photos/photos.module';
 import { EmailModule } from './email/email.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { FamilyModule } from './family/family.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     PhotosModule,
     TeachersModule,
     StudentsModule,
+    FamilyModule,
   ],
 })
 export class AppModule {}

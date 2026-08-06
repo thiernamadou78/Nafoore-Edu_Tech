@@ -78,6 +78,8 @@ export class StudentsService {
       data: {
         name: dto.name,
         level: dto.level,
+        school: dto.school,
+        address: dto.address,
         subjects: dto.subjects ?? [],
         objectives: dto.objectives,
         parentLeadId: dto.parentLeadId,
