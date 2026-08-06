@@ -18,6 +18,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
+          # Nettoie les valeurs des secrets : supprime CR/LF et espaces en début/fin
+          # (fréquent quand la valeur est collée depuis un environnement Windows),
+          # sinon curl échoue avec "Malformed input to a URL function".
+          SUPABASE_URL="$(printf '%s' "$SUPABASE_URL" | tr -d '\r\n' | xargs)"
+          SUPABASE_ANON_KEY="$(printf '%s' "$SUPABASE_ANON_KEY" | tr -d '\r\n' | xargs)"
+          SUPABASE_URL="${SUPABASE_URL%/}"
+
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
             echo "::error::SUPABASE_URL et SUPABASE_ANON_KEY doivent être configurés dans les secrets du dépôt (Settings > Secrets and variables > Actions)."
             exit 1
