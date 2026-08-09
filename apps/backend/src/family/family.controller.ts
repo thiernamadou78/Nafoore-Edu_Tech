@@ -5,6 +5,8 @@ import { PortalRoles } from '../auth/portal-roles.decorator';
 import { PortalRolesGuard } from '../auth/portal-roles.guard';
 import { CreateFamilyStudentDto } from './dto/create-family-student.dto';
 import { SetFamilyNameDto } from './dto/set-family-name.dto';
+import { StartThreadDto } from './dto/start-thread.dto';
+import { SendFamilyMessageDto } from './dto/send-family-message.dto';
 import { FamilyService } from './family.service';
 
 @PortalRoles('famille')
@@ -56,5 +58,45 @@ export class FamilyController {
     @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
   ) {
     return this.familyService.getStudent(portalAccount, id);
+  }
+
+  @Get('teachers')
+  listTeachers(@CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount) {
+    return this.familyService.listMyTeachers(portalAccount);
+  }
+
+  @Get('messages')
+  listMessageThreads(@CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount) {
+    return this.familyService.listMyMessageThreads(portalAccount);
+  }
+
+  @Post('messages')
+  startThread(
+    @Body() dto: StartThreadDto,
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+  ) {
+    return this.familyService.startOrGetThread(portalAccount, dto);
+  }
+
+  @Post('messages/:threadId')
+  sendMessage(
+    @Param('threadId') threadId: string,
+    @Body() dto: SendFamilyMessageDto,
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+  ) {
+    return this.familyService.sendMessage(portalAccount, threadId, dto);
+  }
+
+  @Post('messages/:threadId/read')
+  markThreadRead(
+    @Param('threadId') threadId: string,
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+  ) {
+    return this.familyService.markThreadRead(portalAccount, threadId);
+  }
+
+  @Get('messages/unread-count')
+  getUnreadMessageCount(@CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount) {
+    return this.familyService.getUnreadMessageCount(portalAccount);
   }
 }

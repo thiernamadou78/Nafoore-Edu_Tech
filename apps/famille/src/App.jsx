@@ -8,6 +8,7 @@ import { Welcome } from './pages/Welcome'
 import { StudentsList } from './pages/StudentsList'
 import { StudentDetail } from './pages/StudentDetail'
 import { AddStudent } from './pages/AddStudent'
+import { Messagerie } from './pages/Messagerie'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
             <Route path="/" element={<StudentsList />} />
             <Route path="/eleves/nouveau" element={<AddStudent />} />
             <Route path="/eleves/:id" element={<StudentDetail />} />
+            <Route path="/messagerie" element={<Messagerie />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

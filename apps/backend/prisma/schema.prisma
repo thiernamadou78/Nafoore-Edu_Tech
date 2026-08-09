@@ -30,6 +30,7 @@ model Lead {
   notes            LeadNote[]
   portalAccount    PortalAccount?
   dispatchLogs     CredentialDispatchLog[]
+  messageThreads   MessageThread[]
 
   @@map("leads")
 }
@@ -105,8 +106,81 @@ model Teacher {
   history     StudentTeacherHistory[]
   matchings   Matching[]
   account     TeacherAccount?
+  payments    TeacherPayment[]
+  messageThreads MessageThread[]
+  reviews     TeacherReview[]
+  supportTickets SupportTicket[]
 
   @@map("teachers")
+}
+
+model TeacherPayment {
+  id         String    @id @default(cuid())
+  teacherId  String    @map("teacher_id")
+  teacher    Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  period     String
+  hoursGiven Float     @map("hours_given")
+  amount     Float
+  status     String    @default("verse") // verse | en_attente
+  paidAt     DateTime? @map("paid_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("teacher_payments")
+}
+
+model MessageThread {
+  id            String    @id @default(cuid())
+  teacherId     String    @map("teacher_id")
+  teacher       Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  leadId        String?   @map("lead_id")
+  lead          Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  familyName    String    @map("family_name")
+  teacherReadAt DateTime? @map("teacher_read_at")
+  familyReadAt  DateTime? @map("family_read_at")
+  messages      Message[]
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@map("message_threads")
+}
+
+model Message {
+  id            String        @id @default(cuid())
+  threadId      String        @map("thread_id")
+  thread        MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender        String        // teacher | famille
+  body          String
+  removedAt     DateTime?     @map("removed_at")
+  removedById   String?       @map("removed_by")
+  removedBy     AdminAccount? @relation(fields: [removedById], references: [id], onDelete: SetNull)
+  removedReason String?       @map("removed_reason")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@map("messages")
+}
+
+model TeacherReview {
+  id          String   @id @default(cuid())
+  teacherId   String   @map("teacher_id")
+  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  familyName  String   @map("family_name")
+  studentName String   @map("student_name")
+  rating      Int
+  comment     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("teacher_reviews")
+}
+
+model SupportTicket {
+  id        String   @id @default(cuid())
+  teacherId String   @map("teacher_id")
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject   String
+  message   String
+  status    String   @default("ouvert") // ouvert | traite
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("support_tickets")
 }
 
 model Testimonial {
@@ -164,6 +238,7 @@ model AdminAccount {
   proposedMatchings     Matching[]              @relation("ProposedMatchings")
   progressEntries       ProgressEntry[]
   teacherCredentialDispatches TeacherCredentialDispatchLog[] @relation("TeacherCredentialDispatches")
+  moderatedMessages     Message[]
 
   @@map("admin_accounts")
 }

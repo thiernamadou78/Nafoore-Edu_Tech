@@ -4,6 +4,9 @@ import { PhotosService } from '../photos/photos.service';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
 import { CreateFamilyStudentDto } from './dto/create-family-student.dto';
 import { SetFamilyNameDto } from './dto/set-family-name.dto';
+import { StartThreadDto } from './dto/start-thread.dto';
+import { SendFamilyMessageDto } from './dto/send-family-message.dto';
+import { redactRemovedMessage, countUnread } from '../common/redact-message.util';
 
 const teacherSelect = {
   teacher: { select: { id: true, name: true, subjects: true } },
@@ -217,5 +220,95 @@ export class FamilyService {
     }));
 
     return { ...rest, teacherRequests, photoUrl };
+  }
+
+  async listMyTeachers(portalAccount: AuthenticatedPortalAccount) {
+    const links = await this.prisma.studentTeacher.findMany({
+      where: { student: { parentLeadId: portalAccount.leadId } },
+      select: { teacher: { select: { id: true, name: true } } },
+    });
+    const distinct = new Map(links.map((l) => [l.teacher.id, l.teacher]));
+    return [...distinct.values()];
+  }
+
+  async listMyMessageThreads(portalAccount: AuthenticatedPortalAccount) {
+    const threads = await this.prisma.messageThread.findMany({
+      where: { leadId: portalAccount.leadId },
+      include: {
+        messages: { orderBy: { createdAt: 'asc' } },
+        teacher: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return threads.map(({ messages, teacher, ...thread }) => ({
+      ...thread,
+      teacherName: teacher.name,
+      messages: messages.map((m) => redactRemovedMessage(m)),
+      unreadCount: countUnread(messages, 'famille', thread.familyReadAt),
+    }));
+  }
+
+  async startOrGetThread(portalAccount: AuthenticatedPortalAccount, dto: StartThreadDto) {
+    const owns = await this.prisma.studentTeacher.findFirst({
+      where: { teacherId: dto.teacherId, student: { parentLeadId: portalAccount.leadId } },
+    });
+    if (!owns) {
+      throw new NotFoundException('Enseignant introuvable');
+    }
+
+    const existing = await this.prisma.messageThread.findFirst({
+      where: { teacherId: dto.teacherId, leadId: portalAccount.leadId },
+    });
+    if (existing) return existing;
+
+    return this.prisma.messageThread.create({
+      data: {
+        teacherId: dto.teacherId,
+        leadId: portalAccount.leadId,
+        familyName: portalAccount.familyName ?? 'Famille',
+      },
+    });
+  }
+
+  async sendMessage(
+    portalAccount: AuthenticatedPortalAccount,
+    threadId: string,
+    dto: SendFamilyMessageDto,
+  ) {
+    const thread = await this.prisma.messageThread.findUnique({ where: { id: threadId } });
+    if (!thread || thread.leadId !== portalAccount.leadId) {
+      throw new NotFoundException('Conversation introuvable');
+    }
+    return this.prisma.message.create({
+      data: { threadId, sender: 'famille', body: dto.body },
+    });
+  }
+
+  async markThreadRead(portalAccount: AuthenticatedPortalAccount, threadId: string) {
+    const thread = await this.prisma.messageThread.findUnique({ where: { id: threadId } });
+    if (!thread || thread.leadId !== portalAccount.leadId) {
+      throw new NotFoundException('Conversation introuvable');
+    }
+    await this.prisma.messageThread.update({
+      where: { id: threadId },
+      data: { familyReadAt: new Date() },
+    });
+    return { familyReadAt: new Date().toISOString() };
+  }
+
+  async getUnreadMessageCount(portalAccount: AuthenticatedPortalAccount) {
+    const threads = await this.prisma.messageThread.findMany({
+      where: { leadId: portalAccount.leadId },
+      select: {
+        familyReadAt: true,
+        messages: { select: { sender: true, createdAt: true, removedAt: true } },
+      },
+    });
+    const count = threads.reduce(
+      (sum, t) => sum + countUnread(t.messages, 'famille', t.familyReadAt),
+      0,
+    );
+    return { count };
   }
 }

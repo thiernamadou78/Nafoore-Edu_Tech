@@ -16,6 +16,7 @@ import { FamilyModule } from './family/family.module';
 import { TeacherRequestsModule } from './teacher-requests/teacher-requests.module';
 import { TeacherApplicationsPublicModule } from './teacher-applications-public/teacher-applications-public.module';
 import { TeacherModule } from './teacher/teacher.module';
+import { AdminMessagingModule } from './admin-messaging/admin-messaging.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { TeacherModule } from './teacher/teacher.module';
     FamilyModule,
     TeacherRequestsModule,
     TeacherModule,
+    AdminMessagingModule,
   ],
 })
 export class AppModule {}

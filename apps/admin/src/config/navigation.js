@@ -3,6 +3,8 @@ import {
   GraduationCap,
   Inbox,
   LayoutDashboard,
+  LifeBuoy,
+  MessageSquare,
   ShieldCheck,
   UserPlus,
   Users,
@@ -24,6 +26,18 @@ export const NAV_ITEMS = [
     path: '/recrutement',
     roles: ['super_admin', 'admin', 'recruiter'],
     icon: GraduationCap,
+  },
+  {
+    label: 'Conversations',
+    path: '/conversations',
+    roles: ['super_admin', 'admin'],
+    icon: MessageSquare,
+  },
+  {
+    label: 'Support',
+    path: '/support-tickets',
+    roles: ['super_admin', 'admin'],
+    icon: LifeBuoy,
   },
   { label: 'Comptes admin', path: '/comptes', roles: ['super_admin'], icon: ShieldCheck },
 ]
