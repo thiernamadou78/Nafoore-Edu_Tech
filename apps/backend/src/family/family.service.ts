@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PhotosService } from '../photos/photos.service';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
+import { CreateFamilyStudentDto } from './dto/create-family-student.dto';
+import { SetFamilyNameDto } from './dto/set-family-name.dto';
 
 const teacherSelect = {
   teacher: { select: { id: true, name: true, subjects: true } },
@@ -19,6 +21,7 @@ export class FamilyService {
       id: portalAccount.id,
       email: portalAccount.email,
       fullName: portalAccount.fullName,
+      familyName: portalAccount.familyName,
       role: portalAccount.role,
       mustChangePassword: portalAccount.mustChangePassword,
       status: portalAccount.status,
@@ -32,6 +35,26 @@ export class FamilyService {
     });
   }
 
+  async setFamilyName(portalAccountId: string, dto: SetFamilyNameDto) {
+    await this.prisma.portalAccount.update({
+      where: { id: portalAccountId },
+      data: { familyName: dto.familyName },
+    });
+  }
+
+  createStudent(portalAccount: AuthenticatedPortalAccount, dto: CreateFamilyStudentDto) {
+    return this.prisma.student.create({
+      data: {
+        name: dto.name,
+        level: dto.level,
+        school: dto.school,
+        address: dto.address,
+        subjects: dto.subjects ?? [],
+        parentLeadId: portalAccount.leadId,
+      },
+    });
+  }
+
   async listMyStudents(portalAccount: AuthenticatedPortalAccount) {
     const students = await this.prisma.student.findMany({
       where: { parentLeadId: portalAccount.leadId },
@@ -41,6 +64,27 @@ export class FamilyService {
         level: true,
         school: true,
         photoPath: true,
+        teacherRequests: {
+          where: { status: { in: ['en_attente', 'proposition_envoyee'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { status: true },
+        },
+        sessions: {
+          where: { date: { gte: new Date() }, status: { not: 'annulee' } },
+          orderBy: { date: 'asc' },
+          take: 1,
+          select: {
+            date: true,
+            subject: true,
+            teacher: { select: { name: true } },
+          },
+        },
+        teachers: {
+          take: 1,
+          orderBy: { assignedAt: 'desc' },
+          select: { teacher: { select: { name: true } } },
+        },
       },
       orderBy: { name: 'asc' },
     });
@@ -48,12 +92,24 @@ export class FamilyService {
     const photoUrls = await this.photos.signUrls(
       students.map((s) => s.photoPath),
     );
-    return students.map((student) => ({
-      ...student,
-      photoUrl: student.photoPath
-        ? (photoUrls.get(student.photoPath) ?? null)
-        : null,
-    }));
+    return students.map(({ teacherRequests, sessions, teachers, ...student }) => {
+      const nextSession = sessions[0]
+        ? {
+            date: sessions[0].date,
+            subject: sessions[0].subject,
+            teacherName: sessions[0].teacher?.name ?? null,
+          }
+        : null;
+      return {
+        ...student,
+        pendingRequestStatus: teacherRequests[0]?.status ?? null,
+        nextSession,
+        teacherName: nextSession?.teacherName ?? teachers[0]?.teacher.name ?? null,
+        photoUrl: student.photoPath
+          ? (photoUrls.get(student.photoPath) ?? null)
+          : null,
+      };
+    });
   }
 
   async getStudent(portalAccount: AuthenticatedPortalAccount, id: string) {
@@ -72,7 +128,9 @@ export class FamilyService {
           select: {
             id: true,
             date: true,
+            subject: true,
             status: true,
+            attended: true,
             teacher: { select: { id: true, name: true } },
           },
           orderBy: { date: 'desc' },
@@ -87,6 +145,45 @@ export class FamilyService {
           },
           orderBy: { createdAt: 'desc' },
         },
+        progressEntries: {
+          orderBy: { subject: 'asc' },
+          select: { id: true, subject: true, status: true },
+        },
+        teacherRequests: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            subject: true,
+            frequency: true,
+            format: true,
+            availability: true,
+            status: true,
+            createdAt: true,
+            matchings: {
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                respondedAt: true,
+                refusalReason: true,
+                // Mini-profil enseignant : jamais email/phone/application/
+                // history/students/sessions (contact direct + données internes).
+                teacher: {
+                  select: {
+                    id: true,
+                    name: true,
+                    subjects: true,
+                    bio: true,
+                    zone: true,
+                    verified: true,
+                    photoPath: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -98,6 +195,27 @@ export class FamilyService {
 
     const { photoPath, parentLeadId, ...rest } = student;
     const photoUrl = await this.photos.signUrl(photoPath);
-    return { ...rest, photoUrl };
+
+    const teacherPhotoPaths = rest.teacherRequests.flatMap((request) =>
+      request.matchings.map((matching) => matching.teacher.photoPath),
+    );
+    const teacherPhotoUrls = await this.photos.signUrls(teacherPhotoPaths);
+    const teacherRequests = rest.teacherRequests.map((request) => ({
+      ...request,
+      matchings: request.matchings.map((matching) => {
+        const { photoPath: teacherPhotoPath, ...teacherRest } = matching.teacher;
+        return {
+          ...matching,
+          teacher: {
+            ...teacherRest,
+            photoUrl: teacherPhotoPath
+              ? (teacherPhotoUrls.get(teacherPhotoPath) ?? null)
+              : null,
+          },
+        };
+      }),
+    }));
+
+    return { ...rest, teacherRequests, photoUrl };
   }
 }

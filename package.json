@@ -6,16 +6,19 @@
     "apps/frontend",
     "apps/backend",
     "apps/admin",
-    "apps/famille"
+    "apps/famille",
+    "apps/enseignant"
   ],
   "scripts": {
     "dev:frontend": "npm run dev --workspace=apps/frontend",
     "dev:backend": "npm run start:dev --workspace=apps/backend",
     "dev:admin": "npm run dev --workspace=apps/admin",
     "dev:famille": "npm run dev --workspace=apps/famille",
+    "dev:enseignant": "npm run dev --workspace=apps/enseignant",
     "build:frontend": "npm run build --workspace=apps/frontend",
     "build:backend": "npm run build --workspace=apps/backend",
     "build:admin": "npm run build --workspace=apps/admin",
-    "build:famille": "npm run build --workspace=apps/famille"
+    "build:famille": "npm run build --workspace=apps/famille",
+    "build:enseignant": "npm run build --workspace=apps/enseignant"
   }
 }

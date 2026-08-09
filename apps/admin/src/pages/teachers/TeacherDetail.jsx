@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Power, Save } from 'lucide-react'
+import { ArrowLeft, CalendarClock, Power, Save } from 'lucide-react'
 import { api } from '../../lib/api'
+import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { EmptyState } from '../../components/ui/EmptyState'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
+import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from '../students/labels'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -49,15 +52,11 @@ export function TeacherDetail() {
   }
 
   if (!teacher) {
-    return error ? (
-      <p className="text-red-600">{error}</p>
-    ) : (
-      <p className="text-gray-500">Chargement…</p>
-    )
+    return error ? <Alert>{error}</Alert> : <p className="text-gray-500">Chargement…</p>
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <Link
         to="/enseignants"
         className="mb-2 inline-flex items-center gap-1 text-sm text-navy hover:underline"
@@ -73,7 +72,7 @@ export function TeacherDetail() {
         </Badge>
       </div>
 
-      {error && <p className="mb-4 text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       <Card className="mb-6 p-6">
         <PhotoUploader
@@ -175,6 +174,56 @@ export function TeacherDetail() {
             {teacher.verified ? 'Désactiver' : 'Activer'}
           </Button>
         </div>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <h2 className="flex items-center gap-2 p-6 pb-3 font-semibold text-gray-900">
+          <CalendarClock size={16} className="text-navy" />
+          Séances
+        </h2>
+        {teacher.sessions.length === 0 ? (
+          <EmptyState
+            icon={CalendarClock}
+            title="Aucune séance"
+            description="Les séances planifiées, réalisées ou annulées par cet enseignant apparaîtront ici."
+          />
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+              <tr>
+                <th className="px-4 py-3 font-medium">Élève</th>
+                <th className="px-4 py-3 font-medium">Famille</th>
+                <th className="px-4 py-3 font-medium">Matière</th>
+                <th className="px-4 py-3 font-medium">Date et heure</th>
+                <th className="px-4 py-3 font-medium">Statut</th>
+                <th className="px-4 py-3 font-medium">Motif d'annulation</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {teacher.sessions.map((session) => (
+                <tr key={session.id}>
+                  <td className="px-4 py-3 font-medium text-gray-900">{session.studentName}</td>
+                  <td className="px-4 py-3 text-gray-700">{session.familyName}</td>
+                  <td className="px-4 py-3 text-gray-700">{session.subject ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {new Date(session.date).toLocaleString('fr-FR', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge tone={SESSION_STATUS_TONES[session.status]}>
+                      {SESSION_STATUS_LABELS[session.status] ?? session.status}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {session.status === 'annulee' ? (session.cancellationReason ?? '—') : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Card>
     </div>
   )

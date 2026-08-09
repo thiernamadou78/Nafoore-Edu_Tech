@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { api } from '../lib/api'
+import { translateAuthError } from '../lib/authErrors'
 
 const AuthContext = createContext(null)
 
@@ -51,13 +52,15 @@ export function AuthProvider({ children }) {
 
   const signIn = async (email, password) => {
     setError(null)
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    if (signInError) {
-      setError(signInError.message)
-      throw signInError
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (signInError) throw signInError
+    } catch (err) {
+      setError(translateAuthError(err))
+      throw err
     }
   }
 
@@ -70,9 +73,23 @@ export function AuthProvider({ children }) {
     await loadPortalAccount()
   }
 
+  const completeFamilyName = async (familyName) => {
+    await api.patch('/family/me/family-name', { familyName })
+    await loadPortalAccount()
+  }
+
   return (
     <AuthContext.Provider
-      value={{ session, portalAccount, loading, error, signIn, signOut, completePasswordChange }}
+      value={{
+        session,
+        portalAccount,
+        loading,
+        error,
+        signIn,
+        signOut,
+        completePasswordChange,
+        completeFamilyName,
+      }}
     >
       {children}
     </AuthContext.Provider>

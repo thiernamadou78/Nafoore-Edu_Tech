@@ -5,6 +5,7 @@ import { api } from '../../lib/api'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
+import { Alert } from '../../components/ui/Alert'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 
@@ -161,7 +162,7 @@ export function TeachersList() {
         </div>
       </div>
 
-      {error && <p className="mb-4 text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       <Card className="overflow-hidden">
         {loading ? (

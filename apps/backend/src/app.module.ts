@@ -13,6 +13,9 @@ import { PhotosModule } from './photos/photos.module';
 import { EmailModule } from './email/email.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { FamilyModule } from './family/family.module';
+import { TeacherRequestsModule } from './teacher-requests/teacher-requests.module';
+import { TeacherApplicationsPublicModule } from './teacher-applications-public/teacher-applications-public.module';
+import { TeacherModule } from './teacher/teacher.module';
 
 @Module({
   imports: [
@@ -24,12 +27,15 @@ import { FamilyModule } from './family/family.module';
     OnboardingModule,
     AdminAccountsModule,
     TeacherApplicationsModule,
+    TeacherApplicationsPublicModule,
     LeadsModule,
     DashboardModule,
     PhotosModule,
     TeachersModule,
     StudentsModule,
     FamilyModule,
+    TeacherRequestsModule,
+    TeacherModule,
   ],
 })
 export class AppModule {}

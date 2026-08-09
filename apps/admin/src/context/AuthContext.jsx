@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { authClient } from '../lib/authAdapter'
 import { api } from '../lib/api'
+import { translateAuthError } from '../lib/authErrors'
 
 const AuthContext = createContext(null)
 
@@ -51,13 +52,15 @@ export function AuthProvider({ children }) {
 
   const signIn = async (email, password) => {
     setError(null)
-    const { error: signInError } = await authClient.auth.signInWithPassword({
-      email,
-      password,
-    })
-    if (signInError) {
-      setError(signInError.message)
-      throw signInError
+    try {
+      const { error: signInError } = await authClient.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (signInError) throw signInError
+    } catch (err) {
+      setError(translateAuthError(err))
+      throw err
     }
   }
 

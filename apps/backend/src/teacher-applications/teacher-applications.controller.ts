@@ -14,11 +14,13 @@ import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { TeacherOnboardingService } from '../onboarding/teacher-onboarding.service';
 import { CreateTeacherApplicationDto } from './dto/create-teacher-application.dto';
 import { DecisionDto } from './dto/decision.dto';
 import { ListTeacherApplicationsQueryDto } from './dto/list-teacher-applications-query.dto';
 import { ScheduleInterviewDto } from './dto/schedule-interview.dto';
 import { UpdateNotesDto } from './dto/update-notes.dto';
+import { TeacherApplicationDocumentsService } from './teacher-application-documents.service';
 import { TeacherApplicationsService } from './teacher-applications.service';
 
 const RECRUITMENT_ROLES = ['super_admin', 'admin', 'recruiter'];
@@ -29,6 +31,8 @@ const RECRUITMENT_ROLES = ['super_admin', 'admin', 'recruiter'];
 export class TeacherApplicationsController {
   constructor(
     private readonly teacherApplicationsService: TeacherApplicationsService,
+    private readonly teacherApplicationDocumentsService: TeacherApplicationDocumentsService,
+    private readonly teacherOnboardingService: TeacherOnboardingService,
   ) {}
 
   @Get()
@@ -80,5 +84,32 @@ export class TeacherApplicationsController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
     return this.teacherApplicationsService.decide(id, dto.status, admin.id);
+  }
+
+  // Restriction volontaire : super_admin/recruiter uniquement, PAS 'admin'
+  // générique — documents sensibles (diplômes, casier judiciaire).
+  @Roles('super_admin', 'recruiter')
+  @Get(':id/documents/:documentId/download')
+  downloadDocument(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.teacherApplicationDocumentsService.getDownloadUrl(id, documentId);
+  }
+
+  @Post(':id/create-account')
+  createAccount(
+    @Param('id') id: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.teacherOnboardingService.createAccount(id, admin.id);
+  }
+
+  @Post(':id/resend-credentials')
+  resendCredentials(
+    @Param('id') id: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.teacherOnboardingService.resendCredentials(id, admin.id);
   }
 }

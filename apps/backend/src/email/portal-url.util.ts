@@ -3,6 +3,7 @@ const PORTAL_URL_ENV: Record<string, string> = {
   mairie: 'MAIRIE_PORTAL_URL',
   entreprise: 'ENTREPRISE_PORTAL_URL',
   centre_formation_ecole_pro: 'ECOLE_PORTAL_URL',
+  teacher: 'ENSEIGNANT_URL',
 };
 
 export function resolvePortalUrl(role: string): string {

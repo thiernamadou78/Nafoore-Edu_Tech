@@ -1,12 +1,13 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { Spinner } from './ui/Spinner'
 
 export function ProtectedRoute() {
   const { session, portalAccount, loading } = useAuth()
   const location = useLocation()
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Chargement…</div>
+    return <Spinner />
   }
 
   if (!session || !portalAccount) {
@@ -15,6 +16,14 @@ export function ProtectedRoute() {
 
   if (portalAccount.mustChangePassword && location.pathname !== '/changer-mot-de-passe') {
     return <Navigate to="/changer-mot-de-passe" replace />
+  }
+
+  if (
+    !portalAccount.mustChangePassword &&
+    !portalAccount.familyName &&
+    location.pathname !== '/bienvenue'
+  ) {
+    return <Navigate to="/bienvenue" replace />
   }
 
   return <Outlet />

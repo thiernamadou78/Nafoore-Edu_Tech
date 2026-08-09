@@ -30,6 +30,11 @@ const ROLE_COPY: Record<
     intro:
       'Vous pourrez y configurer vos modules et vos demandes de cours.',
   },
+  teacher: {
+    portalLabel: 'espace enseignant',
+    intro:
+      'Vous pourrez y consulter vos élèves, votre planning et vos comptes-rendus de séance.',
+  },
 };
 
 function copyFor(role: string) {

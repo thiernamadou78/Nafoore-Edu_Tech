@@ -17,6 +17,11 @@ export class CreateSessionDto {
   teacherId?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  subject?: string;
+
+  @IsOptional()
   @IsIn(SESSION_STATUSES)
   status?: string;
 

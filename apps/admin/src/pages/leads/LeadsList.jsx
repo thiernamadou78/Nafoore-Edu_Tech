@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Inbox, Search } from 'lucide-react'
 import { api } from '../../lib/api'
+import { Alert } from '../../components/ui/Alert'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
@@ -104,7 +105,7 @@ export function LeadsList() {
         </div>
       </div>
 
-      {error && <p className="mb-4 text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       <Card className="overflow-hidden">
         {loading ? (

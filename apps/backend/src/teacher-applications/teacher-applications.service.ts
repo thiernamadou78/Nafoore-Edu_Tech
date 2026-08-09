@@ -30,7 +30,11 @@ export class TeacherApplicationsService {
   async findOne(id: string) {
     const application = await this.prisma.teacherApplication.findUnique({
       where: { id },
-      include: { reviewedBy: { select: { id: true, name: true } } },
+      include: {
+        reviewedBy: { select: { id: true, name: true } },
+        documents: { orderBy: { createdAt: 'desc' } },
+        teacherAccount: { select: { id: true, status: true, mustChangePassword: true } },
+      },
     });
     if (!application) {
       throw new NotFoundException('Candidature introuvable');

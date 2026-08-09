@@ -64,6 +64,9 @@ export class StudentsService {
           },
           orderBy: { createdAt: 'desc' },
         },
+        progressEntries: {
+          orderBy: { subject: 'asc' },
+        },
       },
     });
     if (!student) {
@@ -153,6 +156,27 @@ export class StudentsService {
     return this.prisma.student.findUniqueOrThrow({
       where: { id },
       include: { teachers: { select: teacherSelect } },
+    });
+  }
+
+  // Assignation additive et idempotente, distincte de assignTeachers (full-replace
+  // admin) — utilisée par le flux de matching famille pour ne pas toucher aux
+  // autres enseignants déjà assignés à l'élève.
+  async addTeacherAssignment(
+    studentId: string,
+    teacherId: string,
+    actorId: string,
+    subject: string | null = null,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const existing = await tx.studentTeacher.findFirst({
+      where: { studentId, teacherId, subject },
+    });
+    if (existing) return;
+
+    await tx.studentTeacher.create({ data: { studentId, teacherId, subject } });
+    await tx.studentTeacherHistory.create({
+      data: { studentId, teacherId, action: 'assigned', adminAccountId: actorId },
     });
   }
 

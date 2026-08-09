@@ -1,8 +1,10 @@
-import { Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentPortalAccount } from '../auth/current-portal-account.decorator';
 import { AuthenticatedPortalAccount, PortalAuthGuard } from '../auth/portal-auth.guard';
 import { PortalRoles } from '../auth/portal-roles.decorator';
 import { PortalRolesGuard } from '../auth/portal-roles.guard';
+import { CreateFamilyStudentDto } from './dto/create-family-student.dto';
+import { SetFamilyNameDto } from './dto/set-family-name.dto';
 import { FamilyService } from './family.service';
 
 @PortalRoles('famille')
@@ -24,11 +26,28 @@ export class FamilyController {
     return { mustChangePassword: false };
   }
 
+  @Patch('me/family-name')
+  async setFamilyName(
+    @Body() dto: SetFamilyNameDto,
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+  ) {
+    await this.familyService.setFamilyName(portalAccount.id, dto);
+    return { familyName: dto.familyName };
+  }
+
   @Get('students')
   listStudents(
     @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
   ) {
     return this.familyService.listMyStudents(portalAccount);
+  }
+
+  @Post('students')
+  createStudent(
+    @Body() dto: CreateFamilyStudentDto,
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+  ) {
+    return this.familyService.createStudent(portalAccount, dto);
   }
 
   @Get('students/:id')

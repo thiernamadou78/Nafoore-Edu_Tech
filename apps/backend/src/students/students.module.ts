@@ -7,6 +7,8 @@ import { StudentProgressReportsController } from './student-progress-reports.con
 import { StudentProgressReportsService } from './student-progress-reports.service';
 import { StudentDocumentsController } from './student-documents.controller';
 import { StudentDocumentsService } from './student-documents.service';
+import { StudentProgressEntriesController } from './student-progress-entries.controller';
+import { StudentProgressEntriesService } from './student-progress-entries.service';
 
 @Module({
   controllers: [
@@ -14,12 +16,15 @@ import { StudentDocumentsService } from './student-documents.service';
     StudentSessionsController,
     StudentProgressReportsController,
     StudentDocumentsController,
+    StudentProgressEntriesController,
   ],
   providers: [
     StudentsService,
     StudentSessionsService,
     StudentProgressReportsService,
     StudentDocumentsService,
+    StudentProgressEntriesService,
   ],
+  exports: [StudentsService],
 })
 export class StudentsModule {}

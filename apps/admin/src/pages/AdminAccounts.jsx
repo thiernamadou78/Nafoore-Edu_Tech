@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, Search, ShieldCheck, UserCheck, UserX } from 'lucide-react'
 import { api } from '../lib/api'
+import { Alert } from '../components/ui/Alert'
 import { Avatar } from '../components/ui/Avatar'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -89,7 +90,7 @@ export function AdminAccounts() {
         <span className="text-sm text-gray-400">{accounts.length}</span>
       </div>
 
-      {error && <p className="mb-4 text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       <Card className="mb-6 p-6">
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">

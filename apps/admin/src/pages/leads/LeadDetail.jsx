@@ -10,6 +10,7 @@ import {
   UserCheck,
 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -64,11 +65,7 @@ export function LeadDetail() {
   }
 
   if (!lead) {
-    return error ? (
-      <p className="text-red-600">{error}</p>
-    ) : (
-      <p className="text-gray-500">Chargement…</p>
-    )
+    return error ? <Alert>{error}</Alert> : <p className="text-gray-500">Chargement…</p>
   }
 
   return (
@@ -97,7 +94,7 @@ export function LeadDetail() {
         <p className="whitespace-pre-wrap text-sm text-gray-700">{lead.message}</p>
       </Card>
 
-      {error && <p className="mb-4 text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       <div className="mb-6 flex flex-wrap gap-4">
         <Card className="min-w-[220px] flex-1 p-6">

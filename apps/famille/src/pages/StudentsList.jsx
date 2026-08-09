@@ -1,28 +1,100 @@
-import { useEffect, useState } from 'react'
 import { Navigate, Link } from 'react-router-dom'
-import { GraduationCap } from 'lucide-react'
-import { api } from '../lib/api'
+import { CalendarClock, GraduationCap, UserPlus, Users } from 'lucide-react'
+import { useStudents } from '../context/StudentsContext'
+import { Badge } from '../components/ui/Badge'
+import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { EmptyState } from '../components/ui/EmptyState'
-import { LEVEL_LABELS } from './labels'
+import { Spinner } from '../components/ui/Spinner'
+import { CHILD_STATUS_LABELS, CHILD_STATUS_TONES } from './labels'
+
+const BORDER_BY_STATUS = {
+  actif: 'border-l-leaf-500',
+  en_attente: 'border-l-amberStrong-500',
+}
+
+function getInitials(name) {
+  const parts = name.trim().split(/\s+/)
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('')
+}
+
+function ChildCard({ student }) {
+  const status = student.pendingRequestStatus ? 'en_attente' : 'actif'
+
+  return (
+    <Card className={`flex flex-col border-l-[3px] ${BORDER_BY_STATUS[status]}`}>
+      <div className="flex items-center gap-3 p-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy font-medium text-gold-400">
+          {student.photoUrl ? (
+            <img src={student.photoUrl} alt={student.name} className="h-full w-full object-cover" />
+          ) : (
+            getInitials(student.name)
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-serif text-base font-medium text-gray-900">{student.name}</p>
+          {student.school && <p className="truncate text-xs text-gray-500">{student.school}</p>}
+        </div>
+        <Badge tone={CHILD_STATUS_TONES[status]}>{CHILD_STATUS_LABELS[status]}</Badge>
+      </div>
+
+      <div className="border-t border-gray-100" />
+
+      <div className="flex-1 space-y-2 p-4 text-sm">
+        {status === 'actif' ? (
+          <>
+            <div className="flex items-center gap-2 text-gray-700">
+              <CalendarClock size={15} className="shrink-0 text-gray-400" />
+              {student.nextSession ? (
+                <span>
+                  {new Date(student.nextSession.date).toLocaleString('fr-FR', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                </span>
+              ) : (
+                <span className="text-gray-500">Aucune séance planifiée</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-gray-700">
+              <Users size={15} className="shrink-0 text-gray-400" />
+              {student.teacherName ? (
+                <span>{student.teacherName}</span>
+              ) : (
+                <span className="text-gray-500">Aucun enseignant assigné</span>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="text-gray-600">
+            En attente de matching. Un professeur va être proposé sous peu.
+          </p>
+        )}
+      </div>
+
+      <div className="p-4 pt-0">
+        <Link to={`/eleves/${student.id}`} className="block">
+          <Button variant="secondary" className="w-full">
+            {status === 'actif' ? 'Voir le suivi' : 'Voir ma demande'}
+          </Button>
+        </Link>
+      </div>
+    </Card>
+  )
+}
 
 export function StudentsList() {
-  const [students, setStudents] = useState(null)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    api
-      .get('/family/students')
-      .then(setStudents)
-      .catch((err) => setError(err.message))
-  }, [])
+  const { students, error } = useStudents()
 
   if (error) {
     return <p className="text-red-600">{error}</p>
   }
 
   if (!students) {
-    return <p className="text-gray-500">Chargement…</p>
+    return <Spinner />
   }
 
   if (students.length === 0) {
@@ -31,8 +103,13 @@ export function StudentsList() {
         <EmptyState
           icon={GraduationCap}
           title="Aucun enfant associé à ton compte pour l'instant"
-          description="Contacte l'équipe Nafoore si tu penses qu'il s'agit d'une erreur."
+          description="Ajoute le profil de ton enfant pour commencer."
         />
+        <div className="mt-4 flex justify-center">
+          <Link to="/eleves/nouveau">
+            <Button icon={UserPlus}>Ajouter un enfant</Button>
+          </Link>
+        </div>
       </Card>
     )
   }
@@ -43,27 +120,17 @@ export function StudentsList() {
 
   return (
     <div>
-      <h1 className="mb-6 font-serif text-2xl font-bold text-navy">Tes enfants</h1>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="font-serif text-2xl font-bold text-navy">Mes enfants</h1>
+        <Link to="/eleves/nouveau">
+          <Button variant="secondary" icon={UserPlus}>
+            Ajouter un enfant
+          </Button>
+        </Link>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
         {students.map((student) => (
-          <Link key={student.id} to={`/eleves/${student.id}`}>
-            <Card className="flex items-center gap-4 p-5 transition-shadow hover:shadow-md">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy/10 text-navy">
-                {student.photoUrl ? (
-                  <img src={student.photoUrl} alt={student.name} className="h-full w-full object-cover" />
-                ) : (
-                  <GraduationCap size={20} />
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-gray-900">{student.name}</p>
-                <p className="truncate text-sm text-gray-500">
-                  {LEVEL_LABELS[student.level] ?? student.level}
-                  {student.school ? ` · ${student.school}` : ''}
-                </p>
-              </div>
-            </Card>
-          </Link>
+          <ChildCard key={student.id} student={student} />
         ))}
       </div>
     </div>

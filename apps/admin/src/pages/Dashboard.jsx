@@ -10,6 +10,7 @@ import {
   Users,
 } from 'lucide-react'
 import { api } from '../lib/api'
+import { Alert } from '../components/ui/Alert'
 import { Badge } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
 import { PROFILE_LABELS } from './leads/statusLabels'
@@ -53,7 +54,7 @@ export function Dashboard() {
       .catch((err) => setError(err.message))
   }, [])
 
-  if (error) return <p className="text-red-600">{error}</p>
+  if (error) return <Alert>{error}</Alert>
   if (!summary) return <p className="text-gray-500">Chargement…</p>
 
   const profileEntries = Object.entries(summary.studentsByProfile).filter(

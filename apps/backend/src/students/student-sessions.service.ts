@@ -23,6 +23,7 @@ export class StudentSessionsService {
         studentId,
         teacherId: dto.teacherId,
         date: new Date(dto.date),
+        subject: dto.subject,
         status: dto.status ?? 'planifiee',
         notes: dto.notes,
       },

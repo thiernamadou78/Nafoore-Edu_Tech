@@ -6,14 +6,14 @@ import {
 } from '@nestjs/common';
 import { PortalAccount } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { SupabaseAdminService } from './supabase-admin.service';
+import { SupabaseJwtService } from './supabase-jwt.service';
 
 export type AuthenticatedPortalAccount = PortalAccount;
 
 @Injectable()
 export class PortalAuthGuard implements CanActivate {
   constructor(
-    private readonly supabaseAdmin: SupabaseAdminService,
+    private readonly supabaseJwt: SupabaseJwtService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -28,15 +28,10 @@ export class PortalAuthGuard implements CanActivate {
       throw new UnauthorizedException('Token manquant');
     }
 
-    const { data, error } = await this.supabaseAdmin.client.auth.getUser(
-      token,
-    );
-    if (error || !data.user) {
-      throw new UnauthorizedException('Token invalide');
-    }
+    const user = await this.supabaseJwt.verify(token);
 
     const portalAccount = await this.prisma.portalAccount.findUnique({
-      where: { id: data.user.id },
+      where: { id: user.id },
     });
 
     if (!portalAccount || portalAccount.status === 'suspendu') {

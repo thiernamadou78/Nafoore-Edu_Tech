@@ -38,6 +38,7 @@ model PortalAccount {
   id                 String                  @id // = auth.users.id (Supabase Auth), jamais généré par Prisma
   email              String                  @unique
   fullName           String                  @map("full_name")
+  familyName         String?                 @map("family_name")
   role               String                  // famille | mairie | entreprise | centre_formation_ecole_pro
   mustChangePassword Boolean                 @default(true) @map("must_change_password")
   status             String                  @default("invite") // invite | actif | suspendu
@@ -82,6 +83,8 @@ model Student {
   progressReports ProgressReport[]
   documents      StudentDocument[]
   teacherHistory StudentTeacherHistory[]
+  teacherRequests TeacherRequest[]
+  progressEntries ProgressEntry[]
 
   @@map("students")
 }
@@ -100,6 +103,8 @@ model Teacher {
   students    StudentTeacher[]
   sessions    Session[]
   history     StudentTeacherHistory[]
+  matchings   Matching[]
+  account     TeacherAccount?
 
   @@map("teachers")
 }
@@ -156,6 +161,9 @@ model AdminAccount {
   progressReports       ProgressReport[]
   uploadedDocuments     StudentDocument[]
   teacherHistoryEntries StudentTeacherHistory[]
+  proposedMatchings     Matching[]              @relation("ProposedMatchings")
+  progressEntries       ProgressEntry[]
+  teacherCredentialDispatches TeacherCredentialDispatchLog[] @relation("TeacherCredentialDispatches")
 
   @@map("admin_accounts")
 }
@@ -198,8 +206,12 @@ model TeacherApplication {
   id                String        @id @default(cuid())
   candidateName     String        @map("teacher_candidate_name")
   candidateEmail    String        @map("teacher_candidate_email")
+  phone             String?
   subjects          String[]
+  levels            String[]      @default([])
+  // college | lycee
   zone              String
+  availability      String?
   status            String        @default("preselection")
   // preselection | entretien_planifie | entretien_realise | valide | refuse | documents_requis
   interviewDate     DateTime?     @map("interview_date")
@@ -210,8 +222,53 @@ model TeacherApplication {
   createdTeacherId  String?       @unique @map("created_teacher_id")
   createdTeacher    Teacher?      @relation(fields: [createdTeacherId], references: [id], onDelete: SetNull)
   createdAt         DateTime      @default(now()) @map("created_at")
+  documents         TeacherApplicationDocument[]
+  teacherAccount    TeacherAccount?
 
   @@map("teacher_applications")
+}
+
+model TeacherApplicationDocument {
+  id                   String             @id @default(cuid())
+  teacherApplicationId String             @map("teacher_application_id")
+  teacherApplication   TeacherApplication @relation(fields: [teacherApplicationId], references: [id], onDelete: Cascade)
+  type                 String
+  // diplome | casier_judiciaire | autre
+  fileName             String             @map("file_name")
+  filePath             String             @map("file_path")
+  createdAt            DateTime           @default(now()) @map("created_at")
+
+  @@map("teacher_application_documents")
+}
+
+model TeacherAccount {
+  id                   String                          @id // = auth.users.id (Supabase Auth), jamais généré par Prisma
+  email                String                          @unique
+  fullName             String                          @map("full_name")
+  mustChangePassword   Boolean                         @default(true) @map("must_change_password")
+  status               String                          @default("invite") // invite | actif | suspendu
+  teacherApplicationId String                          @unique @map("teacher_application_id")
+  teacherApplication   TeacherApplication              @relation(fields: [teacherApplicationId], references: [id], onDelete: Restrict)
+  teacherId            String?                         @unique @map("teacher_id")
+  teacher              Teacher?                        @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  createdAt            DateTime                        @default(now()) @map("created_at")
+  dispatchLogs         TeacherCredentialDispatchLog[]
+
+  @@map("teacher_accounts")
+}
+
+model TeacherCredentialDispatchLog {
+  id                   String         @id @default(cuid())
+  teacherApplicationId String         @map("teacher_application_id")
+  teacherAccountId     String         @map("teacher_account_id")
+  teacherAccount       TeacherAccount @relation(fields: [teacherAccountId], references: [id], onDelete: Cascade)
+  sentById             String?        @map("sent_by")
+  sentBy               AdminAccount?  @relation("TeacherCredentialDispatches", fields: [sentById], references: [id], onDelete: SetNull)
+  sentAt               DateTime       @default(now()) @map("sent_at")
+  deliveryStatus       String         @map("delivery_status") // envoye | echec
+  emailProviderId      String?        @map("email_provider_id")
+
+  @@map("teacher_credential_dispatch_logs")
 }
 
 // ─────────────────────────────────────────────
@@ -235,13 +292,15 @@ model LeadNote {
 // ─────────────────────────────────────────────
 
 model StudentTeacher {
+  id         String   @id @default(cuid())
   studentId  String   @map("student_id")
   teacherId  String   @map("teacher_id")
+  subject    String?
   student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teacher    Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   assignedAt DateTime @default(now()) @map("assigned_at")
 
-  @@id([studentId, teacherId])
+  @@unique([studentId, teacherId, subject])
   @@map("student_teachers")
 }
 
@@ -252,10 +311,13 @@ model Session {
   teacherId String?   @map("teacher_id")
   teacher   Teacher?  @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   date      DateTime
+  durationMinutes Int @default(60) @map("duration_minutes")
+  subject   String?
   status    String    @default("planifiee")
   // planifiee | confirmee | realisee | annulee | reportee
   attended  Boolean?
   notes     String?
+  cancellationReason String? @map("cancellation_reason")
   createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("sessions")
@@ -273,6 +335,22 @@ model ProgressReport {
   createdAt      DateTime     @default(now()) @map("created_at")
 
   @@map("progress_reports")
+}
+
+model ProgressEntry {
+  id             String       @id @default(cuid())
+  studentId      String       @map("student_id")
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject        String
+  status         String
+  // acquis | en_progres | a_surveiller
+  adminAccountId String       @map("admin_account_id")
+  adminAccount   AdminAccount @relation(fields: [adminAccountId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@unique([studentId, subject])
+  @@map("progress_entries")
 }
 
 model StudentDocument {
@@ -303,4 +381,45 @@ model StudentTeacherHistory {
   createdAt      DateTime     @default(now()) @map("created_at")
 
   @@map("student_teacher_history")
+}
+
+// ─────────────────────────────────────────────
+// Portail Famille — Demande de professeur & matching
+// ─────────────────────────────────────────────
+
+model TeacherRequest {
+  id           String     @id @default(cuid())
+  createdAt    DateTime   @default(now()) @map("created_at")
+  studentId    String     @map("student_id")
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject      String
+  frequency    String
+  format       String
+  // presentiel | distanciel
+  availability String?
+  status       String     @default("en_attente")
+  // en_attente | proposition_envoyee | acceptee | annulee
+  matchings    Matching[]
+
+  @@index([studentId])
+  @@map("teacher_requests")
+}
+
+model Matching {
+  id               String         @id @default(cuid())
+  createdAt        DateTime       @default(now()) @map("created_at")
+  teacherRequestId String         @map("teacher_request_id")
+  teacherRequest   TeacherRequest @relation(fields: [teacherRequestId], references: [id], onDelete: Cascade)
+  teacherId        String         @map("teacher_id")
+  teacher          Teacher        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  proposedById     String         @map("proposed_by")
+  proposedBy       AdminAccount   @relation("ProposedMatchings", fields: [proposedById], references: [id], onDelete: Cascade)
+  status           String         @default("proposee")
+  // proposee | acceptee | refusee
+  refusalReason    String?        @map("refusal_reason")
+  respondedAt      DateTime?      @map("responded_at")
+
+  @@index([teacherRequestId])
+  @@index([teacherId])
+  @@map("matchings")
 }

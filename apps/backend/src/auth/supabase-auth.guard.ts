@@ -6,14 +6,14 @@ import {
 } from '@nestjs/common';
 import { AdminAccount } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { SupabaseAdminService } from './supabase-admin.service';
+import { SupabaseJwtService } from './supabase-jwt.service';
 
 export type AuthenticatedAdmin = AdminAccount & { roleNames: string[] };
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
   constructor(
-    private readonly supabaseAdmin: SupabaseAdminService,
+    private readonly supabaseJwt: SupabaseJwtService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -28,15 +28,10 @@ export class SupabaseAuthGuard implements CanActivate {
       throw new UnauthorizedException('Token manquant');
     }
 
-    const { data, error } = await this.supabaseAdmin.client.auth.getUser(
-      token,
-    );
-    if (error || !data.user) {
-      throw new UnauthorizedException('Token invalide');
-    }
+    const user = await this.supabaseJwt.verify(token);
 
     const adminAccount = await this.prisma.adminAccount.findUnique({
-      where: { id: data.user.id },
+      where: { id: user.id },
       include: { roles: { include: { role: true } } },
     });
 

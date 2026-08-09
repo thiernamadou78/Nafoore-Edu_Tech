@@ -1,25 +1,18 @@
+import { Route, Routes } from 'react-router-dom'
 import Header from './components/Header'
-import Hero from './components/Hero'
-import Services from './components/Services'
-import Audience from './components/Audience'
-import WhyUs from './components/WhyUs'
-import Testimonials from './components/Testimonials'
-import FAQ from './components/FAQ'
-import ContactForm from './components/ContactForm'
 import Footer from './components/Footer'
+import Home from './pages/Home'
+import TeacherApplication from './pages/TeacherApplication'
 
 export default function App() {
   return (
     <>
       <Header />
       <main>
-        <Hero />
-        <Services />
-        <Audience />
-        <WhyUs />
-        <Testimonials />
-        <FAQ />
-        <ContactForm />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/devenir-enseignant" element={<TeacherApplication />} />
+        </Routes>
       </main>
       <Footer />
     </>

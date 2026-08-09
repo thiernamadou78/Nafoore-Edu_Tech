@@ -13,6 +13,8 @@ import { TeacherDetail } from './pages/teachers/TeacherDetail'
 import { RecruitmentList } from './pages/recruitment/RecruitmentList'
 import { RecruitmentDetail } from './pages/recruitment/RecruitmentDetail'
 import { AdminAccounts } from './pages/AdminAccounts'
+import { TeacherRequestsList } from './pages/teacher-requests/TeacherRequestsList'
+import { TeacherRequestDetail } from './pages/teacher-requests/TeacherRequestDetail'
 
 export default function App() {
   return (
@@ -31,6 +33,8 @@ export default function App() {
               <Route path="/eleves/:id" element={<StudentDetail />} />
               <Route path="/enseignants" element={<TeachersList />} />
               <Route path="/enseignants/:id" element={<TeacherDetail />} />
+              <Route path="/demandes-professeur" element={<TeacherRequestsList />} />
+              <Route path="/demandes-professeur/:id" element={<TeacherRequestDetail />} />
             </Route>
             <Route element={<ProtectedRoute roles={['super_admin']} />}>
               <Route path="/comptes" element={<AdminAccounts />} />

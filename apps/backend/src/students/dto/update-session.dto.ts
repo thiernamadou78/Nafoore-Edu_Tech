@@ -3,6 +3,11 @@ import { SESSION_STATUSES } from './create-session.dto';
 
 export class UpdateSessionDto {
   @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  subject?: string;
+
+  @IsOptional()
   @IsIn(SESSION_STATUSES)
   status?: string;
 
@@ -14,4 +19,9 @@ export class UpdateSessionDto {
   @IsString()
   @MaxLength(2000)
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  cancellationReason?: string;
 }

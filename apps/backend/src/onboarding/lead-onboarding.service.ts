@@ -53,10 +53,10 @@ export class LeadOnboardingService {
     if (error || !data.user) {
       if (error?.message?.toLowerCase().includes('already')) {
         throw new ConflictException(
-          'Un compte Supabase Auth existe déjà pour cet email',
+          `Un compte existe déjà avec l'adresse ${lead.email}. Vérifie qu'il ne s'agit pas d'un doublon avant de continuer.`,
         );
       }
-      throw error ?? new Error('Échec de la création du compte Supabase Auth');
+      throw error ?? new Error('Échec de la création du compte');
     }
 
     const userId = data.user.id;

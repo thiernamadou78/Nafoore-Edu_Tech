@@ -1,10 +1,11 @@
+import { Link } from 'react-router-dom'
 import logoSrc from './IMG/Logo.png'
 
 const NAV = [
-  { href: '#services', label: 'Services' },
-  { href: '#audience', label: 'Pour qui ?' },
-  { href: '#why-us', label: 'Pourquoi Nafoore' },
-  { href: '#contact', label: 'Contact' },
+  { href: '/#services', label: 'Services' },
+  { href: '/#audience', label: 'Pour qui ?' },
+  { href: '/#why-us', label: 'Pourquoi Nafoore' },
+  { href: '/#contact', label: 'Contact' },
 ]
 
 const SERVICES_LINKS = [
@@ -52,6 +53,12 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
+            <Link
+              to="/devenir-enseignant"
+              className="mt-4 inline-flex items-center gap-2 bg-gold-500/10 border border-gold-500/30 text-gold-400 font-sans text-sm font-semibold px-3.5 py-2 rounded-lg hover:bg-gold-500/20 hover:border-gold-500/50 transition-colors"
+            >
+              🎓 Devenir enseignant
+            </Link>
           </div>
 
           {/* Services */}

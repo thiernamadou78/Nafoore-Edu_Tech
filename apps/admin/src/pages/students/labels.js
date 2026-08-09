@@ -24,3 +24,15 @@ export const DOCUMENT_TYPE_LABELS = {
   compte_rendu: 'Compte-rendu',
   autre: 'Autre',
 }
+
+export const PROGRESS_ENTRY_LABELS = {
+  acquis: 'Acquis',
+  en_progres: 'En progrès',
+  a_surveiller: 'À surveiller',
+}
+
+export const PROGRESS_ENTRY_TONES = {
+  acquis: 'green',
+  en_progres: 'green',
+  a_surveiller: 'amber',
+}

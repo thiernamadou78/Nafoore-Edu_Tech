@@ -33,9 +33,38 @@ export class TeachersService {
   }
 
   async findOne(id: string) {
-    const teacher = await this.findOneRaw(id);
+    const teacher = await this.prisma.teacher.findUnique({
+      where: { id },
+      include: {
+        sessions: {
+          orderBy: { date: 'desc' },
+          include: {
+            student: {
+              select: {
+                id: true,
+                name: true,
+                parentLead: {
+                  select: { name: true, portalAccount: { select: { familyName: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!teacher) {
+      throw new NotFoundException('Enseignant introuvable');
+    }
+
     const photoUrl = await this.photos.signUrl(teacher.photoPath);
-    return { ...teacher, photoUrl };
+    const sessions = teacher.sessions.map(({ student, ...session }) => ({
+      ...session,
+      studentName: student.name,
+      familyName:
+        student.parentLead?.portalAccount?.familyName ?? student.parentLead?.name ?? 'Sans famille',
+    }));
+
+    return { ...teacher, sessions, photoUrl };
   }
 
   create(dto: CreateTeacherDto) {

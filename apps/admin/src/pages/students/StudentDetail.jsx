@@ -8,11 +8,13 @@ import {
   History,
   Power,
   Save,
+  Sparkles,
   Trash2,
   Upload,
   UserCheck,
 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -20,6 +22,8 @@ import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import {
   DOCUMENT_TYPE_LABELS,
   LEVEL_LABELS,
+  PROGRESS_ENTRY_LABELS,
+  PROGRESS_ENTRY_TONES,
   SESSION_STATUS_LABELS,
   SESSION_STATUS_TONES,
 } from './labels'
@@ -30,17 +34,19 @@ const inputClass =
 function SessionRow({ session, onSave }) {
   const [status, setStatus] = useState(session.status)
   const [attended, setAttended] = useState(session.attended ?? false)
+  const [subject, setSubject] = useState(session.subject ?? '')
   const [notes, setNotes] = useState(session.notes ?? '')
   const [saving, setSaving] = useState(false)
   const dirty =
     status !== session.status ||
     attended !== (session.attended ?? false) ||
+    subject !== (session.subject ?? '') ||
     notes !== (session.notes ?? '')
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      await onSave({ status, attended, notes })
+      await onSave({ status, attended, subject: subject || undefined, notes })
     } finally {
       setSaving(false)
     }
@@ -72,6 +78,12 @@ function SessionRow({ session, onSave }) {
             </option>
           ))}
         </select>
+        <input
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Matière"
+          className="w-36 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
+        />
         <label className="flex items-center gap-1.5 text-sm text-gray-600">
           <input
             type="checkbox"
@@ -110,9 +122,11 @@ export function StudentDetail() {
   const [sessionForm, setSessionForm] = useState({
     date: '',
     teacherId: '',
+    subject: '',
     notes: '',
   })
   const [reportForm, setReportForm] = useState({ period: '', content: '', shareable: false })
+  const [progressForm, setProgressForm] = useState({ subject: '', status: 'en_progres' })
   const [documentForm, setDocumentForm] = useState({ file: null, type: 'bulletin' })
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
@@ -158,11 +172,7 @@ export function StudentDetail() {
   }
 
   if (!student) {
-    return error ? (
-      <p className="text-red-600">{error}</p>
-    ) : (
-      <p className="text-gray-500">Chargement…</p>
-    )
+    return error ? <Alert>{error}</Alert> : <p className="text-gray-500">Chargement…</p>
   }
 
   return (
@@ -183,7 +193,7 @@ export function StudentDetail() {
         </Badge>
       </div>
 
-      {error && <p className="mb-4 text-red-600">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       <Card className="mb-6 p-6">
         <PhotoUploader
@@ -377,6 +387,14 @@ export function StudentDetail() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Matière</label>
+            <input
+              value={sessionForm.subject}
+              onChange={(e) => setSessionForm((f) => ({ ...f, subject: e.target.value }))}
+              className={inputClass}
+            />
+          </div>
           <input
             value={sessionForm.notes}
             onChange={(e) => setSessionForm((f) => ({ ...f, notes: e.target.value }))}
@@ -391,9 +409,10 @@ export function StudentDetail() {
                 await api.post(`/students/${id}/sessions`, {
                   date: new Date(sessionForm.date).toISOString(),
                   teacherId: sessionForm.teacherId || undefined,
+                  subject: sessionForm.subject || undefined,
                   notes: sessionForm.notes || undefined,
                 })
-                setSessionForm({ date: '', teacherId: '', notes: '' })
+                setSessionForm({ date: '', teacherId: '', subject: '', notes: '' })
               })
             }
           >
@@ -462,6 +481,68 @@ export function StudentDetail() {
             }
           >
             Ajouter le bilan
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="mb-6 p-6">
+        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+          <Sparkles size={16} className="text-navy" />
+          Progression (par matière)
+        </h2>
+        <p className="mb-3 text-xs text-gray-500">
+          Statut affiché à la famille dans le portail. Une seule entrée par matière — enregistrer à
+          nouveau met à jour le statut existant.
+        </p>
+        <div className="mb-4 space-y-2">
+          {student.progressEntries.length === 0 ? (
+            <p className="text-sm text-gray-500">Aucune matière suivie pour l'instant.</p>
+          ) : (
+            student.progressEntries.map((entry) => (
+              <div key={entry.id} className="flex items-center justify-between text-sm">
+                <span className="text-gray-800">{entry.subject}</span>
+                <Badge tone={PROGRESS_ENTRY_TONES[entry.status]}>
+                  {PROGRESS_ENTRY_LABELS[entry.status] ?? entry.status}
+                </Badge>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Matière</label>
+            <input
+              value={progressForm.subject}
+              onChange={(e) => setProgressForm((f) => ({ ...f, subject: e.target.value }))}
+              placeholder="Mathématiques"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Statut</label>
+            <select
+              value={progressForm.status}
+              onChange={(e) => setProgressForm((f) => ({ ...f, status: e.target.value }))}
+              className={inputClass}
+            >
+              {Object.entries(PROGRESS_ENTRY_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            icon={Sparkles}
+            disabled={!progressForm.subject || savingAction === 'progress-entry'}
+            onClick={() =>
+              run('progress-entry', async () => {
+                await api.put(`/students/${id}/progress-entries`, progressForm)
+                setProgressForm({ subject: '', status: 'en_progres' })
+              })
+            }
+          >
+            Enregistrer
           </Button>
         </div>
       </Card>

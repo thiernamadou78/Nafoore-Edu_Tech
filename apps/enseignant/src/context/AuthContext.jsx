@@ -1,0 +1,97 @@
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { api } from '../lib/api'
+import { translateAuthError } from '../lib/authErrors'
+
+const AuthContext = createContext(null)
+
+export function AuthProvider({ children }) {
+  const [session, setSession] = useState(null)
+  const [teacherAccount, setTeacherAccount] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const loadTeacherAccount = useCallback(async () => {
+    try {
+      const me = await api.get('/teacher/me')
+      setTeacherAccount(me)
+      setError(null)
+    } catch (err) {
+      setTeacherAccount(null)
+      setError(err.message)
+      await supabase.auth.signOut()
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!active) return
+      setSession(data.session)
+      if (data.session) await loadTeacherAccount()
+      setLoading(false)
+    })
+
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      async (_event, nextSession) => {
+        setSession(nextSession)
+        if (nextSession) {
+          await loadTeacherAccount()
+        } else {
+          setTeacherAccount(null)
+        }
+      },
+    )
+
+    return () => {
+      active = false
+      subscription.subscription.unsubscribe()
+    }
+  }, [loadTeacherAccount])
+
+  const signIn = async (email, password) => {
+    setError(null)
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (signInError) throw signInError
+    } catch (err) {
+      setError(translateAuthError(err))
+      throw err
+    }
+  }
+
+  const signOut = () => supabase.auth.signOut()
+
+  const completePasswordChange = async (newPassword) => {
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+    if (updateError) throw updateError
+    await api.patch('/teacher/me/password-changed', {})
+    await loadTeacherAccount()
+  }
+
+  return (
+    <AuthContext.Provider
+      value={{
+        session,
+        teacherAccount,
+        loading,
+        error,
+        signIn,
+        signOut,
+        completePasswordChange,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth doit être utilisé dans AuthProvider')
+  return context
+}
