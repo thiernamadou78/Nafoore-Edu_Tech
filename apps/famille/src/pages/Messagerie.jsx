@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { Send, SquarePen } from 'lucide-react'
+import { MessageSquare, Send, SquarePen } from 'lucide-react'
 import { api } from '../lib/api'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
 
 const inputClass =
@@ -127,8 +128,12 @@ export function Messagerie() {
       )}
 
       {threads.length === 0 ? (
-        <Card className="p-8 text-center text-sm text-gray-500">
-          Aucune conversation pour l'instant.
+        <Card className="overflow-hidden">
+          <EmptyState
+            icon={MessageSquare}
+            title="Aucune conversation pour l'instant"
+            description="Démarre une conversation avec l'enseignant de ton enfant."
+          />
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-[220px_1fr]">

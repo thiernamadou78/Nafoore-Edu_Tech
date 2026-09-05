@@ -116,98 +116,94 @@ export function StudentsList() {
 
       {error && <Alert>{error}</Alert>}
 
-      <Card className="overflow-hidden">
-        {loading ? (
-          <p className="p-6 text-sm text-gray-500">Chargement…</p>
-        ) : visibleStudents.length === 0 ? (
+      {loading ? (
+        <Card className="p-6">
+          <p className="text-sm text-gray-500">Chargement…</p>
+        </Card>
+      ) : visibleStudents.length === 0 ? (
+        <Card className="overflow-hidden">
           <EmptyState
             icon={Users}
             title="Aucun élève"
             description="Ajuste les filtres ou convertis un lead."
           />
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-              <tr>
-                <th className="px-4 py-3 font-medium">Élève</th>
-                <th className="px-4 py-3 font-medium">Niveau</th>
-                <th className="px-4 py-3 font-medium">Matières</th>
-                <th className="px-4 py-3 font-medium">Enseignant(s)</th>
-                <th className="px-4 py-3 font-medium">Statut</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {visibleStudents.map((student) => (
-                <tr
-                  key={student.id}
-                  onClick={() => navigate(`/eleves/${student.id}`)}
-                  className="cursor-pointer hover:bg-gray-50"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar name={student.name} photoUrl={student.photoUrl} />
-                      <span className="font-medium text-gray-900">{student.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
+        </Card>
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
+          {visibleStudents.map((student) => (
+            <Card
+              key={student.id}
+              onClick={() => navigate(`/eleves/${student.id}`)}
+              className={`flex cursor-pointer flex-col border-l-[3px] transition-shadow hover:shadow-md ${
+                student.isActive ? 'border-l-green-500' : 'border-l-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-3 p-4">
+                <Avatar name={student.name} photoUrl={student.photoUrl} size="md" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-gray-900">{student.name}</p>
+                  <p className="truncate text-xs text-gray-500">
                     {LEVEL_LABELS[student.level] ?? student.level}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {student.subjects.join(', ') || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {student.teachers.map((t) => t.teacher.name).join(', ') || '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={student.isActive ? 'green' : 'gray'}>
-                      {student.isActive ? 'Actif' : 'Inactif'}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        title="Modifier"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          navigate(`/eleves/${student.id}`)
-                        }}
-                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        title={student.isActive ? 'Désactiver' : 'Activer'}
-                        onClick={(event) => toggleActive(event, student)}
-                        disabled={pendingAction === `${student.id}:active`}
-                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
-                      >
-                        {pendingAction === `${student.id}:active` ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                          <Power size={16} />
-                        )}
-                      </button>
-                      <button
-                        title="Supprimer"
-                        onClick={(event) => handleDelete(event, student)}
-                        disabled={pendingAction === `${student.id}:delete`}
-                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-red-50 hover:text-red-600 active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
-                      >
-                        {pendingAction === `${student.id}:delete` ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                          <Trash2 size={16} />
-                        )}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
+                  </p>
+                </div>
+                <Badge tone={student.isActive ? 'green' : 'gray'}>
+                  {student.isActive ? 'Actif' : 'Inactif'}
+                </Badge>
+              </div>
+
+              <div className="border-t border-gray-100" />
+
+              <div className="flex-1 space-y-1.5 p-4 text-sm">
+                <p className="text-gray-700">
+                  <span className="text-gray-400">Matières · </span>
+                  {student.subjects.join(', ') || '—'}
+                </p>
+                <p className="text-gray-700">
+                  <span className="text-gray-400">Enseignant(s) · </span>
+                  {student.teachers.map((t) => t.teacher.name).join(', ') || '—'}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-1 border-t border-gray-100 p-2">
+                <button
+                  title="Modifier"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    navigate(`/eleves/${student.id}`)
+                  }}
+                  className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  title={student.isActive ? 'Désactiver' : 'Activer'}
+                  onClick={(event) => toggleActive(event, student)}
+                  disabled={pendingAction === `${student.id}:active`}
+                  className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                >
+                  {pendingAction === `${student.id}:active` ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Power size={16} />
+                  )}
+                </button>
+                <button
+                  title="Supprimer"
+                  onClick={(event) => handleDelete(event, student)}
+                  disabled={pendingAction === `${student.id}:delete`}
+                  className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-red-50 hover:text-red-600 active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                >
+                  {pendingAction === `${student.id}:delete` ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={16} />
+                  )}
+                </button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

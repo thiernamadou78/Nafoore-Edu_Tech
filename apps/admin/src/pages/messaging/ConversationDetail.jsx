@@ -15,7 +15,7 @@ function ModerateForm({ onCancel, onConfirm, saving }) {
   const [warn, setWarn] = useState(true)
 
   return (
-    <div className="mt-2 space-y-2 rounded-lg border border-red-100 bg-red-50 p-3">
+    <div className="mt-2 space-y-2 rounded-lg border border-red-200 bg-white p-3 text-left">
       <textarea
         value={reason}
         onChange={(e) => setReason(e.target.value)}
@@ -47,6 +47,10 @@ function ModerateForm({ onCancel, onConfirm, saving }) {
       </div>
     </div>
   )
+}
+
+function formatTime(date) {
+  return new Date(date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
 }
 
 export function ConversationDetail() {
@@ -100,45 +104,57 @@ export function ConversationDetail() {
 
       {error && <Alert>{error}</Alert>}
 
-      <div className="space-y-3">
-        {thread.messages.map((message) => (
-          <Card key={message.id} className="p-4">
-            <div className="mb-1 flex items-center justify-between">
-              <Badge tone={message.sender === 'teacher' ? 'blue' : 'green'}>
-                {message.sender === 'teacher' ? 'Enseignant' : 'Famille'}
-              </Badge>
-              <span className="text-xs text-gray-400">
-                {new Date(message.createdAt).toLocaleString('fr-FR', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}
-              </span>
-            </div>
-            <p className="text-sm text-gray-800">{message.body}</p>
+      <Card className="p-5">
+        <div className="space-y-4">
+          {thread.messages.map((message) => {
+            const isFamily = message.sender !== 'teacher'
+            return (
+              <div key={message.id} className={`flex flex-col ${isFamily ? 'items-end' : 'items-start'}`}>
+                <div className="mb-1 flex items-center gap-1.5 px-1 text-xs text-gray-400">
+                  <Badge tone={isFamily ? 'green' : 'blue'} className="px-1.5 py-0">
+                    {isFamily ? 'Famille' : 'Enseignant'}
+                  </Badge>
+                  {formatTime(message.createdAt)}
+                </div>
+                <div
+                  className={`max-w-[75%] rounded-xl px-3.5 py-2 text-sm ${
+                    message.removedAt
+                      ? 'bg-gray-50 text-gray-400 italic'
+                      : isFamily
+                        ? 'bg-navy text-white'
+                        : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  <p>{message.body}</p>
+                </div>
 
-            {message.removedAt ? (
-              <p className="mt-2 text-xs text-red-600">
-                Retiré le {new Date(message.removedAt).toLocaleDateString('fr-FR')} par{' '}
-                {message.removedBy?.name ?? 'un admin'} — motif : {message.removedReason}
-              </p>
-            ) : moderatingId === message.id ? (
-              <ModerateForm
-                saving={saving}
-                onCancel={() => setModeratingId(null)}
-                onConfirm={(data) => handleModerate(message.id, data)}
-              />
-            ) : (
-              <button
-                onClick={() => setModeratingId(message.id)}
-                className="mt-2 inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
-              >
-                <Trash2 size={12} />
-                Retirer ce message
-              </button>
-            )}
-          </Card>
-        ))}
-      </div>
+                {message.removedAt ? (
+                  <p className="mt-1 max-w-[75%] px-1 text-xs text-red-600">
+                    Retiré le {new Date(message.removedAt).toLocaleDateString('fr-FR')} par{' '}
+                    {message.removedBy?.name ?? 'un admin'} — motif : {message.removedReason}
+                  </p>
+                ) : moderatingId === message.id ? (
+                  <div className="mt-1 w-full max-w-[75%]">
+                    <ModerateForm
+                      saving={saving}
+                      onCancel={() => setModeratingId(null)}
+                      onConfirm={(data) => handleModerate(message.id, data)}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setModeratingId(message.id)}
+                    className="mt-1 inline-flex items-center gap-1 px-1 text-xs text-red-600 hover:underline"
+                  >
+                    <Trash2 size={12} />
+                    Retirer ce message
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </Card>
     </div>
   )
 }

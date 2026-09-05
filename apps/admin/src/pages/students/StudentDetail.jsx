@@ -23,6 +23,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
+import { Timeline } from '../../components/ui/Timeline'
 import {
   ATTENDANCE_METHOD_LABELS,
   CLASSE_LABELS,
@@ -42,6 +43,14 @@ import { PassEducatifCard } from './PassEducatifCard'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
+
+const TABS = [
+  { key: 'fiche', label: 'Fiche' },
+  { key: 'enseignants', label: 'Enseignants' },
+  { key: 'seances', label: 'Séances' },
+  { key: 'bilans', label: 'Bilans & progression' },
+  { key: 'documents', label: 'Documents' },
+]
 
 function SessionRow({ session, onSave }) {
   const [status, setStatus] = useState(session.status)
@@ -151,6 +160,7 @@ export function StudentDetail() {
   const { id } = useParams()
   const [student, setStudent] = useState(null)
   const [teachers, setTeachers] = useState([])
+  const [tab, setTab] = useState('fiche')
   const [form, setForm] = useState({ name: '', level: 'college', classe: '', subjects: '', objectives: '' })
   const [assignedTeacherIds, setAssignedTeacherIds] = useState([])
   const [sessionForm, setSessionForm] = useState({
@@ -211,159 +221,70 @@ export function StudentDetail() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-6xl">
       <Link
         to="/eleves"
-        className="mb-2 inline-flex items-center gap-1 text-sm text-navy hover:underline"
+        className="mb-4 inline-flex items-center gap-1 text-sm text-navy hover:underline"
       >
         <ArrowLeft size={14} />
         Retour aux élèves
       </Link>
 
-      <div className="mb-6 flex items-center gap-3">
-        <h1 className="text-xl font-semibold text-gray-900">{student.name}</h1>
-        <Badge tone="gray">{LEVEL_LABELS[student.level] ?? student.level}</Badge>
-        <Badge tone={student.isActive ? 'green' : 'gray'}>
-          {student.isActive ? 'Actif' : 'Inactif'}
-        </Badge>
-      </div>
-
       {error && <Alert>{error}</Alert>}
 
-      <Card className="mb-6 p-6">
-        <PhotoUploader
-          name={student.name}
-          photoUrl={student.photoUrl}
-          uploadPath={`/students/${id}/photo`}
-          onChange={load}
-        />
-      </Card>
-
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 font-semibold text-gray-900">Fiche élève</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
-            <input
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Niveau</label>
-            <select
-              value={form.level}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  level: e.target.value,
-                  classe: CLASSE_OPTIONS_BY_LEVEL[e.target.value].includes(f.classe)
-                    ? f.classe
-                    : '',
-                }))
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
+        {/* Colonne identité */}
+        <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+          <Card className="p-6">
+            <div className="flex flex-col items-center text-center">
+              <PhotoUploader
+                name={student.name}
+                photoUrl={student.photoUrl}
+                uploadPath={`/students/${id}/photo`}
+                onChange={load}
+              />
+              <h1 className="mt-4 text-lg font-semibold text-gray-900">{student.name}</h1>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                <Badge tone="gray">{LEVEL_LABELS[student.level] ?? student.level}</Badge>
+                <Badge tone={student.isActive ? 'green' : 'gray'}>
+                  {student.isActive ? 'Actif' : 'Inactif'}
+                </Badge>
+              </div>
+            </div>
+            <Button
+              variant={student.isActive ? 'danger' : 'secondary'}
+              icon={Power}
+              loading={savingAction === 'active'}
+              className="mt-4 w-full"
+              onClick={() =>
+                run('active', () =>
+                  api.patch(`/students/${id}/active`, { isActive: !student.isActive }),
+                )
               }
-              className={inputClass}
             >
-              {Object.entries(LEVEL_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Classe</label>
-            <select
-              value={form.classe}
-              onChange={(e) => setForm((f) => ({ ...f, classe: e.target.value }))}
-              className={inputClass}
-            >
-              <option value="">—</option>
-              {CLASSE_OPTIONS_BY_LEVEL[form.level].map((value) => (
-                <option key={value} value={value}>
-                  {CLASSE_LABELS[value]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Matières (séparées par des virgules)
-            </label>
-            <input
-              value={form.subjects}
-              onChange={(e) => setForm((f) => ({ ...f, subjects: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">Objectifs</label>
-            <textarea
-              rows={3}
-              value={form.objectives}
-              onChange={(e) => setForm((f) => ({ ...f, objectives: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-        </div>
-        <div className="mt-4 flex gap-3">
-          <Button
-            icon={Save}
-            loading={savingAction === 'info'}
-            onClick={() =>
-              run('info', () =>
-                api.patch(`/students/${id}`, {
-                  name: form.name,
-                  level: form.level,
-                  classe: form.classe || undefined,
-                  subjects: form.subjects
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                  objectives: form.objectives || undefined,
-                }),
-              )
-            }
-          >
-            Enregistrer la fiche
-          </Button>
-          <Button
-            variant={student.isActive ? 'danger' : 'secondary'}
-            icon={Power}
-            loading={savingAction === 'active'}
-            onClick={() =>
-              run('active', () =>
-                api.patch(`/students/${id}/active`, { isActive: !student.isActive }),
-              )
-            }
-          >
-            {student.isActive ? 'Désactiver' : 'Activer'}
-          </Button>
-        </div>
-      </Card>
+              {student.isActive ? 'Désactiver' : 'Activer'}
+            </Button>
+          </Card>
 
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-          <QrCode size={16} className="text-navy" />
-          Pass Éducatif
-        </h2>
-        <div className="flex flex-wrap items-start gap-6">
-          <div className="flex flex-col items-center gap-2">
-            <PassEducatifCard student={student} />
-            <Badge tone={PASS_STATUS_TONES[student.passStatus]}>
-              {PASS_STATUS_LABELS[student.passStatus] ?? student.passStatus}
-            </Badge>
-          </div>
-          <div className="min-w-[240px] flex-1 space-y-4">
-            <div className="flex flex-wrap gap-2">
+          <Card className="p-6">
+            <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+              <QrCode size={16} className="text-navy" />
+              Pass Éducatif
+            </h2>
+            <div className="flex flex-col items-center gap-3">
+              <PassEducatifCard student={student} />
+              <Badge tone={PASS_STATUS_TONES[student.passStatus]}>
+                {PASS_STATUS_LABELS[student.passStatus] ?? student.passStatus}
+              </Badge>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 variant="secondary"
                 icon={RefreshCw}
                 loading={savingAction === 'qr-regenerate'}
                 onClick={() => run('qr-regenerate', () => api.post(`/students/${id}/qr/regenerate`))}
               >
-                Régénérer le token
+                Régénérer
               </Button>
               <Button
                 variant={student.passStatus === 'active' ? 'danger' : 'success'}
@@ -380,401 +301,526 @@ export function StudentDetail() {
                 {student.passStatus === 'active' ? 'Révoquer' : 'Réactiver'}
               </Button>
             </div>
-            <div>
+            <div className="mt-4">
               <p className="mb-2 text-sm font-medium text-gray-700">Historique des scans</p>
               {student.attendanceLogs.length === 0 ? (
                 <p className="text-sm text-gray-500">Aucun scan pour l'instant.</p>
               ) : (
                 <ul className="max-h-64 space-y-2 overflow-y-auto text-sm">
                   {student.attendanceLogs.map((log) => (
-                    <li key={log.id} className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2">
-                      <div>
-                        <span className="text-gray-800">
-                          {new Date(log.createdAt).toLocaleString('fr-FR')}
-                        </span>
-                        <span className="ml-2 text-gray-500">
+                    <li key={log.id} className="border-b border-gray-100 pb-2">
+                      <div className="text-gray-800">
+                        {new Date(log.createdAt).toLocaleString('fr-FR')}
+                      </div>
+                      <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
+                        <span>
                           {log.teacher.name} · {ATTENDANCE_METHOD_LABELS[log.method] ?? log.method}
                         </span>
+                        <Badge tone={VERIFICATION_STATUS_TONES[log.verificationStatus]}>
+                          {VERIFICATION_STATUS_LABELS[log.verificationStatus] ?? log.verificationStatus}
+                        </Badge>
                       </div>
-                      <Badge tone={VERIFICATION_STATUS_TONES[log.verificationStatus]}>
-                        {VERIFICATION_STATUS_LABELS[log.verificationStatus] ?? log.verificationStatus}
-                      </Badge>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-          </div>
+          </Card>
         </div>
-      </Card>
 
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 font-semibold text-gray-900">Enseignant(s) assigné(s)</h2>
-        <div className="mb-3 flex flex-wrap gap-3">
-          {teachers.map((teacher) => (
-            <label key={teacher.id} className="flex items-center gap-1.5 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={assignedTeacherIds.includes(teacher.id)}
-                onChange={() => toggleTeacher(teacher.id)}
-                className="rounded border-gray-300 text-navy focus:ring-navy"
-              />
-              {teacher.name}
-            </label>
-          ))}
-          {teachers.length === 0 && (
-            <p className="text-sm text-gray-500">Aucun enseignant vérifié pour l'instant.</p>
-          )}
-        </div>
-        <Button
-          icon={UserCheck}
-          loading={savingAction === 'teachers'}
-          onClick={() =>
-            run('teachers', () =>
-              api.patch(`/students/${id}/teachers`, { teacherIds: assignedTeacherIds }),
-            )
-          }
-        >
-          Enregistrer les enseignants
-        </Button>
-      </Card>
-
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-          <History size={16} className="text-navy" />
-          Historique des enseignants
-        </h2>
-        {student.teacherHistory.length === 0 ? (
-          <p className="text-sm text-gray-500">Aucun changement pour l'instant.</p>
-        ) : (
-          <ul className="space-y-2">
-            {student.teacherHistory.map((entry) => (
-              <li key={entry.id} className="flex items-center gap-2 text-sm">
-                <Badge tone={entry.action === 'assigned' ? 'green' : 'red'}>
-                  {entry.action === 'assigned' ? 'Assigné' : 'Retiré'}
-                </Badge>
-                <span className="font-medium text-gray-900">{entry.teacher.name}</span>
-                <span className="text-gray-500">
-                  par {entry.adminAccount.name} ·{' '}
-                  {new Date(entry.createdAt).toLocaleString('fr-FR')}
-                </span>
-              </li>
+        {/* Colonne contenu */}
+        <div>
+          <div className="mb-5 flex flex-wrap gap-1 border-b border-gray-200">
+            {TABS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                  tab === key
+                    ? 'border-navy text-navy'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                {label}
+              </button>
             ))}
-          </ul>
-        )}
-      </Card>
+          </div>
 
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-          <CalendarPlus size={16} className="text-navy" />
-          Séances
-        </h2>
-        <div className="mb-4">
-          {student.sessions.length === 0 ? (
-            <p className="text-sm text-gray-500">Aucune séance enregistrée.</p>
-          ) : (
-            student.sessions.map((session) => (
-              <SessionRow
-                key={session.id}
-                session={session}
-                onSave={(patch) =>
-                  run('session', () =>
-                    api.patch(`/students/${id}/sessions/${session.id}`, patch),
-                  )
-                }
-              />
-            ))
-          )}
-        </div>
-        <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Date</label>
-            <input
-              type="datetime-local"
-              value={sessionForm.date}
-              onChange={(e) => setSessionForm((f) => ({ ...f, date: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Enseignant</label>
-            <select
-              value={sessionForm.teacherId}
-              onChange={(e) => setSessionForm((f) => ({ ...f, teacherId: e.target.value }))}
-              className={inputClass}
-            >
-              <option value="">—</option>
-              {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.id}>
-                  {teacher.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Matière</label>
-            <input
-              value={sessionForm.subject}
-              onChange={(e) => setSessionForm((f) => ({ ...f, subject: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <input
-            value={sessionForm.notes}
-            onChange={(e) => setSessionForm((f) => ({ ...f, notes: e.target.value }))}
-            placeholder="Contenu abordé (optionnel)"
-            className={`${inputClass} min-w-[160px] flex-1`}
-          />
-          <Button
-            icon={CalendarPlus}
-            loading={savingAction === 'new-session'}
-            disabled={!sessionForm.date}
-            onClick={() =>
-              run('new-session', async () => {
-                await api.post(`/students/${id}/sessions`, {
-                  date: new Date(sessionForm.date).toISOString(),
-                  teacherId: sessionForm.teacherId || undefined,
-                  subject: sessionForm.subject || undefined,
-                  notes: sessionForm.notes || undefined,
-                })
-                setSessionForm({ date: '', teacherId: '', subject: '', notes: '' })
-              })
-            }
-          >
-            Ajouter
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-          <FileText size={16} className="text-navy" />
-          Bilans de progression
-        </h2>
-        <div className="mb-4 space-y-3">
-          {student.progressReports.length === 0 ? (
-            <p className="text-sm text-gray-500">Aucun bilan pour l'instant.</p>
-          ) : (
-            student.progressReports.map((report) => (
-              <div key={report.id} className="border-l-2 border-gold-400 pl-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
-                  {report.period && (
-                    <span className="font-medium text-gray-600">{report.period}</span>
-                  )}
-                  <span>{report.adminAccount.name}</span>
-                  <span>{new Date(report.createdAt).toLocaleDateString('fr-FR')}</span>
-                  {report.shareable && <Badge tone="green">Partageable</Badge>}
-                </div>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{report.content}</p>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="space-y-2 border-t border-gray-100 pt-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <input
-              value={reportForm.period}
-              onChange={(e) => setReportForm((f) => ({ ...f, period: e.target.value }))}
-              placeholder="Période (ex: Trimestre 1)"
-              className="w-56 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
-            />
-            <label className="flex items-center gap-1.5 text-sm text-gray-600">
-              <input
-                type="checkbox"
-                checked={reportForm.shareable}
-                onChange={(e) => setReportForm((f) => ({ ...f, shareable: e.target.checked }))}
-                className="rounded border-gray-300 text-navy focus:ring-navy"
-              />
-              Partageable
-            </label>
-          </div>
-          <textarea
-            rows={3}
-            value={reportForm.content}
-            onChange={(e) => setReportForm((f) => ({ ...f, content: e.target.value }))}
-            placeholder="Contenu du bilan"
-            className={inputClass}
-          />
-          <Button
-            icon={FileText}
-            loading={savingAction === 'report'}
-            disabled={!reportForm.content}
-            onClick={() =>
-              run('report', async () => {
-                await api.post(`/students/${id}/progress-reports`, reportForm)
-                setReportForm({ period: '', content: '', shareable: false })
-              })
-            }
-          >
-            Ajouter le bilan
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-          <Sparkles size={16} className="text-navy" />
-          Progression (par matière)
-        </h2>
-        <p className="mb-3 text-xs text-gray-500">
-          Statut affiché à la famille dans le portail. Une seule entrée par matière — enregistrer à
-          nouveau met à jour le statut existant.
-        </p>
-        <div className="mb-4 space-y-2">
-          {student.progressEntries.length === 0 ? (
-            <p className="text-sm text-gray-500">Aucune matière suivie pour l'instant.</p>
-          ) : (
-            student.progressEntries.map((entry) => (
-              <div key={entry.id} className="flex items-center justify-between text-sm">
+          {tab === 'fiche' && (
+            <Card className="p-6">
+              <h2 className="mb-3 font-semibold text-gray-900">Fiche élève</h2>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <span className="text-gray-800">{entry.subject}</span>
-                  <span className="ml-2 text-xs text-gray-400">
-                    {entry.teacher
-                      ? `Enseignant : ${entry.teacher.name}`
-                      : entry.adminAccount
-                        ? `Admin : ${entry.adminAccount.name}`
-                        : ''}
-                  </span>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
+                  <input
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    className={inputClass}
+                  />
                 </div>
-                <Badge tone={PROGRESS_ENTRY_TONES[entry.status]}>
-                  {PROGRESS_ENTRY_LABELS[entry.status] ?? entry.status}
-                </Badge>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Matière</label>
-            <input
-              value={progressForm.subject}
-              onChange={(e) => setProgressForm((f) => ({ ...f, subject: e.target.value }))}
-              placeholder="Mathématiques"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Statut</label>
-            <select
-              value={progressForm.status}
-              onChange={(e) => setProgressForm((f) => ({ ...f, status: e.target.value }))}
-              className={inputClass}
-            >
-              {Object.entries(PROGRESS_ENTRY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button
-            icon={Sparkles}
-            loading={savingAction === 'progress-entry'}
-            disabled={!progressForm.subject}
-            onClick={() =>
-              run('progress-entry', async () => {
-                await api.put(`/students/${id}/progress-entries`, progressForm)
-                setProgressForm({ subject: '', status: 'en_progres' })
-              })
-            }
-          >
-            Enregistrer
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="p-6">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-          <Upload size={16} className="text-navy" />
-          Documents
-        </h2>
-        <div className="mb-4 space-y-2">
-          {student.documents.length === 0 ? (
-            <p className="text-sm text-gray-500">Aucun document pour l'instant.</p>
-          ) : (
-            student.documents.map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between text-sm">
                 <div>
-                  <span className="font-medium text-gray-900">{doc.fileName}</span>
-                  <span className="ml-2 text-gray-500">
-                    {DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type} · {doc.uploadedBy.name} ·{' '}
-                    {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={async () => {
-                      try {
-                        const { url } = await api.get(
-                          `/students/${id}/documents/${doc.id}/download`,
-                        )
-                        window.open(url, '_blank', 'noopener')
-                      } catch (err) {
-                        setError(err.message)
-                      }
-                    }}
-                    className="inline-flex items-center gap-1 text-navy hover:underline"
-                  >
-                    <Download size={14} />
-                    Télécharger
-                  </button>
-                  <button
-                    onClick={() =>
-                      run('delete-doc', () => api.del(`/students/${id}/documents/${doc.id}`))
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Niveau</label>
+                  <select
+                    value={form.level}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        level: e.target.value,
+                        classe: CLASSE_OPTIONS_BY_LEVEL[e.target.value].includes(f.classe)
+                          ? f.classe
+                          : '',
+                      }))
                     }
-                    className="text-gray-400 hover:text-red-600"
-                    title="Supprimer"
+                    className={inputClass}
                   >
-                    <Trash2 size={14} />
-                  </button>
+                    {Object.entries(LEVEL_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Classe</label>
+                  <select
+                    value={form.classe}
+                    onChange={(e) => setForm((f) => ({ ...f, classe: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">—</option>
+                    {CLASSE_OPTIONS_BY_LEVEL[form.level].map((value) => (
+                      <option key={value} value={value}>
+                        {CLASSE_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Matières (séparées par des virgules)
+                  </label>
+                  <input
+                    value={form.subjects}
+                    onChange={(e) => setForm((f) => ({ ...f, subjects: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Objectifs</label>
+                  <textarea
+                    rows={3}
+                    value={form.objectives}
+                    onChange={(e) => setForm((f) => ({ ...f, objectives: e.target.value }))}
+                    className={inputClass}
+                  />
                 </div>
               </div>
-            ))
+              <div className="mt-4">
+                <Button
+                  icon={Save}
+                  loading={savingAction === 'info'}
+                  onClick={() =>
+                    run('info', () =>
+                      api.patch(`/students/${id}`, {
+                        name: form.name,
+                        level: form.level,
+                        classe: form.classe || undefined,
+                        subjects: form.subjects
+                          .split(',')
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                        objectives: form.objectives || undefined,
+                      }),
+                    )
+                  }
+                >
+                  Enregistrer la fiche
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {tab === 'enseignants' && (
+            <div className="space-y-6">
+              <Card className="p-6">
+                <h2 className="mb-3 font-semibold text-gray-900">Enseignant(s) assigné(s)</h2>
+                <div className="mb-3 flex flex-wrap gap-3">
+                  {teachers.map((teacher) => (
+                    <label key={teacher.id} className="flex items-center gap-1.5 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={assignedTeacherIds.includes(teacher.id)}
+                        onChange={() => toggleTeacher(teacher.id)}
+                        className="rounded border-gray-300 text-navy focus:ring-navy"
+                      />
+                      {teacher.name}
+                    </label>
+                  ))}
+                  {teachers.length === 0 && (
+                    <p className="text-sm text-gray-500">Aucun enseignant vérifié pour l'instant.</p>
+                  )}
+                </div>
+                <Button
+                  icon={UserCheck}
+                  loading={savingAction === 'teachers'}
+                  onClick={() =>
+                    run('teachers', () =>
+                      api.patch(`/students/${id}/teachers`, { teacherIds: assignedTeacherIds }),
+                    )
+                  }
+                >
+                  Enregistrer les enseignants
+                </Button>
+              </Card>
+
+              <Card className="p-6">
+                <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+                  <History size={16} className="text-navy" />
+                  Historique
+                </h2>
+                <Timeline
+                  items={student.teacherHistory}
+                  emptyLabel="Aucun changement pour l'instant."
+                  renderItem={(entry) => (
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <Badge tone={entry.action === 'assigned' ? 'green' : 'red'}>
+                        {entry.action === 'assigned' ? 'Assigné' : 'Retiré'}
+                      </Badge>
+                      <span className="font-medium text-gray-900">{entry.teacher.name}</span>
+                      <span className="text-gray-500">
+                        par {entry.adminAccount.name} ·{' '}
+                        {new Date(entry.createdAt).toLocaleString('fr-FR')}
+                      </span>
+                    </div>
+                  )}
+                />
+              </Card>
+            </div>
+          )}
+
+          {tab === 'seances' && (
+            <Card className="p-6">
+              <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+                <CalendarPlus size={16} className="text-navy" />
+                Séances
+              </h2>
+              <div className="mb-4">
+                {student.sessions.length === 0 ? (
+                  <p className="text-sm text-gray-500">Aucune séance enregistrée.</p>
+                ) : (
+                  student.sessions.map((session) => (
+                    <SessionRow
+                      key={session.id}
+                      session={session}
+                      onSave={(patch) =>
+                        run('session', () =>
+                          api.patch(`/students/${id}/sessions/${session.id}`, patch),
+                        )
+                      }
+                    />
+                  ))
+                )}
+              </div>
+              <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Date</label>
+                  <input
+                    type="datetime-local"
+                    value={sessionForm.date}
+                    onChange={(e) => setSessionForm((f) => ({ ...f, date: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Enseignant</label>
+                  <select
+                    value={sessionForm.teacherId}
+                    onChange={(e) => setSessionForm((f) => ({ ...f, teacherId: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">—</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Matière</label>
+                  <input
+                    value={sessionForm.subject}
+                    onChange={(e) => setSessionForm((f) => ({ ...f, subject: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <input
+                  value={sessionForm.notes}
+                  onChange={(e) => setSessionForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="Contenu abordé (optionnel)"
+                  className={`${inputClass} min-w-[160px] flex-1`}
+                />
+                <Button
+                  icon={CalendarPlus}
+                  loading={savingAction === 'new-session'}
+                  disabled={!sessionForm.date}
+                  onClick={() =>
+                    run('new-session', async () => {
+                      await api.post(`/students/${id}/sessions`, {
+                        date: new Date(sessionForm.date).toISOString(),
+                        teacherId: sessionForm.teacherId || undefined,
+                        subject: sessionForm.subject || undefined,
+                        notes: sessionForm.notes || undefined,
+                      })
+                      setSessionForm({ date: '', teacherId: '', subject: '', notes: '' })
+                    })
+                  }
+                >
+                  Ajouter
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {tab === 'bilans' && (
+            <div className="space-y-6">
+              <Card className="p-6">
+                <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+                  <FileText size={16} className="text-navy" />
+                  Bilans de progression
+                </h2>
+                <div className="mb-4">
+                  <Timeline
+                    items={student.progressReports}
+                    emptyLabel="Aucun bilan pour l'instant."
+                    renderItem={(report) => (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                          {report.period && (
+                            <span className="font-medium text-gray-600">{report.period}</span>
+                          )}
+                          <span>{report.adminAccount.name}</span>
+                          <span>{new Date(report.createdAt).toLocaleDateString('fr-FR')}</span>
+                          {report.shareable && <Badge tone="green">Partageable</Badge>}
+                        </div>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">
+                          {report.content}
+                        </p>
+                      </>
+                    )}
+                  />
+                </div>
+                <div className="space-y-2 border-t border-gray-100 pt-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      value={reportForm.period}
+                      onChange={(e) => setReportForm((f) => ({ ...f, period: e.target.value }))}
+                      placeholder="Période (ex: Trimestre 1)"
+                      className="w-56 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
+                    />
+                    <label className="flex items-center gap-1.5 text-sm text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={reportForm.shareable}
+                        onChange={(e) => setReportForm((f) => ({ ...f, shareable: e.target.checked }))}
+                        className="rounded border-gray-300 text-navy focus:ring-navy"
+                      />
+                      Partageable
+                    </label>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={reportForm.content}
+                    onChange={(e) => setReportForm((f) => ({ ...f, content: e.target.value }))}
+                    placeholder="Contenu du bilan"
+                    className={inputClass}
+                  />
+                  <Button
+                    icon={FileText}
+                    loading={savingAction === 'report'}
+                    disabled={!reportForm.content}
+                    onClick={() =>
+                      run('report', async () => {
+                        await api.post(`/students/${id}/progress-reports`, reportForm)
+                        setReportForm({ period: '', content: '', shareable: false })
+                      })
+                    }
+                  >
+                    Ajouter le bilan
+                  </Button>
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+                  <Sparkles size={16} className="text-navy" />
+                  Progression (par matière)
+                </h2>
+                <p className="mb-3 text-xs text-gray-500">
+                  Statut affiché à la famille dans le portail. Une seule entrée par matière —
+                  enregistrer à nouveau met à jour le statut existant.
+                </p>
+                <div className="mb-4 space-y-2">
+                  {student.progressEntries.length === 0 ? (
+                    <p className="text-sm text-gray-500">Aucune matière suivie pour l'instant.</p>
+                  ) : (
+                    student.progressEntries.map((entry) => (
+                      <div key={entry.id} className="flex items-center justify-between text-sm">
+                        <div>
+                          <span className="text-gray-800">{entry.subject}</span>
+                          <span className="ml-2 text-xs text-gray-400">
+                            {entry.teacher
+                              ? `Enseignant : ${entry.teacher.name}`
+                              : entry.adminAccount
+                                ? `Admin : ${entry.adminAccount.name}`
+                                : ''}
+                          </span>
+                        </div>
+                        <Badge tone={PROGRESS_ENTRY_TONES[entry.status]}>
+                          {PROGRESS_ENTRY_LABELS[entry.status] ?? entry.status}
+                        </Badge>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
+                  <div>
+                    <label className="mb-1 block text-xs text-gray-500">Matière</label>
+                    <input
+                      value={progressForm.subject}
+                      onChange={(e) => setProgressForm((f) => ({ ...f, subject: e.target.value }))}
+                      placeholder="Mathématiques"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-gray-500">Statut</label>
+                    <select
+                      value={progressForm.status}
+                      onChange={(e) => setProgressForm((f) => ({ ...f, status: e.target.value }))}
+                      className={inputClass}
+                    >
+                      {Object.entries(PROGRESS_ENTRY_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    icon={Sparkles}
+                    loading={savingAction === 'progress-entry'}
+                    disabled={!progressForm.subject}
+                    onClick={() =>
+                      run('progress-entry', async () => {
+                        await api.put(`/students/${id}/progress-entries`, progressForm)
+                        setProgressForm({ subject: '', status: 'en_progres' })
+                      })
+                    }
+                  >
+                    Enregistrer
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {tab === 'documents' && (
+            <Card className="p-6">
+              <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+                <Upload size={16} className="text-navy" />
+                Documents
+              </h2>
+              <div className="mb-4 space-y-2">
+                {student.documents.length === 0 ? (
+                  <p className="text-sm text-gray-500">Aucun document pour l'instant.</p>
+                ) : (
+                  student.documents.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between text-sm">
+                      <div>
+                        <span className="font-medium text-gray-900">{doc.fileName}</span>
+                        <span className="ml-2 text-gray-500">
+                          {DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type} · {doc.uploadedBy.name} ·{' '}
+                          {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const { url } = await api.get(
+                                `/students/${id}/documents/${doc.id}/download`,
+                              )
+                              window.open(url, '_blank', 'noopener')
+                            } catch (err) {
+                              setError(err.message)
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-navy hover:underline"
+                        >
+                          <Download size={14} />
+                          Télécharger
+                        </button>
+                        <button
+                          onClick={() =>
+                            run('delete-doc', () => api.del(`/students/${id}/documents/${doc.id}`))
+                          }
+                          className="text-gray-400 hover:text-red-600"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Type</label>
+                  <select
+                    value={documentForm.type}
+                    onChange={(e) => setDocumentForm((f) => ({ ...f, type: e.target.value }))}
+                    className={inputClass}
+                  >
+                    {Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs text-gray-500">Fichier</label>
+                  <input
+                    type="file"
+                    onChange={(e) =>
+                      setDocumentForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))
+                    }
+                    className="w-full text-sm"
+                  />
+                </div>
+                <Button
+                  icon={Upload}
+                  loading={savingAction === 'upload'}
+                  disabled={!documentForm.file}
+                  onClick={() =>
+                    run('upload', async () => {
+                      const formData = new FormData()
+                      formData.append('file', documentForm.file)
+                      formData.append('type', documentForm.type)
+                      await api.upload(`/students/${id}/documents`, formData)
+                      setDocumentForm({ file: null, type: 'bulletin' })
+                    })
+                  }
+                >
+                  Envoyer
+                </Button>
+              </div>
+            </Card>
           )}
         </div>
-        <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Type</label>
-            <select
-              value={documentForm.type}
-              onChange={(e) => setDocumentForm((f) => ({ ...f, type: e.target.value }))}
-              className={inputClass}
-            >
-              {Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1">
-            <label className="mb-1 block text-xs text-gray-500">Fichier</label>
-            <input
-              type="file"
-              onChange={(e) =>
-                setDocumentForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))
-              }
-              className="w-full text-sm"
-            />
-          </div>
-          <Button
-            icon={Upload}
-            loading={savingAction === 'upload'}
-            disabled={!documentForm.file}
-            onClick={() =>
-              run('upload', async () => {
-                const formData = new FormData()
-                formData.append('file', documentForm.file)
-                formData.append('type', documentForm.type)
-                await api.upload(`/students/${id}/documents`, formData)
-                setDocumentForm({ file: null, type: 'bulletin' })
-              })
-            }
-          >
-            Envoyer
-          </Button>
-        </div>
-      </Card>
+      </div>
     </div>
   )
 }

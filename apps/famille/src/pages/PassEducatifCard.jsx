@@ -104,6 +104,7 @@ export function PassEducatifCard({ student }) {
         orientation: width > height ? 'landscape' : 'portrait',
         unit: 'px',
         format: [width, height],
+        hotfixes: ['px_scaling'],
       })
       doc.addImage(dataUrl, 'PNG', 0, 0, width, height)
       doc.save(filename('pdf'))

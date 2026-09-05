@@ -37,6 +37,15 @@ export default {
         serif: ['"Playfair Display"', 'Georgia', 'serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
+      keyframes: {
+        scanline: {
+          '0%, 100%': { top: '2%' },
+          '50%': { top: '96%' },
+        },
+      },
+      animation: {
+        scanline: 'scanline 2.2s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

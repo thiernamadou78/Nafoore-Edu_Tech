@@ -1,25 +1,42 @@
-import { useCallback, useEffect, useState } from 'react'
-import { LogOut } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  CalendarClock,
+  Euro,
+  Home,
+  LifeBuoy,
+  LogOut,
+  MessageSquare,
+  MoreHorizontal,
+  ScanLine,
+  Star,
+  Users,
+} from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import logoSrc from './Logo.png'
 
 const NAV_LINKS = [
-  { to: '/', label: 'Tableau de bord' },
-  { to: '/eleves', label: 'Mes élèves' },
-  { to: '/planning', label: 'Planning' },
-  { to: '/pointage', label: 'Pointage' },
-  { to: '/remuneration', label: 'Rémunération' },
-  { to: '/messagerie', label: 'Messagerie' },
-  { to: '/avis', label: 'Avis' },
-  { to: '/support', label: 'Support' },
+  { to: '/', label: 'Tableau de bord', icon: Home },
+  { to: '/eleves', label: 'Mes élèves', icon: Users },
+  { to: '/planning', label: 'Planning', icon: CalendarClock },
+  { to: '/pointage', label: 'Pointage', icon: ScanLine },
+  { to: '/remuneration', label: 'Rémunération', icon: Euro },
+  { to: '/messagerie', label: 'Messagerie', icon: MessageSquare },
+  { to: '/avis', label: 'Avis', icon: Star },
+  { to: '/support', label: 'Support', icon: LifeBuoy },
 ]
+
+// Les 3 destinations les plus utilisées sur téléphone (entre deux séances),
+// affichées directement dans la barre du bas. Le reste va dans "Plus".
+const MOBILE_PRIMARY = ['/', '/planning', '/pointage']
 
 export function TeacherLayout() {
   const { teacherAccount, signOut } = useAuth()
   const location = useLocation()
   const [unreadCount, setUnreadCount] = useState(0)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreRef = useRef(null)
 
   const refreshUnreadCount = useCallback(() => {
     return api
@@ -30,7 +47,22 @@ export function TeacherLayout() {
 
   useEffect(() => {
     refreshUnreadCount()
+    setMoreOpen(false)
   }, [location.pathname, refreshUnreadCount])
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (moreRef.current && !moreRef.current.contains(event.target)) {
+        setMoreOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const primaryLinks = NAV_LINKS.filter((link) => MOBILE_PRIMARY.includes(link.to))
+  const moreLinks = NAV_LINKS.filter((link) => !MOBILE_PRIMARY.includes(link.to))
+  const isMoreActive = moreLinks.some((link) => link.to === location.pathname)
 
   return (
     <div className="min-h-screen bg-cream">
@@ -53,7 +85,8 @@ export function TeacherLayout() {
             </button>
           </div>
         </div>
-        <nav className="mx-auto flex max-w-5xl flex-wrap gap-1 px-6">
+        {/* Onglets complets — desktop/tablette uniquement, la barre du bas prend le relais sur mobile */}
+        <nav className="mx-auto hidden max-w-5xl flex-wrap gap-1 px-6 sm:flex">
           {NAV_LINKS.map(({ to, label }) => (
             <NavLink
               key={to}
@@ -78,9 +111,69 @@ export function TeacherLayout() {
         </nav>
       </header>
       <div className="h-[3px] bg-gradient-to-r from-gold-500 via-gold-400 to-gold-500" />
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="mx-auto max-w-5xl px-6 py-8 pb-24 sm:pb-8">
         <Outlet context={{ refreshUnreadCount }} />
       </main>
+
+      {/* Barre d'onglets basse — mobile uniquement, façon appli native */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-gray-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.06)] sm:hidden">
+        {primaryLinks.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            className={({ isActive }) =>
+              `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${
+                isActive ? 'text-navy' : 'text-gray-400'
+              }`
+            }
+          >
+            <Icon size={20} strokeWidth={2} />
+            {label === 'Tableau de bord' ? 'Accueil' : label}
+          </NavLink>
+        ))}
+        <div ref={moreRef} className="relative flex flex-1">
+          <button
+            onClick={() => setMoreOpen((v) => !v)}
+            className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${
+              isMoreActive || moreOpen ? 'text-navy' : 'text-gray-400'
+            }`}
+          >
+            <span className="relative">
+              <MoreHorizontal size={20} strokeWidth={2} />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-gold-500" />
+              )}
+            </span>
+            Plus
+          </button>
+          {moreOpen && (
+            <div className="absolute bottom-full right-0 mb-2 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+              {moreLinks.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    `flex items-center justify-between gap-2 px-4 py-2.5 text-sm ${
+                      isActive ? 'bg-gold-400/10 font-medium text-navy' : 'text-gray-700'
+                    }`
+                  }
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon size={16} />
+                    {label}
+                  </span>
+                  {to === '/messagerie' && unreadCount > 0 && (
+                    <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-gold-400 px-1 text-[10px] font-bold text-navy">
+                      {unreadCount}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+      </nav>
     </div>
   )
 }

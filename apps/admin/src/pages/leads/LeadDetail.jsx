@@ -15,6 +15,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
+import { Timeline } from '../../components/ui/Timeline'
 import { LEAD_STATUS_LABELS, LEAD_STATUS_TONES, PROFILE_LABELS } from './statusLabels'
 import { CLASSE_LABELS, LEVEL_LABELS } from '../students/labels'
 
@@ -70,125 +71,208 @@ export function LeadDetail() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       <Link
         to="/leads"
-        className="mb-2 inline-flex items-center gap-1 text-sm text-navy hover:underline"
+        className="mb-4 inline-flex items-center gap-1 text-sm text-navy hover:underline"
       >
         <ArrowLeft size={14} />
         Retour aux leads
       </Link>
 
-      <div className="mb-6 flex items-center gap-3">
-        <h1 className="text-xl font-semibold text-gray-900">{lead.name}</h1>
-        <Badge tone={LEAD_STATUS_TONES[lead.status]}>
-          {LEAD_STATUS_LABELS[lead.status] ?? lead.status}
-        </Badge>
-      </div>
-      <p className="-mt-4 mb-6 text-sm text-gray-500">
-        {lead.email}
-        {lead.phone ? ` · ${lead.phone}` : ''} · {PROFILE_LABELS[lead.profile] ?? lead.profile}
-      </p>
-
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 font-semibold text-gray-900">Message</h2>
-        <p className="whitespace-pre-wrap text-sm text-gray-700">{lead.message}</p>
-      </Card>
-
       {error && <Alert>{error}</Alert>}
 
-      <div className="mb-6 flex flex-wrap gap-4">
-        <Card className="min-w-[220px] flex-1 p-6">
-          <h2 className="mb-3 font-semibold text-gray-900">Statut</h2>
-          <div className="flex gap-2">
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className={`${inputClass} flex-1`}
-            >
-              {Object.entries(LEAD_STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <Button
-              icon={Save}
-              disabled={status === lead.status || savingAction === 'status'}
-              onClick={() =>
-                run('status', () => api.patch(`/leads/${id}/status`, { status }))
-              }
-            >
-              Mettre à jour
-            </Button>
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
+        {/* Colonne identité */}
+        <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+          <Card className="p-6">
+            <h1 className="text-lg font-semibold text-gray-900">{lead.name}</h1>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <Badge tone={LEAD_STATUS_TONES[lead.status]}>
+                {LEAD_STATUS_LABELS[lead.status] ?? lead.status}
+              </Badge>
+              <Badge tone="gray">{PROFILE_LABELS[lead.profile] ?? lead.profile}</Badge>
+            </div>
+            <div className="mt-3 space-y-0.5 text-sm text-gray-600">
+              <p>{lead.email}</p>
+              {lead.phone && <p>{lead.phone}</p>}
+            </div>
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Message
+              </p>
+              <p className="whitespace-pre-wrap text-sm text-gray-700">{lead.message}</p>
+            </div>
+          </Card>
 
-        <Card className="min-w-[220px] flex-1 p-6">
-          <h2 className="mb-3 font-semibold text-gray-900">Assigné à</h2>
-          <div className="flex gap-2">
-            <select
-              value={assignedToId}
-              onChange={(e) => setAssignedToId(e.target.value)}
-              className={`${inputClass} flex-1`}
-            >
-              <option value="">Non assigné</option>
-              {assignableAccounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
+          <Card className="p-6">
+            <h2 className="mb-3 font-semibold text-gray-900">Statut</h2>
+            <div className="space-y-2">
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className={inputClass}
+              >
+                {Object.entries(LEAD_STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <Button
+                icon={Save}
+                className="w-full"
+                disabled={status === lead.status || savingAction === 'status'}
+                onClick={() => run('status', () => api.patch(`/leads/${id}/status`, { status }))}
+              >
+                Mettre à jour
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <h2 className="mb-3 font-semibold text-gray-900">Assigné à</h2>
+            <div className="space-y-2">
+              <select
+                value={assignedToId}
+                onChange={(e) => setAssignedToId(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Non assigné</option>
+                {assignableAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                icon={UserCheck}
+                className="w-full"
+                loading={savingAction === 'assign'}
+                onClick={() =>
+                  run('assign', () =>
+                    assignedToId
+                      ? api.patch(`/leads/${id}/assign`, { assignedToId })
+                      : api.patch(`/leads/${id}/unassign`, {}),
+                  )
+                }
+              >
+                Enregistrer
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <h2 className="mb-3 font-semibold text-gray-900">Compte portail</h2>
+            {lead.portalAccount ? (
+              <div className="space-y-3">
+                <Badge tone="green">Compte actif</Badge>
+                <Button
+                  variant="secondary"
+                  icon={RefreshCw}
+                  className="w-full"
+                  loading={savingAction === 'resend'}
+                  onClick={() => setConfirmModal('resend')}
+                >
+                  Renvoyer les identifiants
+                </Button>
+              </div>
+            ) : VALIDATABLE_STATUSES.includes(lead.status) ? (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">
+                  Aucun compte {PROFILE_LABELS[lead.profile] ?? lead.profile} n'a encore été créé.
+                </p>
+                <Button
+                  icon={KeyRound}
+                  className="w-full"
+                  loading={savingAction === 'validate'}
+                  onClick={() => setConfirmModal('validate')}
+                >
+                  Valider et créer le compte
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">
+                Passez le statut du lead à « En vérification » ou « Validé » pour pouvoir créer
+                son compte.
+              </p>
+            )}
+          </Card>
+        </div>
+
+        {/* Colonne contenu */}
+        <div className="space-y-6">
+          <Card className="p-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Enfants</h2>
+              <Button
+                variant="secondary"
+                icon={UserPlus}
+                onClick={() =>
+                  navigate(
+                    `/leads/nouvelle/enfants?leadId=${id}&familyName=${encodeURIComponent(lead.name)}`,
+                  )
+                }
+              >
+                Ajouter un enfant
+              </Button>
+            </div>
+            {lead.students.length > 0 ? (
+              <ul className="divide-y divide-gray-100 text-sm text-gray-700">
+                {lead.students.map((student) => (
+                  <li key={student.id} className="py-2">
+                    <span className="font-medium text-gray-900">{student.name}</span> —{' '}
+                    {student.classe
+                      ? (CLASSE_LABELS[student.classe] ?? student.classe)
+                      : (LEVEL_LABELS[student.level] ?? student.level)}
+                    {student.school ? ` · ${student.school}` : ''}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">Aucun enfant renseigné pour l'instant.</p>
+            )}
+          </Card>
+
+          <Card className="p-6">
+            <h2 className="mb-3 font-semibold text-gray-900">Historique des échanges</h2>
+            <div className="mb-4">
+              <Timeline
+                items={lead.notes}
+                emptyLabel="Aucune note pour l'instant."
+                renderItem={(note) => (
+                  <>
+                    <p className="text-sm text-gray-700">{note.note}</p>
+                    <p className="text-xs text-gray-400">
+                      {note.adminAccount.name} ·{' '}
+                      {new Date(note.createdAt).toLocaleString('fr-FR')}
+                    </p>
+                  </>
+                )}
+              />
+            </div>
+            <textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              rows={3}
+              className={`${inputClass} mb-3`}
+              placeholder="Ajouter une note (appel, email, échange...)"
+            />
             <Button
-              icon={UserCheck}
-              loading={savingAction === 'assign'}
+              icon={MessageSquarePlus}
+              disabled={!noteText || savingAction === 'note'}
               onClick={() =>
-                run('assign', () =>
-                  assignedToId
-                    ? api.patch(`/leads/${id}/assign`, { assignedToId })
-                    : api.patch(`/leads/${id}/unassign`, {}),
-                )
+                run('note', async () => {
+                  await api.post(`/leads/${id}/notes`, { note: noteText })
+                  setNoteText('')
+                })
               }
             >
-              Enregistrer
+              Ajouter la note
             </Button>
-          </div>
-        </Card>
+          </Card>
+        </div>
       </div>
-
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 font-semibold text-gray-900">Compte portail</h2>
-        {lead.portalAccount ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Badge tone="green">Compte actif</Badge>
-            <Button
-              variant="secondary"
-              icon={RefreshCw}
-              loading={savingAction === 'resend'}
-              onClick={() => setConfirmModal('resend')}
-            >
-              Renvoyer les identifiants
-            </Button>
-          </div>
-        ) : VALIDATABLE_STATUSES.includes(lead.status) ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-gray-500">
-              Aucun compte {PROFILE_LABELS[lead.profile] ?? lead.profile} n'a encore été créé.
-            </p>
-            <Button
-              icon={KeyRound}
-              loading={savingAction === 'validate'}
-              onClick={() => setConfirmModal('validate')}
-            >
-              Valider et créer le compte
-            </Button>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">
-            Passez le statut du lead à « En vérification » ou « Validé » pour pouvoir créer son compte.
-          </p>
-        )}
-      </Card>
 
       <Modal
         open={confirmModal === 'validate'}
@@ -235,72 +319,6 @@ export function LeadDetail() {
           </Button>
         </div>
       </Modal>
-
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 font-semibold text-gray-900">Historique des échanges</h2>
-        <div className="mb-4 space-y-3">
-          {lead.notes.length === 0 && (
-            <p className="text-sm text-gray-500">Aucune note pour l'instant.</p>
-          )}
-          {lead.notes.map((note) => (
-            <div key={note.id} className="border-l-2 border-gold-400 pl-3">
-              <p className="text-sm text-gray-700">{note.note}</p>
-              <p className="text-xs text-gray-400">
-                {note.adminAccount.name} · {new Date(note.createdAt).toLocaleString('fr-FR')}
-              </p>
-            </div>
-          ))}
-        </div>
-        <textarea
-          value={noteText}
-          onChange={(e) => setNoteText(e.target.value)}
-          rows={3}
-          className={`${inputClass} mb-3`}
-          placeholder="Ajouter une note (appel, email, échange...)"
-        />
-        <Button
-          icon={MessageSquarePlus}
-          disabled={!noteText || savingAction === 'note'}
-          onClick={() =>
-            run('note', async () => {
-              await api.post(`/leads/${id}/notes`, { note: noteText })
-              setNoteText('')
-            })
-          }
-        >
-          Ajouter la note
-        </Button>
-      </Card>
-
-      <Card className="p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Enfants</h2>
-          <Button
-            variant="secondary"
-            icon={UserPlus}
-            onClick={() =>
-              navigate(
-                `/leads/nouvelle/enfants?leadId=${id}&familyName=${encodeURIComponent(lead.name)}`,
-              )
-            }
-          >
-            Ajouter un enfant
-          </Button>
-        </div>
-        {lead.students.length > 0 ? (
-          <ul className="divide-y divide-gray-100 text-sm text-gray-700">
-            {lead.students.map((student) => (
-              <li key={student.id} className="py-2">
-                <span className="font-medium text-gray-900">{student.name}</span> —{' '}
-                {student.classe ? (CLASSE_LABELS[student.classe] ?? student.classe) : (LEVEL_LABELS[student.level] ?? student.level)}
-                {student.school ? ` · ${student.school}` : ''}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-gray-500">Aucun enfant renseigné pour l'instant.</p>
-        )}
-      </Card>
     </div>
   )
 }

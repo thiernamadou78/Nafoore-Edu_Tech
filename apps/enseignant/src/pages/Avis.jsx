@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Star } from 'lucide-react'
 import { api } from '../lib/api'
 import { Card } from '../components/ui/Card'
+import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
 
 function Stars({ rating }) {
@@ -49,8 +50,12 @@ export function Avis() {
       </div>
 
       {reviews.length === 0 ? (
-        <Card className="p-8 text-center text-sm text-gray-500">
-          Aucun avis reçu pour l'instant.
+        <Card className="overflow-hidden">
+          <EmptyState
+            icon={Star}
+            title="Aucun avis reçu pour l'instant"
+            description="Les avis laissés par les familles apparaîtront ici."
+          />
         </Card>
       ) : (
         <div className="space-y-3">

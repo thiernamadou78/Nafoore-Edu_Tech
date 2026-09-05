@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { Send } from 'lucide-react'
+import { MessageSquare, Send } from 'lucide-react'
 import { api } from '../lib/api'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
 
 function formatTime(date) {
@@ -64,8 +65,12 @@ export function Messagerie() {
     return (
       <div>
         <h1 className="mb-6 font-serif text-2xl font-bold text-navy">Messagerie</h1>
-        <Card className="p-8 text-center text-sm text-gray-500">
-          Aucune conversation pour l'instant.
+        <Card className="overflow-hidden">
+          <EmptyState
+            icon={MessageSquare}
+            title="Aucune conversation pour l'instant"
+            description="Les échanges avec les familles apparaîtront ici."
+          />
         </Card>
       </div>
     )
