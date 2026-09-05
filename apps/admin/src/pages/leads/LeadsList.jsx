@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Inbox, Search } from 'lucide-react'
+import { ChevronRight, Inbox, Search, UserPlus } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Alert } from '../../components/ui/Alert'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
+import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { LEAD_STATUS_LABELS, LEAD_STATUS_TONES, PROFILE_LABELS } from './statusLabels'
@@ -43,9 +44,14 @@ export function LeadsList() {
 
   return (
     <div>
-      <div className="mb-6 flex items-baseline gap-2">
-        <h1 className="text-xl font-semibold text-gray-900">Leads</h1>
-        <span className="text-sm text-gray-400">{leads.length}</span>
+      <div className="mb-6 flex items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-xl font-semibold text-gray-900">Leads</h1>
+          <span className="text-sm text-gray-400">{leads.length}</span>
+        </div>
+        <Button icon={UserPlus} onClick={() => navigate('/leads/nouvelle')}>
+          Créer une famille
+        </Button>
       </div>
 
       <div className="mb-4 flex flex-wrap items-end gap-3">

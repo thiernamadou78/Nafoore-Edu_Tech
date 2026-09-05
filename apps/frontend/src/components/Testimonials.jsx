@@ -1,7 +1,7 @@
 const TESTIMONIALS = [
   {
     quote:
-      'Grâce à Nafoore, ma fille a gagné en confiance et décroché son Brevet avec mention. Le suivi après chaque séance change tout — on se sent vraiment accompagnés.',
+      'Grâce à Nafoore Education, ma fille a gagné en confiance et décroché son Brevet avec mention. Le suivi après chaque séance change tout — on se sent vraiment accompagnés.',
     author: 'Sophie M.',
     role: 'Mère d\'élève · Paris 13ème',
     initials: 'SM',
@@ -10,7 +10,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      'Nafoore accompagne trois de nos écoles dans le cadre du dispositif de réussite éducative. Les résultats sont mesurables et le partenariat est exemplaire.',
+      'Nafoore Education accompagne trois de nos écoles dans le cadre du dispositif de réussite éducative. Les résultats sont mesurables et le partenariat est exemplaire.',
     author: 'Direction éducative',
     role: 'Mairie de Clichy-la-Garenne',
     initials: 'MC',
@@ -19,7 +19,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      'En tant qu\'enseignant, Nafoore m\'offre une flexibilité réelle et les outils pour suivre mes élèves sérieusement. Une plateforme qui respecte autant les profs que les familles.',
+      'En tant qu\'enseignant, Nafoore Education m\'offre une flexibilité réelle et les outils pour suivre mes élèves sérieusement. Une plateforme qui respecte autant les profs que les familles.',
     author: 'Thomas L.',
     role: 'Professeur de mathématiques · Paris',
     initials: 'TL',

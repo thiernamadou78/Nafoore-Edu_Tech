@@ -15,6 +15,7 @@ import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.gua
 import { LeadOnboardingService } from '../onboarding/lead-onboarding.service';
 import { AssignLeadDto } from './dto/assign-lead.dto';
 import { ConvertToStudentDto } from './dto/convert-to-student.dto';
+import { CreateFamilyLeadDto } from './dto/create-family-lead.dto';
 import { CreateLeadNoteDto } from './dto/create-lead-note.dto';
 import { ListLeadsQueryDto } from './dto/list-leads-query.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
@@ -32,6 +33,14 @@ export class LeadsController {
   @Get()
   list(@Query() query: ListLeadsQueryDto) {
     return this.leadsService.list(query);
+  }
+
+  @Post()
+  createFamily(
+    @Body() dto: CreateFamilyLeadDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.leadsService.createFamilyByAdmin(dto, admin.id);
   }
 
   @Get(':id')

@@ -95,7 +95,7 @@ export default function Audience() {
             Des solutions pour chaque acteur
           </h2>
           <p className="font-sans text-gray-500 max-w-lg mx-auto">
-            Nafoore s'adapte à tous les contextes : familles individuelles,
+            Nafoore Education s'adapte à tous les contextes : familles individuelles,
             collectivités locales, comités d'entreprise ou organismes de formation.
           </p>
         </div>

@@ -4,7 +4,7 @@ import logoSrc from './IMG/Logo.png'
 const NAV = [
   { href: '/#services', label: 'Services' },
   { href: '/#audience', label: 'Pour qui ?' },
-  { href: '/#why-us', label: 'Pourquoi Nafoore' },
+  { href: '/#why-us', label: 'Pourquoi Nafoore Education' },
   { href: '/#contact', label: 'Contact' },
 ]
 
@@ -28,8 +28,8 @@ export default function Footer() {
           {/* Branding */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
-              <img src={logoSrc} alt="Nafoore" className="w-9 h-9 object-contain" />
-              <span className="font-serif text-lg font-bold">Nafoore</span>
+              <img src={logoSrc} alt="Nafoore Education" className="w-9 h-9 object-contain" />
+              <span className="font-serif text-lg font-bold">Nafoore Education</span>
             </div>
             <p className="font-sans text-gray-500 text-sm leading-relaxed">
               Soutien scolaire personnalisé pour les familles, mairies et entreprises.
@@ -115,7 +115,7 @@ export default function Footer() {
         {/* Bas de footer */}
         <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="font-sans text-xs text-gray-600">
-            © {new Date().getFullYear()} Nafoore — Tous droits réservés
+            © {new Date().getFullYear()} Nafoore Education — Tous droits réservés
           </p>
           <p className="font-sans text-xs text-gray-600">
             Fait avec ❤️ pour la réussite de chaque élève

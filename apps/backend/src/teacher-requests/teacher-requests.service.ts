@@ -79,10 +79,12 @@ export class TeacherRequestsService {
       );
     });
 
-    try {
-      const result = await this.emailService.send({
+    // Email best-effort en arrière-plan : la famille ne doit pas attendre la
+    // réponse du fournisseur d'email pour voir son statut changer.
+    this.emailService
+      .send({
         to: portalAccount.email,
-        subject: `Nafoore — Professeur confirmé pour ${matching.teacherRequest.student.name}`,
+        subject: `Nafoore Education — Professeur confirmé pour ${matching.teacherRequest.student.name}`,
         html: renderMatchingConfirmationEmail({
           fullName: portalAccount.fullName,
           studentName: matching.teacherRequest.student.name,
@@ -90,16 +92,18 @@ export class TeacherRequestsService {
           subject: matching.teacherRequest.subject,
           portalUrl: resolvePortalUrl('famille'),
         }),
+      })
+      .then((result) => {
+        this.logger.log(
+          `Email de confirmation de matching envoyé (${result.providerId ?? 'n/a'})`,
+        );
+      })
+      .catch((sendError) => {
+        this.logger.error(
+          `Échec d'envoi de l'email de confirmation de matching (matching ${matchingId})`,
+          sendError instanceof Error ? sendError.stack : undefined,
+        );
       });
-      this.logger.log(
-        `Email de confirmation de matching envoyé (${result.providerId ?? 'n/a'})`,
-      );
-    } catch (sendError) {
-      this.logger.error(
-        `Échec d'envoi de l'email de confirmation de matching (matching ${matchingId})`,
-        sendError instanceof Error ? sendError.stack : undefined,
-      );
-    }
 
     return { status: 'acceptee' };
   }
@@ -142,7 +146,14 @@ export class TeacherRequestsService {
             id: true,
             name: true,
             level: true,
-            parentLead: { select: { id: true, name: true, email: true } },
+            parentLead: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                portalAccount: { select: { familyName: true } },
+              },
+            },
           },
         },
         matchings: {
@@ -163,7 +174,14 @@ export class TeacherRequestsService {
             id: true,
             name: true,
             level: true,
-            parentLead: { select: { id: true, name: true, email: true } },
+            parentLead: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                portalAccount: { select: { familyName: true } },
+              },
+            },
           },
         },
         matchings: {
@@ -237,10 +255,11 @@ export class TeacherRequestsService {
 
     const portalAccount = request.student.parentLead?.portalAccount;
     if (portalAccount) {
-      try {
-        const result = await this.emailService.send({
+      // Email best-effort en arrière-plan : ne bloque pas la réponse à l'admin.
+      this.emailService
+        .send({
           to: portalAccount.email,
-          subject: `Nafoore — Un professeur a été proposé pour ${request.student.name}`,
+          subject: `Nafoore Education — Un professeur a été proposé pour ${request.student.name}`,
           html: renderMatchingProposalEmail({
             fullName: portalAccount.fullName,
             studentName: request.student.name,
@@ -252,16 +271,18 @@ export class TeacherRequestsService {
             teacherVerified: teacher.verified,
             portalUrl: resolvePortalUrl('famille'),
           }),
+        })
+        .then((result) => {
+          this.logger.log(
+            `Email de proposition de matching envoyé (${result.providerId ?? 'n/a'})`,
+          );
+        })
+        .catch((sendError) => {
+          this.logger.error(
+            `Échec d'envoi de l'email de proposition de matching (demande ${requestId})`,
+            sendError instanceof Error ? sendError.stack : undefined,
+          );
         });
-        this.logger.log(
-          `Email de proposition de matching envoyé (${result.providerId ?? 'n/a'})`,
-        );
-      } catch (sendError) {
-        this.logger.error(
-          `Échec d'envoi de l'email de proposition de matching (demande ${requestId})`,
-          sendError instanceof Error ? sendError.stack : undefined,
-        );
-      }
     }
 
     return matching;

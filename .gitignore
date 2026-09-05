@@ -5,6 +5,7 @@ dist/
 .DS_Store
 *.log
 .turbo/
+supabase/.temp/
 
 # Scaffold Vite accidentel à la racine, sans lien avec les workspaces apps/*
 /NAFOORE/

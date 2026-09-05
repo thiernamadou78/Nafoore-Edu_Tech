@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Contact2, Pencil, Plus, Power, Search, Trash2 } from 'lucide-react'
+import { Contact2, Loader2, Pencil, Plus, Power, Search, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
@@ -22,6 +22,7 @@ export function TeachersList() {
   const [search, setSearch] = useState('')
   const [form, setForm] = useState(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null)
 
   const load = useCallback(
     () =>
@@ -39,22 +40,32 @@ export function TeachersList() {
 
   const toggleVerified = async (event, teacher) => {
     event.stopPropagation()
+    const key = `${teacher.id}:verify`
+    setPendingAction(key)
+    setError(null)
     try {
       await api.patch(`/teachers/${teacher.id}/verified`, { verified: !teacher.verified })
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setPendingAction(null)
     }
   }
 
   const handleDelete = async (event, teacher) => {
     event.stopPropagation()
     if (!window.confirm(`Supprimer définitivement ${teacher.name} ?`)) return
+    const key = `${teacher.id}:delete`
+    setPendingAction(key)
+    setError(null)
     try {
       await api.del(`/teachers/${teacher.id}`)
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setPendingAction(null)
     }
   }
 
@@ -141,7 +152,7 @@ export function TeachersList() {
               className={inputClass}
             />
           </div>
-          <Button type="submit" icon={Plus} disabled={submitting}>
+          <Button type="submit" icon={Plus} loading={submitting}>
             Ajouter
           </Button>
         </form>
@@ -212,23 +223,33 @@ export function TeachersList() {
                           event.stopPropagation()
                           navigate(`/enseignants/${teacher.id}`)
                         }}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-navy"
+                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90"
                       >
                         <Pencil size={16} />
                       </button>
                       <button
                         title={teacher.verified ? 'Désactiver' : 'Activer'}
                         onClick={(event) => toggleVerified(event, teacher)}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-navy"
+                        disabled={pendingAction === `${teacher.id}:verify`}
+                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
                       >
-                        <Power size={16} />
+                        {pendingAction === `${teacher.id}:verify` ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Power size={16} />
+                        )}
                       </button>
                       <button
                         title="Supprimer"
                         onClick={(event) => handleDelete(event, teacher)}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                        disabled={pendingAction === `${teacher.id}:delete`}
+                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-red-50 hover:text-red-600 active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
                       >
-                        <Trash2 size={16} />
+                        {pendingAction === `${teacher.id}:delete` ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
                       </button>
                     </div>
                   </td>

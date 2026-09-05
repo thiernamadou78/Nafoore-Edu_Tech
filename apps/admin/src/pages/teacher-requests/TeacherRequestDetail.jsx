@@ -78,8 +78,11 @@ export function TeacherRequestDetail() {
         </Badge>
       </div>
       <p className="-mt-4 mb-6 text-sm text-gray-500">
-        {request.student.name} · {request.student.parentLead?.name ?? '—'} (
-        {request.student.parentLead?.email ?? '—'})
+        {request.student.name} ·{' '}
+        {request.student.parentLead?.portalAccount?.familyName ??
+          request.student.parentLead?.name ??
+          '—'}{' '}
+        ({request.student.parentLead?.email ?? '—'})
       </p>
 
       {error && <Alert>{error}</Alert>}

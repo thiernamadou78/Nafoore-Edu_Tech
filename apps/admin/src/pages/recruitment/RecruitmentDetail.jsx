@@ -9,6 +9,7 @@ import {
   KeyRound,
   MessageSquarePlus,
   Paperclip,
+  Sparkles,
   UserPlus,
   X,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { STATUS_LABELS, STATUS_TONES } from './statusLabels'
 
 const inputClass =
@@ -42,6 +44,7 @@ export function RecruitmentDetail() {
   const [application, setApplication] = useState(null)
   const [interviewDate, setInterviewDate] = useState('')
   const [notes, setNotes] = useState('')
+  const [bio, setBio] = useState('')
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
 
@@ -49,6 +52,7 @@ export function RecruitmentDetail() {
     api.get(`/teacher-applications/${id}`).then((data) => {
       setApplication(data)
       setNotes(data.interviewNotes ?? '')
+      setBio(data.bio ?? '')
       setInterviewDate(data.interviewDate ? data.interviewDate.slice(0, 16) : '')
     })
 
@@ -174,6 +178,41 @@ export function RecruitmentDetail() {
       </Card>
 
       <Card className="mb-6 p-6">
+        <h2 className="mb-1 flex items-center gap-2 font-semibold text-gray-900">
+          <Sparkles size={16} className="text-navy" />
+          Profil enseignant (visible par les familles)
+        </h2>
+        <p className="mb-3 text-xs text-gray-500">
+          Photo et bio rédigées par l'équipe Nafoore Education pour présenter le candidat aux familles lors
+          d'une proposition — requis avant de valider la candidature.
+        </p>
+        <div className="mb-4">
+          <PhotoUploader
+            name={application.candidateName}
+            photoUrl={application.photoUrl}
+            uploadPath={`/teacher-applications/${id}/photo`}
+            onChange={load}
+          />
+        </div>
+        <textarea
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          rows={4}
+          className={`${inputClass} mb-3`}
+          placeholder="Ex : M. Barry est un professeur de physique aguerri, avec une méthodologie adaptée aux élèves en difficulté…"
+        />
+        <Button
+          icon={Sparkles}
+          disabled={bio.trim().length < 20 || savingAction === 'profile'}
+          onClick={() =>
+            run('profile', () => api.patch(`/teacher-applications/${id}/profile`, { bio }))
+          }
+        >
+          Enregistrer le profil
+        </Button>
+      </Card>
+
+      <Card className="mb-6 p-6">
         <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
           <MessageSquarePlus size={16} className="text-navy" />
           Notes internes
@@ -200,11 +239,17 @@ export function RecruitmentDetail() {
 
       <Card className="p-6">
         <h2 className="mb-3 font-semibold text-gray-900">Décision</h2>
+        {(!application.bio || !application.photoPath) && (
+          <p className="mb-3 text-xs text-amber-700">
+            Complète la photo et la bio du candidat ci-dessus avant de pouvoir valider.
+          </p>
+        )}
         <div className="flex flex-wrap gap-3">
           <Button
             variant="success"
             icon={Check}
-            disabled={savingAction === 'valide'}
+            loading={savingAction === 'valide'}
+            disabled={!application.bio || !application.photoPath}
             onClick={() =>
               run('valide', () =>
                 api.patch(`/teacher-applications/${id}/decision`, { status: 'valide' }),
@@ -216,7 +261,7 @@ export function RecruitmentDetail() {
           <Button
             variant="warning"
             icon={FileWarning}
-            disabled={savingAction === 'documents_requis'}
+            loading={savingAction === 'documents_requis'}
             onClick={() =>
               run('documents_requis', () =>
                 api.patch(`/teacher-applications/${id}/decision`, {
@@ -230,7 +275,7 @@ export function RecruitmentDetail() {
           <Button
             variant="danger"
             icon={X}
-            disabled={savingAction === 'refuse'}
+            loading={savingAction === 'refuse'}
             onClick={() =>
               run('refuse', () =>
                 api.patch(`/teacher-applications/${id}/decision`, { status: 'refuse' }),
@@ -257,7 +302,7 @@ export function RecruitmentDetail() {
               </p>
               <Button
                 icon={UserPlus}
-                disabled={savingAction === 'create-account'}
+                loading={savingAction === 'create-account'}
                 onClick={() =>
                   run('create-account', () =>
                     api.post(`/teacher-applications/${id}/create-account`),
@@ -279,7 +324,7 @@ export function RecruitmentDetail() {
               <Button
                 variant="secondary"
                 icon={KeyRound}
-                disabled={savingAction === 'resend-credentials'}
+                loading={savingAction === 'resend-credentials'}
                 onClick={() =>
                   run('resend-credentials', () =>
                     api.post(`/teacher-applications/${id}/resend-credentials`),

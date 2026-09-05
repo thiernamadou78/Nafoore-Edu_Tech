@@ -58,13 +58,13 @@ export function FamilyLayout() {
         <header className="bg-navy text-white">
           <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
             <Link to="/" className="flex items-center gap-2.5">
-              <img src={logoSrc} alt="Nafoore" className="h-8 w-8 object-contain" />
+              <img src={logoSrc} alt="Nafoore Education" className="h-8 w-8 object-contain" />
               <div className="leading-tight">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-gold-400">
                   Espace Famille
                 </div>
                 <div className="font-serif text-base font-bold">
-                  {portalAccount?.familyName || 'Nafoore'}
+                  {portalAccount?.familyName || 'Nafoore Education'}
                 </div>
               </div>
             </Link>

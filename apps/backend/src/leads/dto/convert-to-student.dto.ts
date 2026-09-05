@@ -1,8 +1,8 @@
 import { IsIn } from 'class-validator';
 
 export class ConvertToStudentDto {
-  @IsIn(['college', 'lycee'], {
-    message: 'level doit être college ou lycee',
+  @IsIn(['primaire', 'college', 'lycee'], {
+    message: 'level doit être primaire, college ou lycee',
   })
   level: string;
 }

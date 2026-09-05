@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -8,8 +9,12 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -20,6 +25,7 @@ import { DecisionDto } from './dto/decision.dto';
 import { ListTeacherApplicationsQueryDto } from './dto/list-teacher-applications-query.dto';
 import { ScheduleInterviewDto } from './dto/schedule-interview.dto';
 import { UpdateNotesDto } from './dto/update-notes.dto';
+import { UpdateTeacherApplicationProfileDto } from './dto/update-teacher-application-profile.dto';
 import { TeacherApplicationDocumentsService } from './teacher-application-documents.service';
 import { TeacherApplicationsService } from './teacher-applications.service';
 
@@ -75,6 +81,28 @@ export class TeacherApplicationsController {
       dto.interviewNotes,
       admin.id,
     );
+  }
+
+  @Patch(':id/profile')
+  updateProfile(
+    @Param('id') id: string,
+    @Body() dto: UpdateTeacherApplicationProfileDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.teacherApplicationsService.updateProfile(id, dto, admin.id);
+  }
+
+  @Post(':id/photo')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  uploadPhoto(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    return this.teacherApplicationsService.uploadPhoto(id, file);
+  }
+
+  @Delete(':id/photo')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removePhoto(@Param('id') id: string) {
+    return this.teacherApplicationsService.removePhoto(id);
   }
 
   @Patch(':id/decision')

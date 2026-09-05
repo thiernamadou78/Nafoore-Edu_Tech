@@ -50,7 +50,7 @@ const COMMITMENTS = [
   },
   {
     title: 'Impact social',
-    desc: "Nafoore s'engage pour l'égalité des chances et la réussite éducative.",
+    desc: "Nafoore Education s'engage pour l'égalité des chances et la réussite éducative.",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526" />
@@ -70,7 +70,7 @@ export default function WhyUs() {
             Nos engagements
           </p>
           <h2 className="font-serif text-3xl md:text-4xl font-bold text-white">
-            Pourquoi choisir Nafoore ?
+            Pourquoi choisir Nafoore Education ?
           </h2>
         </div>
 

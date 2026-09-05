@@ -10,7 +10,7 @@ export function renderApplicationReceivedEmail({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Candidature reçue — Nafoore</title>
+    <title>Candidature reçue — Nafoore Education</title>
   </head>
   <body style="margin:0;padding:0;background-color:#f4f3ef;font-family:Georgia,'Playfair Display',serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f3ef;padding:32px 16px;">
@@ -19,7 +19,7 @@ export function renderApplicationReceivedEmail({
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(30,58,138,0.08);">
             <tr>
               <td style="background-color:#1E3A8A;padding:28px 32px;">
-                <span style="font-family:Georgia,'Playfair Display',serif;font-size:20px;font-weight:bold;color:#ffffff;letter-spacing:0.02em;">Nafoore</span>
+                <span style="font-family:Georgia,'Playfair Display',serif;font-size:20px;font-weight:bold;color:#ffffff;letter-spacing:0.02em;">Nafoore Education</span>
               </td>
             </tr>
             <tr>
@@ -32,7 +32,7 @@ export function renderApplicationReceivedEmail({
                   Bonjour ${escapeHtml(fullName)},
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
-                  Nous avons bien reçu votre candidature pour rejoindre le réseau d'enseignants Nafoore, ainsi que vos documents. Votre dossier est en cours d'examen — nous revenons vers vous très prochainement.
+                  Nous avons bien reçu votre candidature pour rejoindre le réseau d'enseignants Nafoore Education, ainsi que vos documents. Votre dossier est en cours d'examen — nous revenons vers vous très prochainement.
                 </p>
               </td>
             </tr>

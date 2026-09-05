@@ -34,7 +34,7 @@ export function Support() {
     <div className="max-w-lg">
       <h1 className="mb-2 font-serif text-2xl font-bold text-navy">Support</h1>
       <p className="mb-6 text-sm text-gray-500">
-        Une question, un souci technique, un imprévu avec une famille ? L'équipe Nafoore te
+        Une question, un souci technique, un imprévu avec une famille ? L'équipe Nafoore Education te
         répond dès que possible.
       </p>
 
@@ -46,7 +46,7 @@ export function Support() {
             </div>
             <p className="font-medium text-gray-900">Message envoyé</p>
             <p className="mt-1 text-sm text-gray-500">
-              L'équipe Nafoore reviendra vers toi bientôt.
+              L'équipe Nafoore Education reviendra vers toi bientôt.
             </p>
             <button
               onClick={() => setStatus('idle')}

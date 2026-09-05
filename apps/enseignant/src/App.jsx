@@ -3,10 +3,13 @@ import { AuthProvider } from './context/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { TeacherLayout } from './components/TeacherLayout'
 import { Login } from './pages/Login'
+import { ForgotPassword } from './pages/ForgotPassword'
+import { ResetPassword } from './pages/ResetPassword'
 import { ChangePassword } from './pages/ChangePassword'
 import { StudentsList } from './pages/StudentsList'
 import { StudentDetail } from './pages/StudentDetail'
 import { Planning } from './pages/Planning'
+import { Pointage } from './pages/Pointage'
 import { Dashboard } from './pages/Dashboard'
 import { Remuneration } from './pages/Remuneration'
 import { Messagerie } from './pages/Messagerie'
@@ -18,6 +21,8 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
+        <Route path="/reinitialiser-mot-de-passe" element={<ResetPassword />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/changer-mot-de-passe" element={<ChangePassword />} />
           <Route element={<TeacherLayout />}>
@@ -25,6 +30,7 @@ export default function App() {
             <Route path="/eleves" element={<StudentsList />} />
             <Route path="/eleves/:id" element={<StudentDetail />} />
             <Route path="/planning" element={<Planning />} />
+            <Route path="/pointage" element={<Pointage />} />
             <Route path="/remuneration" element={<Remuneration />} />
             <Route path="/messagerie" element={<Messagerie />} />
             <Route path="/avis" element={<Avis />} />

@@ -6,6 +6,7 @@ import { AssignTeachersDto } from './dto/assign-teachers.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { ListStudentsQueryDto } from './dto/list-students-query.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import { generateQrToken } from './qr-token.util';
 import { StudentDocumentsService } from './student-documents.service';
 
 const teacherSelect = {
@@ -33,7 +34,9 @@ export class StudentsService {
     });
 
     const photoUrls = await this.photos.signUrls(students.map((s) => s.photoPath));
-    return students.map((student) => ({
+    // qrToken est le "mot de passe" du pass éducatif : jamais exposé en liste,
+    // uniquement dans findOne() (déjà réservé à super_admin/admin).
+    return students.map(({ qrToken, ...student }) => ({
       ...student,
       photoUrl: student.photoPath ? (photoUrls.get(student.photoPath) ?? null) : null,
     }));
@@ -46,7 +49,14 @@ export class StudentsService {
         parentLead: { select: { id: true, name: true, profile: true } },
         teachers: { select: teacherSelect },
         sessions: {
-          include: { teacher: { select: { id: true, name: true } } },
+          include: {
+            teacher: { select: { id: true, name: true } },
+            attendanceLogs: {
+              select: { checkinAt: true, checkoutAt: true, method: true },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
           orderBy: { date: 'desc' },
         },
         progressReports: {
@@ -65,7 +75,30 @@ export class StudentsService {
           orderBy: { createdAt: 'desc' },
         },
         progressEntries: {
+          include: {
+            adminAccount: { select: { name: true } },
+            teacher: { select: { name: true } },
+          },
           orderBy: { subject: 'asc' },
+        },
+        attendanceLogs: {
+          include: {
+            teacher: { select: { id: true, name: true } },
+            session: { select: { id: true, date: true, subject: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        fundingLinks: {
+          where: { status: 'active' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            employee: {
+              include: {
+                contract: { select: { dateDebut: true, dateExpiration: true } },
+              },
+            },
+          },
         },
       },
     });
@@ -81,13 +114,28 @@ export class StudentsService {
       data: {
         name: dto.name,
         level: dto.level,
+        classe: dto.classe,
         school: dto.school,
         address: dto.address,
         subjects: dto.subjects ?? [],
         objectives: dto.objectives,
         parentLeadId: dto.parentLeadId,
+        qrToken: generateQrToken(),
       },
     });
+  }
+
+  async regenerateQrToken(id: string) {
+    await this.findOneRaw(id);
+    return this.prisma.student.update({
+      where: { id },
+      data: { qrToken: generateQrToken(), passStatus: 'active' },
+    });
+  }
+
+  async setPassStatus(id: string, passStatus: string) {
+    await this.findOneRaw(id);
+    return this.prisma.student.update({ where: { id }, data: { passStatus } });
   }
 
   async update(id: string, dto: UpdateStudentDto) {

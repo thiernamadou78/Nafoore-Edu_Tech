@@ -10,6 +10,7 @@ import { SupabaseAdminService } from '../auth/supabase-admin.service';
 import { EmailService } from '../email/email.service';
 import { renderWelcomeEmail } from '../email/templates/portal-welcome.template';
 import { resolvePortalUrl } from '../email/portal-url.util';
+import { createAuthUserReclaimingOrphans } from './create-auth-user.util';
 import { generateTemporaryPassword } from './password-generator.util';
 
 @Injectable()
@@ -42,21 +43,22 @@ export class TeacherOnboardingService {
 
     const tempPassword = generateTemporaryPassword();
 
-    const { data, error } = await this.supabaseAdmin.client.auth.admin.createUser({
-      email: application.candidateEmail,
-      password: tempPassword,
-      email_confirm: true,
-    });
-    if (error || !data.user) {
-      if (error?.message?.toLowerCase().includes('already')) {
+    let userId: string;
+    try {
+      userId = await createAuthUserReclaimingOrphans(
+        this.supabaseAdmin,
+        application.candidateEmail,
+        tempPassword,
+        (id) => this.prisma.teacherAccount.findUnique({ where: { id } }).then((a) => !a),
+      );
+    } catch (error) {
+      if ((error as Error)?.message?.toLowerCase().includes('already')) {
         throw new ConflictException(
           `Un compte existe déjà avec l'adresse ${application.candidateEmail}. Vérifie qu'il ne s'agit pas d'un doublon avant de continuer.`,
         );
       }
-      throw error ?? new Error('Échec de la création du compte');
+      throw error;
     }
-
-    const userId = data.user.id;
 
     let teacherAccount;
     try {
@@ -154,7 +156,7 @@ export class TeacherOnboardingService {
     try {
       const result = await this.emailService.send({
         to: application.candidateEmail,
-        subject: 'Bienvenue sur Nafoore — vos identifiants de connexion',
+        subject: 'Bienvenue sur Nafoore Education — vos identifiants de connexion',
         html,
       });
       emailProviderId = result.providerId;

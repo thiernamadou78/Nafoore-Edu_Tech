@@ -31,8 +31,8 @@ export function Welcome() {
     <div className="flex min-h-screen items-center justify-center bg-cream px-4">
       <Card className="w-full max-w-sm p-8">
         <div className="mb-6 flex flex-col items-center text-center">
-          <img src={logoSrc} alt="Nafoore" className="mb-3 h-14 w-14 object-contain drop-shadow-md" />
-          <h1 className="font-serif text-lg font-bold text-navy">Bienvenue sur Nafoore</h1>
+          <img src={logoSrc} alt="Nafoore Education" className="mb-3 h-14 w-14 object-contain drop-shadow-md" />
+          <h1 className="font-serif text-lg font-bold text-navy">Bienvenue sur Nafoore Education</h1>
           <p className="text-sm text-gray-500">
             Comment veux-tu appeler ton espace ? Ce nom s'affichera en haut de ton portail.
           </p>
@@ -62,7 +62,7 @@ export function Welcome() {
               />
             </div>
           </div>
-          <Button type="submit" disabled={submitting} className="w-full">
+          <Button type="submit" loading={submitting} className="w-full">
             {submitting ? 'Enregistrement…' : 'Continuer'}
           </Button>
         </form>

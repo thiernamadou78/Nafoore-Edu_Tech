@@ -93,7 +93,7 @@ export class AdminMessagingService {
         try {
           await this.emailService.send({
             to: recipient.email,
-            subject: 'Nafoore — Un de vos messages a été retiré',
+            subject: 'Nafoore Education — Un de vos messages a été retiré',
             html: renderModerationWarningEmail({
               fullName: recipient.fullName,
               reason: dto.reason,

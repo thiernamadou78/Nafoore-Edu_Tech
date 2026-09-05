@@ -1,9 +1,12 @@
 import { useState } from 'react'
 
 const LEVELS = [
+  { value: 'primaire', label: 'Primaire' },
   { value: 'college', label: 'Collège' },
   { value: 'lycee', label: 'Lycée' },
 ]
+
+const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
 const BENEFITS = [
   { icon: '💰', text: 'Rémunération attractive' },
@@ -21,7 +24,7 @@ const DEFAULT_FORM = {
   subjects: '',
   levels: [],
   zone: '',
-  availability: '',
+  availabilityDays: [],
 }
 
 export default function TeacherApplication() {
@@ -42,6 +45,15 @@ export default function TeacherApplication() {
     }))
   }
 
+  const toggleDay = (day) => {
+    setForm((f) => ({
+      ...f,
+      availabilityDays: f.availabilityDays.includes(day)
+        ? f.availabilityDays.filter((d) => d !== day)
+        : [...f.availabilityDays, day],
+    }))
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setStatus('loading')
@@ -54,7 +66,7 @@ export default function TeacherApplication() {
       formData.append('subjects', form.subjects)
       formData.append('levels', form.levels.join(','))
       formData.append('zone', form.zone)
-      formData.append('availability', form.availability)
+      formData.append('availability', form.availabilityDays.join(', '))
       diplomas.forEach((file) => formData.append('diplomas', file))
       if (criminalRecord) formData.append('criminalRecord', criminalRecord)
 
@@ -97,7 +109,7 @@ export default function TeacherApplication() {
               Recrutement
             </div>
             <h1 className="font-serif text-3xl lg:text-4xl font-bold text-white mb-4 leading-tight">
-              Rejoins le réseau <span className="text-gold-400">Nafoore</span>
+              Rejoins le réseau <span className="text-gold-400">Nafoore Education</span>
             </h1>
             <p className="font-sans text-white/60 text-base leading-relaxed mb-10">
               Dépose ta candidature en quelques minutes. Notre équipe examine
@@ -237,17 +249,25 @@ export default function TeacherApplication() {
                 </div>
 
                 <div className="mb-4">
-                  <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                  <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                     Disponibilités
                   </label>
-                  <textarea
-                    name="availability"
-                    value={form.availability}
-                    onChange={handleChange}
-                    rows={2}
-                    placeholder="Mercredi après-midi, samedi toute la journée…"
-                    className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors resize-none"
-                  />
+                  <div className="flex flex-wrap gap-2">
+                    {DAYS_OF_WEEK.map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleDay(day)}
+                        className={`px-3.5 py-2 rounded-xl font-sans text-xs font-semibold border-2 transition-all ${
+                          form.availabilityDays.includes(day)
+                            ? 'bg-navy text-white border-navy'
+                            : 'text-gray-500 border-gray-200 hover:border-navy/30'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4 mb-5">

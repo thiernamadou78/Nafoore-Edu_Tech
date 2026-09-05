@@ -1,5 +1,16 @@
 // Matières du programme scolaire français, par niveau.
 export const SUBJECTS_BY_LEVEL = {
+  primaire: [
+    'Français',
+    'Mathématiques',
+    'Questionner le monde',
+    'Histoire-Géographie',
+    'Anglais',
+    'Arts plastiques',
+    'Éducation musicale',
+    'EPS',
+    'Éducation morale et civique',
+  ],
   college: [
     'Français',
     'Mathématiques',
@@ -35,6 +46,12 @@ export const SUBJECTS_BY_LEVEL = {
     'Arts',
     'EPS',
   ],
+}
+
+export const CLASSE_OPTIONS_BY_LEVEL = {
+  primaire: ['cp', 'ce1', 'ce2', 'cm1', 'cm2'],
+  college: ['6e', '5e', '4e', '3e'],
+  lycee: ['2nde', '1re', 'terminale'],
 }
 
 export const DAYS_OF_WEEK = [

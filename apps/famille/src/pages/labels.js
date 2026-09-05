@@ -1,6 +1,28 @@
 export const LEVEL_LABELS = {
+  primaire: 'Primaire',
   college: 'Collège',
   lycee: 'Lycée',
+}
+
+export const CLASSE_LABELS = {
+  cp: 'CP',
+  ce1: 'CE1',
+  ce2: 'CE2',
+  cm1: 'CM1',
+  cm2: 'CM2',
+  '6e': '6ème',
+  '5e': '5ème',
+  '4e': '4ème',
+  '3e': '3ème',
+  '2nde': '2nde',
+  '1re': '1ère',
+  terminale: 'Terminale',
+}
+
+export const FUNDING_SOURCE_LABELS = {
+  family: 'Famille',
+  enterprise: 'Entreprise',
+  mairie: 'Mairie',
 }
 
 export const SESSION_STATUS_LABELS = {

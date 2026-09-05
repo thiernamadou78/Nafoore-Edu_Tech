@@ -19,7 +19,7 @@ const ITEMS = [
   },
   {
     q: 'Y a-t-il un engagement de durée ?',
-    a: 'Non. Nafoore fonctionne sans engagement : vous pouvez arrêter avec un simple préavis de 15 jours. Nous croyons que la fidélité se gagne par la qualité, pas par les contrats.',
+    a: 'Non. Nafoore Education fonctionne sans engagement : vous pouvez arrêter avec un simple préavis de 15 jours. Nous croyons que la fidélité se gagne par la qualité, pas par les contrats.',
   },
   {
     q: 'Comment sont sélectionnés les enseignants ?',

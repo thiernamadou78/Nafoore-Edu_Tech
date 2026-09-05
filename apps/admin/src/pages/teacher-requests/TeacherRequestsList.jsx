@@ -79,7 +79,9 @@ export function TeacherRequestsList() {
                 >
                   <td className="px-4 py-3 font-medium text-gray-900">{request.student.name}</td>
                   <td className="px-4 py-3 text-gray-700">
-                    {request.student.parentLead?.name ?? '—'}
+                    {request.student.parentLead?.portalAccount?.familyName ??
+                      request.student.parentLead?.name ??
+                      '—'}
                   </td>
                   <td className="px-4 py-3 text-gray-700">{request.subject}</td>
                   <td className="px-4 py-3 text-gray-700">

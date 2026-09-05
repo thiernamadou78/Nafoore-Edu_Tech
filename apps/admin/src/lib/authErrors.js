@@ -7,7 +7,7 @@ export function translateAuthError(err) {
     return 'Email ou mot de passe incorrect.'
   }
   if (/email not confirmed/i.test(message)) {
-    return "Ce compte n'est pas encore confirmé. Contacte l'équipe Nafoore."
+    return "Ce compte n'est pas encore confirmé. Contacte l'équipe Nafoore Education."
   }
   return 'Connexion impossible. Réessaie dans quelques instants.'
 }

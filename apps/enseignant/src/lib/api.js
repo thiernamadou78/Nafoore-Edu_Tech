@@ -36,5 +36,6 @@ function jsonRequest(path, options = {}) {
 export const api = {
   get: (path) => jsonRequest(path),
   post: (path, body) => jsonRequest(path, { method: 'POST', body: JSON.stringify(body) }),
+  put: (path, body) => jsonRequest(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: (path, body) => jsonRequest(path, { method: 'PATCH', body: JSON.stringify(body) }),
 }

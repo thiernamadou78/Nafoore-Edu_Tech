@@ -7,6 +7,7 @@ import { SetFamilyNameDto } from './dto/set-family-name.dto';
 import { StartThreadDto } from './dto/start-thread.dto';
 import { SendFamilyMessageDto } from './dto/send-family-message.dto';
 import { redactRemovedMessage, countUnread } from '../common/redact-message.util';
+import { generateQrToken } from '../students/qr-token.util';
 
 const teacherSelect = {
   teacher: { select: { id: true, name: true, subjects: true } },
@@ -50,10 +51,12 @@ export class FamilyService {
       data: {
         name: dto.name,
         level: dto.level,
+        classe: dto.classe,
         school: dto.school,
         address: dto.address,
         subjects: dto.subjects ?? [],
         parentLeadId: portalAccount.leadId,
+        qrToken: generateQrToken(),
       },
     });
   }
@@ -122,10 +125,27 @@ export class FamilyService {
         id: true,
         name: true,
         level: true,
+        classe: true,
         school: true,
         address: true,
         photoPath: true,
         parentLeadId: true,
+        createdAt: true,
+        sequenceNumber: true,
+        qrToken: true,
+        passStatus: true,
+        fundingLinks: {
+          where: { status: 'active' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            employee: {
+              include: {
+                contract: { select: { dateDebut: true, dateExpiration: true } },
+              },
+            },
+          },
+        },
         teachers: { select: teacherSelect },
         sessions: {
           select: {
@@ -134,6 +154,8 @@ export class FamilyService {
             subject: true,
             status: true,
             attended: true,
+            notes: true,
+            durationMinutes: true,
             teacher: { select: { id: true, name: true } },
           },
           orderBy: { date: 'desc' },

@@ -68,4 +68,62 @@ export class DashboardService {
       },
     };
   }
+
+  async getNotifications() {
+    const [leadsCount, leads, applicationsCount, applications, requestsCount, requests] =
+      await Promise.all([
+        this.prisma.lead.count({ where: { status: 'nouveau' } }),
+        this.prisma.lead.findMany({
+          where: { status: 'nouveau' },
+          select: { id: true, name: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
+        this.prisma.teacherApplication.count({
+          where: { status: { notIn: ['valide', 'refuse'] } },
+        }),
+        this.prisma.teacherApplication.findMany({
+          where: { status: { notIn: ['valide', 'refuse'] } },
+          select: { id: true, candidateName: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
+        this.prisma.teacherRequest.count({ where: { status: 'en_attente' } }),
+        this.prisma.teacherRequest.findMany({
+          where: { status: 'en_attente' },
+          select: {
+            id: true,
+            subject: true,
+            createdAt: true,
+            student: { select: { name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
+      ]);
+
+    return {
+      total: leadsCount + applicationsCount + requestsCount,
+      leads: {
+        count: leadsCount,
+        items: leads.map((lead) => ({ id: lead.id, label: lead.name, createdAt: lead.createdAt })),
+      },
+      teacherApplications: {
+        count: applicationsCount,
+        items: applications.map((application) => ({
+          id: application.id,
+          label: application.candidateName,
+          createdAt: application.createdAt,
+        })),
+      },
+      teacherRequests: {
+        count: requestsCount,
+        items: requests.map((request) => ({
+          id: request.id,
+          label: `${request.student.name} — ${request.subject}`,
+          createdAt: request.createdAt,
+        })),
+      },
+    };
+  }
 }

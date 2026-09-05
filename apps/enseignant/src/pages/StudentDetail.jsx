@@ -9,25 +9,49 @@ import {
   MapPin,
   Phone,
   School,
+  Sparkles,
   Users,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { Badge } from '../components/ui/Badge'
+import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
-import { LEVEL_LABELS } from './labels'
+import { LEVEL_LABELS, PROGRESS_ENTRY_LABELS, PROGRESS_ENTRY_TONES } from './labels'
+
+const inputClass =
+  'rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
 export function StudentDetail() {
   const { id } = useParams()
   const [student, setStudent] = useState(null)
   const [error, setError] = useState(null)
+  const [progressEntries, setProgressEntries] = useState([])
+  const [progressForm, setProgressForm] = useState({ subject: '', status: 'en_progres' })
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     api
       .get(`/teacher/students/${id}`)
       .then(setStudent)
       .catch((err) => setError(err.message))
+    api
+      .get(`/teacher/students/${id}/progress-entries`)
+      .then(setProgressEntries)
+      .catch(() => {})
   }, [id])
+
+  const saveProgressEntry = async () => {
+    setSaving(true)
+    try {
+      await api.put(`/teacher/students/${id}/progress-entries`, progressForm)
+      const entries = await api.get(`/teacher/students/${id}/progress-entries`)
+      setProgressEntries(entries)
+      setProgressForm({ subject: '', status: 'en_progres' })
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (error) {
     return <p className="text-red-600">{error}</p>
@@ -108,6 +132,71 @@ export function StudentDetail() {
         ) : (
           <p className="text-sm text-gray-500">Aucune séance planifiée.</p>
         )}
+      </Card>
+
+      <Card className="mb-6 p-5">
+        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+          <Sparkles size={16} className="text-gold-500" />
+          Progression (par matière)
+        </h2>
+        <p className="mb-3 text-xs text-gray-500">
+          Visible par la famille et l'équipe Nafoore Education. Une seule entrée par matière — enregistrer à
+          nouveau met à jour le statut existant.
+        </p>
+        <div className="mb-4 space-y-2">
+          {progressEntries.length === 0 ? (
+            <p className="text-sm text-gray-500">Aucune matière suivie pour l'instant.</p>
+          ) : (
+            progressEntries.map((entry) => (
+              <div key={entry.id} className="flex items-center justify-between text-sm">
+                <span className="text-gray-800">{entry.subject}</span>
+                <Badge tone={PROGRESS_ENTRY_TONES[entry.status]}>
+                  {PROGRESS_ENTRY_LABELS[entry.status] ?? entry.status}
+                </Badge>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Matière</label>
+            <select
+              value={progressForm.subject}
+              onChange={(e) => setProgressForm((f) => ({ ...f, subject: e.target.value }))}
+              disabled={student.subjects.length === 0}
+              className={inputClass}
+            >
+              <option value="">Choisir une matière</option>
+              {student.subjects.map((subject) => (
+                <option key={subject} value={subject}>
+                  {subject}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Statut</label>
+            <select
+              value={progressForm.status}
+              onChange={(e) => setProgressForm((f) => ({ ...f, status: e.target.value }))}
+              className={inputClass}
+            >
+              {Object.entries(PROGRESS_ENTRY_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            icon={Sparkles}
+            loading={saving}
+            disabled={!progressForm.subject}
+            onClick={saveProgressEntry}
+          >
+            Enregistrer
+          </Button>
+        </div>
       </Card>
 
       <Card className="p-5">

@@ -9,6 +9,10 @@ export class StudentProgressEntriesService {
   list(studentId: string) {
     return this.prisma.progressEntry.findMany({
       where: { studentId },
+      include: {
+        adminAccount: { select: { name: true } },
+        teacher: { select: { name: true } },
+      },
       orderBy: { subject: 'asc' },
     });
   }
@@ -25,6 +29,7 @@ export class StudentProgressEntriesService {
       update: {
         status: dto.status,
         adminAccountId: actorId,
+        teacherId: null,
       },
     });
   }

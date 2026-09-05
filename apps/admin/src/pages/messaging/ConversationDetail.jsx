@@ -35,7 +35,8 @@ function ModerateForm({ onCancel, onConfirm, saving }) {
       <div className="flex gap-2">
         <Button
           variant="danger"
-          disabled={saving || !reason.trim()}
+          loading={saving}
+          disabled={!reason.trim()}
           onClick={() => onConfirm({ reason, warn })}
         >
           Confirmer le retrait

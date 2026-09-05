@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { to: '/', label: 'Tableau de bord' },
   { to: '/eleves', label: 'Mes élèves' },
   { to: '/planning', label: 'Planning' },
+  { to: '/pointage', label: 'Pointage' },
   { to: '/remuneration', label: 'Rémunération' },
   { to: '/messagerie', label: 'Messagerie' },
   { to: '/avis', label: 'Avis' },
@@ -36,7 +37,7 @@ export function TeacherLayout() {
       <header className="bg-navy text-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link to="/" className="flex items-center gap-2.5">
-            <img src={logoSrc} alt="Nafoore" className="h-8 w-8 object-contain" />
+            <img src={logoSrc} alt="Nafoore Education" className="h-8 w-8 object-contain" />
             <span className="font-serif text-base font-bold">Espace Enseignant</span>
           </Link>
           <div className="flex items-center gap-3">

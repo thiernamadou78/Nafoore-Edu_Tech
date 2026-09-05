@@ -14,4 +14,9 @@ export class DashboardController {
   getSummary() {
     return this.dashboardService.getSummary();
   }
+
+  @Get('notifications')
+  getNotifications() {
+    return this.dashboardService.getNotifications();
+  }
 }

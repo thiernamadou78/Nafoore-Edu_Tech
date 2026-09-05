@@ -23,6 +23,7 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
+import { PassEducatifCard } from './PassEducatifCard'
 import { DAYS_OF_WEEK, FREQUENCY_OPTIONS, SUBJECTS_BY_LEVEL } from './curriculum'
 import {
   LEVEL_LABELS,
@@ -70,6 +71,21 @@ export function StudentDetail() {
 
   useEffect(() => {
     load()
+  }, [load])
+
+  useEffect(() => {
+    // Pas de temps réel : on rafraîchit dès que l'onglet redevient actif, pour
+    // remonter les séances/statuts que le prof ou l'admin viennent de changer
+    // ailleurs sans que la famille ait à recharger la page manuellement.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    window.addEventListener('focus', load)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('focus', load)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [load])
 
   if (error) {
@@ -147,6 +163,11 @@ export function StudentDetail() {
         </div>
       </div>
 
+      {/* Pass éducatif */}
+      <div className="mb-6">
+        <PassEducatifCard student={student} />
+      </div>
+
       {/* Demande de professeur */}
       <TeacherRequestsSection
         student={student}
@@ -186,19 +207,29 @@ export function StudentDetail() {
         {pastSessions.length > 0 ? (
           <ul className="divide-y divide-gray-100">
             {pastSessions.map((session) => (
-              <li key={session.id} className="flex items-center justify-between py-2.5 text-sm">
-                <div>
-                  <p className="text-gray-800">
-                    {new Date(session.date).toLocaleString('fr-FR', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
-                    {session.subject ? ` · ${session.subject}` : ''}
-                  </p>
-                  {session.teacher && <p className="text-xs text-gray-400">{session.teacher.name}</p>}
+              <li key={session.id} className="py-2.5 text-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-800">
+                      {new Date(session.date).toLocaleString('fr-FR', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                      {session.subject ? ` · ${session.subject}` : ''}
+                      {session.durationMinutes ? ` · ${session.durationMinutes} min` : ''}
+                    </p>
+                    {session.teacher && (
+                      <p className="text-xs text-gray-400">{session.teacher.name}</p>
+                    )}
+                  </div>
+                  {session.attended === true && <Badge tone="leaf">Présent</Badge>}
+                  {session.attended === false && <Badge tone="clay">Absent</Badge>}
                 </div>
-                {session.attended === true && <Badge tone="leaf">Présent</Badge>}
-                {session.attended === false && <Badge tone="clay">Absent</Badge>}
+                {session.notes && (
+                  <p className="mt-1.5 whitespace-pre-wrap text-xs text-gray-600">
+                    {session.notes}
+                  </p>
+                )}
               </li>
             ))}
           </ul>
@@ -318,7 +349,7 @@ function MatchingProposalCard({ matching, onChanged }) {
         <Button
           variant="success"
           icon={CheckCircle2}
-          disabled={submitting}
+          loading={submitting}
           onClick={() => respond('accept')}
         >
           Accepter
@@ -326,7 +357,7 @@ function MatchingProposalCard({ matching, onChanged }) {
         <Button
           variant="secondary"
           icon={XCircle}
-          disabled={submitting}
+          loading={submitting}
           onClick={() => respond('refuse')}
         >
           Refuser
@@ -452,7 +483,7 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
           })}
         </div>
       </div>
-      <Button type="submit" icon={UserPlus} disabled={submitting}>
+      <Button type="submit" icon={UserPlus} loading={submitting}>
         {submitting ? 'Envoi…' : 'Envoyer la demande'}
       </Button>
     </form>

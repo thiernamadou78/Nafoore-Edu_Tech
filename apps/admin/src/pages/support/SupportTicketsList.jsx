@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, LifeBuoy } from 'lucide-react'
+import { CheckCircle2, LifeBuoy, Loader2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
@@ -82,9 +82,13 @@ export function SupportTicketsList() {
                       <button
                         onClick={() => markTreated(ticket.id)}
                         disabled={savingId === ticket.id}
-                        className="inline-flex items-center gap-1 text-xs text-navy hover:underline"
+                        className="inline-flex items-center gap-1 text-xs text-navy hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                       >
-                        <CheckCircle2 size={13} />
+                        {savingId === ticket.id ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <CheckCircle2 size={13} />
+                        )}
                         Marquer traité
                       </button>
                     )}

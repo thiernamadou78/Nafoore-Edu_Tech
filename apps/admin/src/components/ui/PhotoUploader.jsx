@@ -49,7 +49,7 @@ export function PhotoUploader({ name, photoUrl, uploadPath, onChange }) {
             type="button"
             variant="secondary"
             icon={Upload}
-            disabled={saving}
+            loading={saving}
             onClick={() => inputRef.current?.click()}
             className="px-3 py-1.5"
           >
@@ -60,7 +60,7 @@ export function PhotoUploader({ name, photoUrl, uploadPath, onChange }) {
               type="button"
               variant="ghost"
               icon={Trash2}
-              disabled={saving}
+              loading={saving}
               onClick={handleRemove}
               className="px-3 py-1.5 text-red-600 hover:bg-red-50"
             >

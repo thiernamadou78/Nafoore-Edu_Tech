@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { CurrentTeacherAccount } from '../auth/current-teacher-account.decorator';
 import { AuthenticatedTeacherAccount, TeacherAuthGuard } from '../auth/teacher-auth.guard';
 import { TeacherService } from './teacher.service';
@@ -6,6 +6,7 @@ import { CreateTeacherSessionDto } from './dto/create-teacher-session.dto';
 import { UpdateTeacherSessionDto } from './dto/update-teacher-session.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
+import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
 
 @UseGuards(TeacherAuthGuard)
 @Controller('teacher')
@@ -36,6 +37,23 @@ export class TeacherController {
     @Param('id') id: string,
   ) {
     return this.teacherService.getStudent(teacherAccount, id);
+  }
+
+  @Get('students/:id/progress-entries')
+  listProgressEntries(
+    @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
+    @Param('id') id: string,
+  ) {
+    return this.teacherService.listProgressEntries(teacherAccount, id);
+  }
+
+  @Put('students/:id/progress-entries')
+  upsertProgressEntry(
+    @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
+    @Param('id') id: string,
+    @Body() dto: UpsertProgressEntryDto,
+  ) {
+    return this.teacherService.upsertProgressEntry(teacherAccount, id, dto);
   }
 
   @Get('sessions')

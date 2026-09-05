@@ -1,8 +1,10 @@
 import {
+  Building2,
   Contact2,
   GraduationCap,
   Inbox,
   LayoutDashboard,
+  LayoutList,
   LifeBuoy,
   MessageSquare,
   ShieldCheck,
@@ -38,6 +40,18 @@ export const NAV_ITEMS = [
     path: '/support-tickets',
     roles: ['super_admin', 'admin'],
     icon: LifeBuoy,
+  },
+  {
+    label: 'Entreprises',
+    path: '/entreprises',
+    roles: ['super_admin', 'admin'],
+    icon: Building2,
+  },
+  {
+    label: 'Formules',
+    path: '/formules',
+    roles: ['super_admin', 'admin'],
+    icon: LayoutList,
   },
   { label: 'Comptes admin', path: '/comptes', roles: ['super_admin'], icon: ShieldCheck },
 ]

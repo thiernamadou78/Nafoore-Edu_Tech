@@ -18,6 +18,7 @@ export function AdminAccounts() {
   const [search, setSearch] = useState('')
   const [form, setForm] = useState({ email: '', name: '', roles: [] })
   const [submitting, setSubmitting] = useState(false)
+  const [pendingId, setPendingId] = useState(null)
 
   const load = () => api.get('/admin-accounts').then(setAccounts)
 
@@ -64,15 +65,21 @@ export function AdminAccounts() {
       ? account.roles.filter((r) => r !== role)
       : [...account.roles, role]
     if (nextRoles.length === 0) return
+    setPendingId(account.id)
+    setError(null)
     try {
       await api.patch(`/admin-accounts/${account.id}/roles`, { roles: nextRoles })
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setPendingId(null)
     }
   }
 
   const toggleActive = async (account) => {
+    setPendingId(account.id)
+    setError(null)
     try {
       await api.patch(`/admin-accounts/${account.id}/active`, {
         isActive: !account.isActive,
@@ -80,6 +87,8 @@ export function AdminAccounts() {
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setPendingId(null)
     }
   }
 
@@ -129,7 +138,7 @@ export function AdminAccounts() {
               ))}
             </div>
           </div>
-          <Button type="submit" icon={Plus} disabled={submitting || form.roles.length === 0}>
+          <Button type="submit" icon={Plus} loading={submitting} disabled={form.roles.length === 0}>
             Inviter
           </Button>
         </form>
@@ -186,7 +195,8 @@ export function AdminAccounts() {
                             type="checkbox"
                             checked={account.roles.includes(role)}
                             onChange={() => toggleRole(account, role)}
-                            className="rounded border-gray-300 text-navy focus:ring-navy"
+                            disabled={pendingId === account.id}
+                            className="rounded border-gray-300 text-navy focus:ring-navy disabled:cursor-not-allowed disabled:opacity-50"
                           />
                           {ROLE_LABELS[role]}
                         </label>
@@ -202,6 +212,7 @@ export function AdminAccounts() {
                     <Button
                       variant="ghost"
                       icon={account.isActive ? UserX : UserCheck}
+                      loading={pendingId === account.id}
                       onClick={() => toggleActive(account)}
                       className="px-2 py-1"
                     >

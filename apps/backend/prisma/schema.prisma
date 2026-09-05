@@ -70,13 +70,19 @@ model Student {
   id             String            @id @default(cuid())
   createdAt      DateTime          @default(now()) @map("created_at")
   name           String
-  level          String            // college | lycee
+  level          String            // primaire | college | lycee
+  classe         String?           // 6e | 5e | 4e | 3e | 2nde | 1re | terminale
+  sequenceNumber Int               @unique @default(autoincrement()) @map("sequence_number")
   school         String?
   address        String?
   subjects       String[]          @default([])
   objectives     String?
   isActive       Boolean           @default(true) @map("is_active")
   photoPath      String?           @map("photo_path")
+  dateNaissance  DateTime?         @map("date_naissance")
+  qrToken        String            @unique @map("qr_token")
+  passStatus     String            @default("active") @map("pass_status")
+  // active | revoked
   parentLeadId   String?           @map("parent_lead_id")
   parentLead     Lead?             @relation(fields: [parentLeadId], references: [id], onDelete: SetNull)
   teachers       StudentTeacher[]
@@ -86,6 +92,8 @@ model Student {
   teacherHistory StudentTeacherHistory[]
   teacherRequests TeacherRequest[]
   progressEntries ProgressEntry[]
+  fundingLinks   FundingLink[]
+  attendanceLogs AttendanceLog[]
 
   @@map("students")
 }
@@ -110,6 +118,8 @@ model Teacher {
   messageThreads MessageThread[]
   reviews     TeacherReview[]
   supportTickets SupportTicket[]
+  attendanceLogs AttendanceLog[]
+  progressEntries ProgressEntry[]
 
   @@map("teachers")
 }
@@ -239,6 +249,11 @@ model AdminAccount {
   progressEntries       ProgressEntry[]
   teacherCredentialDispatches TeacherCredentialDispatchLog[] @relation("TeacherCredentialDispatches")
   moderatedMessages     Message[]
+  contractAmendments    ContractAmendment[]
+  rhAccountsInvited     RhAccount[]                     @relation("RhAccountInvitedBy")
+  rhCredentialDispatches RhCredentialDispatchLog[]       @relation("RhCredentialDispatches")
+  importBatches         ImportBatch[]
+  fundingLinkSwitches   FundingLink[]                   @relation("FundingLinkSwitchedBy")
 
   @@map("admin_accounts")
 }
@@ -284,13 +299,16 @@ model TeacherApplication {
   phone             String?
   subjects          String[]
   levels            String[]      @default([])
-  // college | lycee
+  // primaire | college | lycee
   zone              String
   availability      String?
   status            String        @default("preselection")
   // preselection | entretien_planifie | entretien_realise | valide | refuse | documents_requis
   interviewDate     DateTime?     @map("interview_date")
   interviewNotes    String?       @map("interview_notes")
+  bio               String?
+  photoPath         String?       @map("photo_path")
+  completionToken   String        @unique @map("completion_token")
   reviewedById      String?       @map("reviewed_by")
   reviewedBy        AdminAccount? @relation("ReviewedApplications", fields: [reviewedById], references: [id], onDelete: SetNull)
   decidedAt         DateTime?     @map("decided_at")
@@ -394,6 +412,7 @@ model Session {
   notes     String?
   cancellationReason String? @map("cancellation_reason")
   createdAt DateTime  @default(now()) @map("created_at")
+  attendanceLogs AttendanceLog[]
 
   @@map("sessions")
 }
@@ -419,8 +438,10 @@ model ProgressEntry {
   subject        String
   status         String
   // acquis | en_progres | a_surveiller
-  adminAccountId String       @map("admin_account_id")
-  adminAccount   AdminAccount @relation(fields: [adminAccountId], references: [id], onDelete: Cascade)
+  adminAccountId String?      @map("admin_account_id")
+  adminAccount   AdminAccount? @relation(fields: [adminAccountId], references: [id], onDelete: Cascade)
+  teacherId      String?      @map("teacher_id")
+  teacher        Teacher?     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
@@ -497,4 +518,210 @@ model Matching {
   @@index([teacherRequestId])
   @@index([teacherId])
   @@map("matchings")
+}
+
+// ─────────────────────────────────────────────
+// Module Entreprise — Pass Éducatif (Phase 1 : fondations)
+// Entreprises, catalogue de Formules, contrats + avenants, comptes RH.
+// Import des bénéficiaires, funding_links, Pass QR/pointage : phases suivantes.
+// ─────────────────────────────────────────────
+
+model Enterprise {
+  id                 String               @id @default(cuid())
+  raisonSociale      String               @map("raison_sociale")
+  siret              String?              @unique
+  secteurActivite    String?              @map("secteur_activite")
+  emailDomain        String?              @map("email_domain")
+  adresseFacturation String?              @map("adresse_facturation")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  contracts          EnterpriseContract[]
+  rhAccounts         RhAccount[]
+  employees          Employee[]
+  importBatches      ImportBatch[]
+
+  @@map("enterprises")
+}
+
+model Formula {
+  id                             String               @id @default(cuid())
+  nom                            String
+  budgetCreditDefault            Float                @map("budget_credit_default")
+  uniteCredit                    String               @map("unite_credit")
+  // euros | heures
+  plafondBeneficiairesParEmploye Int?                 @map("plafond_beneficiaires_par_employe")
+  matieresEligibles              String[]             @default([]) @map("matieres_eligibles")
+  createdAt                      DateTime             @default(now()) @map("created_at")
+  contracts                      EnterpriseContract[]
+
+  @@map("formulas")
+}
+
+model EnterpriseContract {
+  id                   String              @id @default(cuid())
+  enterpriseId         String              @map("enterprise_id")
+  enterprise           Enterprise          @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  formulaId            String              @map("formula_id")
+  formula              Formula             @relation(fields: [formulaId], references: [id], onDelete: Restrict)
+  budgetCreditOverride Float?              @map("budget_credit_override")
+  dateDebut            DateTime            @map("date_debut")
+  dateExpiration       DateTime            @map("date_expiration")
+  statut               String              @default("brouillon")
+  // brouillon | actif | expire | renouvele | resilie
+  expiryAlertSentAt    DateTime?           @map("expiry_alert_sent_at")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  amendments           ContractAmendment[]
+  employees            Employee[]
+  importBatches        ImportBatch[]
+
+  @@index([enterpriseId])
+  @@map("enterprise_contracts")
+}
+
+model ContractAmendment {
+  id             String             @id @default(cuid())
+  contractId     String             @map("contract_id")
+  contract       EnterpriseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  type           String
+  // montant_revise | formule_changee | duree_prolongee
+  ancienneValeur String?            @map("ancienne_valeur")
+  nouvelleValeur String?            @map("nouvelle_valeur")
+  dateEffet      DateTime           @default(now()) @map("date_effet")
+  createdById    String             @map("created_by")
+  createdBy      AdminAccount       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([contractId])
+  @@map("contract_amendments")
+}
+
+model RhAccount {
+  // = auth.users.id (Supabase Auth), jamais généré par Prisma
+  id                 String                    @id
+  email              String                    @unique
+  fullName           String                    @map("full_name")
+  enterpriseId       String                    @map("enterprise_id")
+  enterprise         Enterprise                @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  role               String                    @default("owner")
+  // owner | assistant | lecture_seule
+  mustChangePassword Boolean                   @default(true) @map("must_change_password")
+  status             String                    @default("invite") // invite | actif | suspendu
+  invitedByAdminId   String?                   @map("invited_by_admin")
+  invitedByAdmin     AdminAccount?             @relation("RhAccountInvitedBy", fields: [invitedByAdminId], references: [id], onDelete: SetNull)
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  dispatchLogs       RhCredentialDispatchLog[]
+
+  @@index([enterpriseId])
+  @@map("rh_accounts")
+}
+
+model RhCredentialDispatchLog {
+  id              String        @id @default(cuid())
+  rhAccountId     String        @map("rh_account_id")
+  rhAccount       RhAccount     @relation(fields: [rhAccountId], references: [id], onDelete: Cascade)
+  sentById        String?       @map("sent_by")
+  sentBy          AdminAccount? @relation("RhCredentialDispatches", fields: [sentById], references: [id], onDelete: SetNull)
+  sentAt          DateTime      @default(now()) @map("sent_at")
+  deliveryStatus  String        @map("delivery_status") // envoye | echec
+  emailProviderId String?       @map("email_provider_id")
+
+  @@map("rh_credential_dispatch_logs")
+}
+
+// ─────────────────────────────────────────────
+// Module Entreprise — Import des bénéficiaires (Phase 2)
+// Un Employee est identifié par (enterpriseId, emailPro) et réutilisé d'un
+// import à l'autre pour rattacher plusieurs enfants. Aucun compte Supabase
+// Auth n'est créé pour l'employé ici : le Portail Employé n'existe pas
+// encore (voir Phase 1, section "Reporté"). Pas de backfill de funding_links
+// pour les élèves déjà financés par une famille (fonctionnement inchangé via
+// Student.parentLeadId) — funding_links ne couvre ici que le financement
+// entreprise.
+// ─────────────────────────────────────────────
+
+model Employee {
+  id           String              @id @default(cuid())
+  enterpriseId String              @map("enterprise_id")
+  enterprise   Enterprise          @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  contractId   String              @map("contract_id")
+  contract     EnterpriseContract  @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  nom          String
+  prenom       String
+  emailPro     String              @map("email_pro")
+  status       String              @default("pending_invitation")
+  // pending_invitation | active | inactive
+  createdAt    DateTime            @default(now()) @map("created_at")
+  fundingLinks FundingLink[]
+
+  @@unique([enterpriseId, emailPro])
+  @@index([contractId])
+  @@map("employees")
+}
+
+model FundingLink {
+  id                String        @id @default(cuid())
+  studentId         String        @map("student_id")
+  student           Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fundingSource     String        @map("funding_source")
+  // family | enterprise | mairie
+  employeeId        String?       @map("employee_id")
+  employee          Employee?     @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  status            String        @default("active")
+  // active | closed
+  dateDebut         DateTime      @default(now()) @map("date_debut")
+  dateFin           DateTime?     @map("date_fin")
+  switchedByAdminId String?       @map("switched_by_admin_id")
+  switchedByAdmin   AdminAccount? @relation("FundingLinkSwitchedBy", fields: [switchedByAdminId], references: [id], onDelete: SetNull)
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  @@index([studentId])
+  @@index([employeeId])
+  @@map("funding_links")
+}
+
+model ImportBatch {
+  id           String             @id @default(cuid())
+  enterpriseId String             @map("enterprise_id")
+  enterprise   Enterprise         @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  contractId   String             @map("contract_id")
+  contract     EnterpriseContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  fileName     String             @map("file_name")
+  createdCount Int                @map("created_count")
+  skippedCount Int                @map("skipped_count")
+  createdById  String             @map("created_by")
+  createdBy    AdminAccount       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  @@index([enterpriseId])
+  @@map("import_batches")
+}
+
+// ─────────────────────────────────────────────
+// Module Entreprise — Pass QR / pointage (Phase 3)
+// Une ligne AttendanceLog couvre un cycle checkin→checkout (pas un scan) :
+// le 1er scan valide crée la ligne, le 2e la complète. Les scans bloqués
+// (pass révoqué, financement expiré) créent chacun leur propre ligne pour
+// l'audit, sauf si le token ne correspond à aucun élève (rien à journaliser).
+// ─────────────────────────────────────────────
+
+model AttendanceLog {
+  id                 String    @id @default(cuid())
+  sessionId          String?   @map("session_id")
+  session            Session?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  studentId          String    @map("student_id")
+  student            Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId          String    @map("teacher_id")
+  teacher            Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  checkinAt          DateTime? @map("checkin_at")
+  checkoutAt         DateTime? @map("checkout_at")
+  verificationStatus String    @map("verification_status")
+  // valid | funding_expired | pass_revoked | no_session_found
+  method             String
+  // qr_scan | manuel
+  manualReason       String?   @map("manual_reason")
+  // qr_oublie | probleme_technique | autre
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  @@index([studentId])
+  @@index([sessionId])
+  @@index([teacherId])
+  @@map("attendance_logs")
 }

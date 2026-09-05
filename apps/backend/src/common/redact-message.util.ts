@@ -1,6 +1,6 @@
 import { Message } from '@prisma/client';
 
-const REMOVED_PLACEHOLDER = "Message supprimé par l'équipe Nafoore";
+const REMOVED_PLACEHOLDER = "Message supprimé par l'équipe Nafoore Education";
 
 // Cache le contenu original d'un message retiré par un admin pour les vues
 // enseignant/famille — le texte original reste en base pour la traçabilité admin.

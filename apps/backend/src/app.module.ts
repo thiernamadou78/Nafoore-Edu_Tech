@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { AuthModule } from './auth/auth.module';
@@ -17,9 +18,15 @@ import { TeacherRequestsModule } from './teacher-requests/teacher-requests.modul
 import { TeacherApplicationsPublicModule } from './teacher-applications-public/teacher-applications-public.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { AdminMessagingModule } from './admin-messaging/admin-messaging.module';
+import { EnterprisesModule } from './enterprises/enterprises.module';
+import { FormulasModule } from './formulas/formulas.module';
+import { ContractsModule } from './contracts/contracts.module';
+import { RhAccountsModule } from './rh-accounts/rh-accounts.module';
+import { AttendanceModule } from './attendance/attendance.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     PrismaModule,
     ContactsModule,
     AuthModule,
@@ -38,6 +45,11 @@ import { AdminMessagingModule } from './admin-messaging/admin-messaging.module';
     TeacherRequestsModule,
     TeacherModule,
     AdminMessagingModule,
+    FormulasModule,
+    ContractsModule,
+    RhAccountsModule,
+    EnterprisesModule,
+    AttendanceModule,
   ],
 })
 export class AppModule {}

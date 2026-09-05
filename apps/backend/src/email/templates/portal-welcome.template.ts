@@ -40,7 +40,7 @@ const ROLE_COPY: Record<
 function copyFor(role: string) {
   return (
     ROLE_COPY[role] ?? {
-      portalLabel: 'espace Nafoore',
+      portalLabel: 'espace Nafoore Education',
       intro: 'Vous pourrez y accéder à votre espace personnalisé.',
     }
   );
@@ -60,7 +60,7 @@ export function renderWelcomeEmail({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Bienvenue sur Nafoore</title>
+    <title>Bienvenue sur Nafoore Education</title>
   </head>
   <body style="margin:0;padding:0;background-color:#f4f3ef;font-family:Georgia,'Playfair Display',serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f3ef;padding:32px 16px;">
@@ -69,7 +69,7 @@ export function renderWelcomeEmail({
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(30,58,138,0.08);">
             <tr>
               <td style="background-color:#1E3A8A;padding:28px 32px;">
-                <span style="font-family:Georgia,'Playfair Display',serif;font-size:20px;font-weight:bold;color:#ffffff;letter-spacing:0.02em;">Nafoore</span>
+                <span style="font-family:Georgia,'Playfair Display',serif;font-size:20px;font-weight:bold;color:#ffffff;letter-spacing:0.02em;">Nafoore Education</span>
               </td>
             </tr>
             <tr>
@@ -82,7 +82,7 @@ export function renderWelcomeEmail({
                   Bonjour ${escapeHtml(fullName)},
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
-                  Votre compte Nafoore est prêt. ${intro}
+                  Votre compte Nafoore Education est prêt. ${intro}
                 </p>
               </td>
             </tr>
@@ -93,6 +93,7 @@ export function renderWelcomeEmail({
                     <td style="padding:20px 24px;">
                       <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;letter-spacing:0.06em;text-transform:uppercase;color:#6b7280;">Identifiants de connexion</p>
                       <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1E3A8A;"><strong>Email&nbsp;:</strong> ${escapeHtml(email)}</p>
+                      <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1E3A8A;"><strong>Mot de passe&nbsp;:</strong></p>
                       <p style="margin:0;font-family:'Courier New',monospace;font-size:16px;letter-spacing:0.04em;color:#1E3A8A;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;display:inline-block;">${escapeHtml(tempPassword)}</p>
                     </td>
                   </tr>
@@ -118,7 +119,7 @@ export function renderWelcomeEmail({
             <tr>
               <td style="padding:32px 32px 28px 32px;">
                 <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px;">
-                  Vous recevez cet email car un compte Nafoore vient d'être créé pour ${escapeHtml(email)}.
+                  Vous recevez cet email car un compte Nafoore Education vient d'être créé pour ${escapeHtml(email)}.
                   Si vous n'êtes pas à l'origine de cette demande, contactez-nous à contact@nafoore.fr.
                 </p>
               </td>

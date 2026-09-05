@@ -15,8 +15,15 @@ export class UpdateStudentDto {
   name?: string;
 
   @IsOptional()
-  @IsIn(['college', 'lycee'], { message: 'level doit être college ou lycee' })
+  @IsIn(['primaire', 'college', 'lycee'], { message: 'level doit être primaire, college ou lycee' })
   level?: string;
+
+  @IsOptional()
+  @IsIn(
+    ['cp', 'ce1', 'ce2', 'cm1', 'cm2', '6e', '5e', '4e', '3e', '2nde', '1re', 'terminale'],
+    { message: 'classe invalide' },
+  )
+  classe?: string;
 
   @IsOptional()
   @IsString()

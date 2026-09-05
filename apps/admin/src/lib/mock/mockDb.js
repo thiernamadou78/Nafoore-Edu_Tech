@@ -159,7 +159,7 @@ export const mockLeads = [
     email: 'education@clichy-mairie.example',
     phone: '0147000000',
     message:
-      'Nous souhaitons déployer Nafoore dans 2 écoles primaires à la rentrée, pouvez-vous nous rappeler ?',
+      'Nous souhaitons déployer Nafoore Education dans 2 écoles primaires à la rentrée, pouvez-vous nous rappeler ?',
     status: 'contacte',
     assignedToId: 'mock-admin',
     assignedTo: { id: 'mock-admin', name: 'Karim Fofana' },
@@ -180,7 +180,7 @@ export const mockLeads = [
     name: 'RH — Atlantia Conseil',
     email: 'rh@atlantia-conseil.example',
     phone: '0698765432',
-    message: 'Nous voulons proposer Nafoore comme avantage CSE à nos 40 salariés parents.',
+    message: 'Nous voulons proposer Nafoore Education comme avantage CSE à nos 40 salariés parents.',
     status: 'valide',
     assignedToId: 'mock-super-admin',
     assignedTo: { id: 'mock-super-admin', name: 'Aïssatou Diallo' },

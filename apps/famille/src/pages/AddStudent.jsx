@@ -1,15 +1,27 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, GraduationCap } from 'lucide-react'
+import { ArrowLeft, GraduationCap, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { useStudents } from '../context/StudentsContext'
+import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { CLASSE_LABELS } from './labels'
+import { CLASSE_OPTIONS_BY_LEVEL, SUBJECTS_BY_LEVEL } from './curriculum'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
-const DEFAULT_FORM = { name: '', level: 'college', school: '', address: '', subjects: '' }
+const DEFAULT_FORM = {
+  name: '',
+  level: 'college',
+  classe: '',
+  school: '',
+  address: '',
+  subjects: [],
+}
+
+const PILL_TONES = ['blue', 'indigo', 'green', 'amber', 'sky', 'leaf', 'clay', 'amberStrong']
 
 export function AddStudent() {
   const navigate = useNavigate()
@@ -17,6 +29,18 @@ export function AddStudent() {
   const [form, setForm] = useState(DEFAULT_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+
+  const availableSubjects = SUBJECTS_BY_LEVEL[form.level] ?? []
+  const classeOptions = CLASSE_OPTIONS_BY_LEVEL[form.level] ?? []
+
+  const addSubject = (subject) => {
+    if (!subject || form.subjects.includes(subject)) return
+    setForm((f) => ({ ...f, subjects: [...f.subjects, subject] }))
+  }
+
+  const removeSubject = (subject) => {
+    setForm((f) => ({ ...f, subjects: f.subjects.filter((s) => s !== subject) }))
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -26,11 +50,10 @@ export function AddStudent() {
       const student = await api.post('/family/students', {
         name: form.name,
         level: form.level,
-        school: form.school || undefined,
+        classe: form.classe,
+        school: form.school,
         address: form.address || undefined,
-        subjects: form.subjects
-          ? form.subjects.split(',').map((s) => s.trim()).filter(Boolean)
-          : [],
+        subjects: form.subjects,
       })
       await refresh()
       navigate(`/eleves/${student.id}`, { replace: true })
@@ -70,18 +93,47 @@ export function AddStudent() {
             <label className="mb-1 block text-sm font-medium text-gray-700">Niveau scolaire</label>
             <select
               value={form.level}
-              onChange={(e) => setForm({ ...form, level: e.target.value })}
+              onChange={(e) => {
+                const level = e.target.value
+                setForm((f) => ({
+                  ...f,
+                  level,
+                  classe: '',
+                  subjects: f.subjects.filter((s) => (SUBJECTS_BY_LEVEL[level] ?? []).includes(s)),
+                }))
+              }}
               className={inputClass}
             >
+              <option value="primaire">Primaire</option>
               <option value="college">Collège</option>
               <option value="lycee">Lycée</option>
             </select>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">École (optionnel)</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Classe</label>
+            <select
+              required
+              value={form.classe}
+              onChange={(e) => setForm({ ...form, classe: e.target.value })}
+              className={inputClass}
+            >
+              <option value="" disabled>
+                Choisir une classe
+              </option>
+              {classeOptions.map((classe) => (
+                <option key={classe} value={classe}>
+                  {CLASSE_LABELS[classe]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">École</label>
             <input
               type="text"
+              required
               value={form.school}
               onChange={(e) => setForm({ ...form, school: e.target.value })}
               className={inputClass}
@@ -100,15 +152,39 @@ export function AddStudent() {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Matières d'intérêt (optionnel, séparées par des virgules)
+              Matières d'intérêt (optionnel)
             </label>
-            <input
-              type="text"
-              placeholder="Mathématiques, Physique-Chimie"
-              value={form.subjects}
-              onChange={(e) => setForm({ ...form, subjects: e.target.value })}
+            <select
+              value=""
+              onChange={(e) => addSubject(e.target.value)}
               className={inputClass}
-            />
+            >
+              <option value="">Ajouter une matière…</option>
+              {availableSubjects
+                .filter((subject) => !form.subjects.includes(subject))
+                .map((subject) => (
+                  <option key={subject} value={subject}>
+                    {subject}
+                  </option>
+                ))}
+            </select>
+            {form.subjects.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {form.subjects.map((subject, index) => (
+                  <Badge key={subject} tone={PILL_TONES[index % PILL_TONES.length]}>
+                    {subject}
+                    <button
+                      type="button"
+                      onClick={() => removeSubject(subject)}
+                      className="ml-0.5 rounded-full hover:opacity-70"
+                      aria-label={`Retirer ${subject}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">
@@ -117,7 +193,7 @@ export function AddStudent() {
                 Annuler
               </Button>
             </Link>
-            <Button type="submit" icon={GraduationCap} disabled={submitting} className="flex-1">
+            <Button type="submit" icon={GraduationCap} loading={submitting} className="flex-1">
               {submitting ? 'Création…' : 'Ajouter cet enfant'}
             </Button>
           </div>

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { NAV_ITEMS } from '../config/navigation'
 import { ROLE_LABELS } from '../config/roles'
 import { initials } from '../lib/initials'
+import { NotificationBell } from './NotificationBell'
 import logoSrc from './IMG/Logo.png'
 
 export function AdminLayout() {
@@ -17,8 +18,8 @@ export function AdminLayout() {
     <div className="min-h-screen flex bg-gray-50">
       <aside className="w-64 shrink-0 bg-navy text-white flex flex-col">
         <div className="flex items-center gap-2.5 p-5">
-          <img src={logoSrc} alt="Nafoore" className="h-9 w-9 object-contain drop-shadow-md" />
-          <span className="font-sans text-base font-semibold">Nafoore Admin</span>
+          <img src={logoSrc} alt="Nafoore Education" className="h-9 w-9 object-contain drop-shadow-md" />
+          <span className="font-sans text-base font-semibold">Nafoore Education Admin</span>
         </div>
         <nav className="flex-1 px-3 space-y-1">
           {visibleItems.map((item) => {
@@ -61,8 +62,13 @@ export function AdminLayout() {
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-8">
-        <Outlet />
+      <main className="flex-1">
+        <header className="flex items-center justify-end border-b border-gray-200 bg-white px-8 py-3">
+          <NotificationBell />
+        </header>
+        <div className="p-8">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

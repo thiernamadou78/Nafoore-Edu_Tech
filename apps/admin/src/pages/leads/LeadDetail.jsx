@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
-  GraduationCap,
   KeyRound,
   MessageSquarePlus,
   RefreshCw,
   Save,
   UserCheck,
+  UserPlus,
 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Alert } from '../../components/ui/Alert'
@@ -16,6 +16,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
 import { LEAD_STATUS_LABELS, LEAD_STATUS_TONES, PROFILE_LABELS } from './statusLabels'
+import { CLASSE_LABELS, LEVEL_LABELS } from '../students/labels'
 
 const VALIDATABLE_STATUSES = ['en_verification', 'valide']
 
@@ -24,12 +25,12 @@ const inputClass =
 
 export function LeadDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [lead, setLead] = useState(null)
   const [assignableAccounts, setAssignableAccounts] = useState([])
   const [status, setStatus] = useState('')
   const [assignedToId, setAssignedToId] = useState('')
   const [noteText, setNoteText] = useState('')
-  const [studentLevel, setStudentLevel] = useState('college')
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
   const [confirmModal, setConfirmModal] = useState(null) // null | 'validate' | 'resend'
@@ -140,7 +141,7 @@ export function LeadDetail() {
             </select>
             <Button
               icon={UserCheck}
-              disabled={savingAction === 'assign'}
+              loading={savingAction === 'assign'}
               onClick={() =>
                 run('assign', () =>
                   assignedToId
@@ -163,7 +164,7 @@ export function LeadDetail() {
             <Button
               variant="secondary"
               icon={RefreshCw}
-              disabled={savingAction === 'resend'}
+              loading={savingAction === 'resend'}
               onClick={() => setConfirmModal('resend')}
             >
               Renvoyer les identifiants
@@ -176,7 +177,7 @@ export function LeadDetail() {
             </p>
             <Button
               icon={KeyRound}
-              disabled={savingAction === 'validate'}
+              loading={savingAction === 'validate'}
               onClick={() => setConfirmModal('validate')}
             >
               Valider et créer le compte
@@ -204,7 +205,7 @@ export function LeadDetail() {
           </Button>
           <Button
             icon={KeyRound}
-            disabled={savingAction === 'validate'}
+            loading={savingAction === 'validate'}
             onClick={() => run('validate', () => api.post(`/leads/${id}/validate`, {}))}
           >
             Confirmer
@@ -227,7 +228,7 @@ export function LeadDetail() {
           </Button>
           <Button
             icon={RefreshCw}
-            disabled={savingAction === 'resend'}
+            loading={savingAction === 'resend'}
             onClick={() => run('resend', () => api.post(`/leads/${id}/resend-credentials`, {}))}
           >
             Confirmer
@@ -272,40 +273,32 @@ export function LeadDetail() {
       </Card>
 
       <Card className="p-6">
-        <h2 className="mb-3 font-semibold text-gray-900">Élève</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900">Enfants</h2>
+          <Button
+            variant="secondary"
+            icon={UserPlus}
+            onClick={() =>
+              navigate(
+                `/leads/nouvelle/enfants?leadId=${id}&familyName=${encodeURIComponent(lead.name)}`,
+              )
+            }
+          >
+            Ajouter un enfant
+          </Button>
+        </div>
         {lead.students.length > 0 ? (
-          <ul className="list-inside list-disc text-sm text-gray-700">
+          <ul className="divide-y divide-gray-100 text-sm text-gray-700">
             {lead.students.map((student) => (
-              <li key={student.id}>
-                {student.name} — {student.level}
+              <li key={student.id} className="py-2">
+                <span className="font-medium text-gray-900">{student.name}</span> —{' '}
+                {student.classe ? (CLASSE_LABELS[student.classe] ?? student.classe) : (LEVEL_LABELS[student.level] ?? student.level)}
+                {student.school ? ` · ${student.school}` : ''}
               </li>
             ))}
           </ul>
         ) : (
-          <div className="flex items-end gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Niveau</label>
-              <select
-                value={studentLevel}
-                onChange={(e) => setStudentLevel(e.target.value)}
-                className={inputClass}
-              >
-                <option value="college">Collège</option>
-                <option value="lycee">Lycée</option>
-              </select>
-            </div>
-            <Button
-              icon={GraduationCap}
-              disabled={savingAction === 'convert'}
-              onClick={() =>
-                run('convert', () =>
-                  api.post(`/leads/${id}/convert-to-student`, { level: studentLevel }),
-                )
-              }
-            >
-              Convertir en élève
-            </Button>
-          </div>
+          <p className="text-sm text-gray-500">Aucun enfant renseigné pour l'instant.</p>
         )}
       </Card>
     </div>

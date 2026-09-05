@@ -2,7 +2,7 @@ import { IsIn, IsOptional, IsString } from 'class-validator';
 
 export class ListStudentsQueryDto {
   @IsOptional()
-  @IsIn(['college', 'lycee'])
+  @IsIn(['primaire', 'college', 'lycee'])
   level?: string;
 
   @IsOptional()

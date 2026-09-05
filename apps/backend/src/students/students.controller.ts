@@ -23,6 +23,7 @@ import { AssignTeachersDto } from './dto/assign-teachers.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { ListStudentsQueryDto } from './dto/list-students-query.dto';
 import { SetActiveStudentDto } from './dto/set-active-student.dto';
+import { UpdatePassStatusDto } from './dto/update-pass-status.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { StudentsService } from './students.service';
 
@@ -84,5 +85,15 @@ export class StudentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   removePhoto(@Param('id') id: string) {
     return this.studentsService.removePhoto(id);
+  }
+
+  @Post(':id/qr/regenerate')
+  regenerateQrToken(@Param('id') id: string) {
+    return this.studentsService.regenerateQrToken(id);
+  }
+
+  @Patch(':id/qr/status')
+  setPassStatus(@Param('id') id: string, @Body() dto: UpdatePassStatusDto) {
+    return this.studentsService.setPassStatus(id, dto.passStatus);
   }
 }

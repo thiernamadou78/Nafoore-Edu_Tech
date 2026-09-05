@@ -21,6 +21,21 @@ export function StudentsProvider({ children }) {
     refresh()
   }, [refresh])
 
+  useEffect(() => {
+    // Pas de temps réel : on rafraîchit dès que l'onglet redevient actif, pour
+    // remonter les changements faits par le prof ou l'admin ailleurs sans que
+    // la famille ait à recharger la page manuellement.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [refresh])
+
   return (
     <StudentsContext.Provider value={{ students, error, refresh }}>
       {children}

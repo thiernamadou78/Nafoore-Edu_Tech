@@ -1,3 +1,5 @@
+import { Loader2 } from 'lucide-react'
+
 const VARIANTS = {
   primary:
     'bg-navy text-white hover:bg-navy/90 focus-visible:ring-navy',
@@ -16,16 +18,24 @@ const VARIANTS = {
 export function Button({
   variant = 'primary',
   icon: Icon,
+  loading = false,
+  disabled = false,
   className = '',
   children,
   ...props
 }) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTS[variant]} ${className}`}
+      disabled={disabled || loading}
+      aria-busy={loading}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 ${VARIANTS[variant]} ${className}`}
       {...props}
     >
-      {Icon && <Icon size={16} strokeWidth={2} />}
+      {loading ? (
+        <Loader2 size={16} className="animate-spin" />
+      ) : (
+        Icon && <Icon size={16} strokeWidth={2} />
+      )}
       {children}
     </button>
   )

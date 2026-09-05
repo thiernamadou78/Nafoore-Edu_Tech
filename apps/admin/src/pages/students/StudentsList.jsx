@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Pencil, Power, Search, Trash2, Users } from 'lucide-react'
+import { Loader2, Pencil, Power, Search, Trash2, Users } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Alert } from '../../components/ui/Alert'
 import { Avatar } from '../../components/ui/Avatar'
@@ -19,6 +19,7 @@ export function StudentsList() {
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState({ level: '', subject: '' })
+  const [pendingAction, setPendingAction] = useState(null)
 
   const load = useCallback(() => {
     const params = new URLSearchParams(
@@ -44,22 +45,32 @@ export function StudentsList() {
 
   const toggleActive = async (event, student) => {
     event.stopPropagation()
+    const key = `${student.id}:active`
+    setPendingAction(key)
+    setError(null)
     try {
       await api.patch(`/students/${student.id}/active`, { isActive: !student.isActive })
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setPendingAction(null)
     }
   }
 
   const handleDelete = async (event, student) => {
     event.stopPropagation()
     if (!window.confirm(`Supprimer définitivement ${student.name} ?`)) return
+    const key = `${student.id}:delete`
+    setPendingAction(key)
+    setError(null)
     try {
       await api.del(`/students/${student.id}`)
       await load()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setPendingAction(null)
     }
   }
 
@@ -161,23 +172,33 @@ export function StudentsList() {
                           event.stopPropagation()
                           navigate(`/eleves/${student.id}`)
                         }}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-navy"
+                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90"
                       >
                         <Pencil size={16} />
                       </button>
                       <button
                         title={student.isActive ? 'Désactiver' : 'Activer'}
                         onClick={(event) => toggleActive(event, student)}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-navy"
+                        disabled={pendingAction === `${student.id}:active`}
+                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
                       >
-                        <Power size={16} />
+                        {pendingAction === `${student.id}:active` ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Power size={16} />
+                        )}
                       </button>
                       <button
                         title="Supprimer"
                         onClick={(event) => handleDelete(event, student)}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                        disabled={pendingAction === `${student.id}:delete`}
+                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-red-50 hover:text-red-600 active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
                       >
-                        <Trash2 size={16} />
+                        {pendingAction === `${student.id}:delete` ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
                       </button>
                     </div>
                   </td>

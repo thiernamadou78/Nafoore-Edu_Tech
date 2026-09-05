@@ -5,7 +5,7 @@ import logoSrc from './IMG/Logo.png'
 const NAV_LINKS = [
   { href: '/#services', label: 'Services' },
   { href: '/#audience', label: 'Pour qui ?' },
-  { href: '/#why-us', label: 'Pourquoi Nafoore' },
+  { href: '/#why-us', label: 'Pourquoi Nafoore Education' },
   { href: '/#contact', label: 'Contact' },
 ]
 
@@ -30,8 +30,8 @@ export default function Header() {
       <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <img src={logoSrc} alt="Nafoore" className="w-10 h-10 object-contain drop-shadow-md" />
-          <span className="font-serif text-lg font-bold text-white tracking-tight">Nafoore</span>
+          <img src={logoSrc} alt="Nafoore Education" className="w-10 h-10 object-contain drop-shadow-md" />
+          <span className="font-serif text-lg font-bold text-white tracking-tight">Nafoore Education</span>
         </Link>
 
         {/* Nav desktop */}

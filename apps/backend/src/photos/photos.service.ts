@@ -9,7 +9,11 @@ const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1h — affichées en continu dans les
 export class PhotosService {
   constructor(private readonly supabaseAdmin: SupabaseAdminService) {}
 
-  buildPath(entityType: 'students' | 'teachers', entityId: string, fileName: string) {
+  buildPath(
+    entityType: 'students' | 'teachers' | 'teacher-applications',
+    entityId: string,
+    fileName: string,
+  ) {
     return `${entityType}/${entityId}/${randomUUID()}-${fileName}`;
   }
 

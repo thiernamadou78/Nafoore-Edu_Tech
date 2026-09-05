@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
-import { CalendarPlus, Check, X } from 'lucide-react'
+import { CalendarPlus, Check, ScanLine, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from './labels'
+
+const MANUAL_REASON_LABELS = {
+  qr_oublie: 'Pass QR oublié',
+  probleme_technique: 'Problème technique',
+  autre: 'Autre',
+}
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -53,7 +59,7 @@ function ReportForm({ session, onCancel, onSave, saving }) {
       />
       <div className="flex gap-2">
         <Button
-          disabled={saving}
+          loading={saving}
           onClick={() => onSave({ attended, notes, status: 'realisee' })}
         >
           Enregistrer
@@ -84,7 +90,8 @@ function CancelForm({ onCancel, onConfirm, saving }) {
       <div className="flex gap-2">
         <Button
           variant="danger"
-          disabled={saving || !reason.trim()}
+          loading={saving}
+          disabled={!reason.trim()}
           onClick={() => onConfirm(reason)}
         >
           Confirmer l'annulation
@@ -97,11 +104,42 @@ function CancelForm({ onCancel, onConfirm, saving }) {
   )
 }
 
-function SessionRow({ session, onCancelSession, onSaveReport, savingId }) {
+function ManualAttendanceForm({ onCancel, onConfirm, saving }) {
+  const [reason, setReason] = useState('qr_oublie')
+
+  return (
+    <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+      <label className="block text-xs font-medium text-gray-500">Motif du pointage manuel</label>
+      <select
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        className={inputClass}
+      >
+        {Object.entries(MANUAL_REASON_LABELS).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <div className="flex gap-2">
+        <Button icon={ScanLine} loading={saving} onClick={() => onConfirm(reason)}>
+          Confirmer le pointage
+        </Button>
+        <Button variant="secondary" onClick={onCancel}>
+          Annuler
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function SessionRow({ session, onCancelSession, onSaveReport, onManualAttendance, savingId }) {
   const [reportOpen, setReportOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [manualOpen, setManualOpen] = useState(false)
   const hasReport = session.status === 'realisee' && (session.notes || session.attended !== null)
   const isPast = new Date(session.date) < new Date()
+  const canPointManually = session.status === 'planifiee' || session.status === 'confirmee'
 
   return (
     <Card className="p-4">
@@ -139,8 +177,28 @@ function SessionRow({ session, onCancelSession, onSaveReport, savingId }) {
               Modifier le compte-rendu
             </Button>
           )}
+          {canPointManually && !cancelOpen && !manualOpen && (
+            <Button
+              variant="secondary"
+              icon={ScanLine}
+              disabled={savingId === session.id}
+              onClick={() => setManualOpen(true)}
+            >
+              Pointage manuel
+            </Button>
+          )}
         </div>
       </div>
+
+      {manualOpen && (
+        <ManualAttendanceForm
+          saving={savingId === session.id}
+          onCancel={() => setManualOpen(false)}
+          onConfirm={(reason) =>
+            onManualAttendance(session.id, reason).then(() => setManualOpen(false))
+          }
+        />
+      )}
 
       {hasReport && !reportOpen && (
         <div className="mt-3 border-t border-gray-100 pt-3 text-sm text-gray-700">
@@ -219,6 +277,15 @@ export function Planning() {
     setSavingId(id)
     return api
       .patch(`/teacher/sessions/${id}`, data)
+      .then(load)
+      .catch((err) => setError(err.message))
+      .finally(() => setSavingId(null))
+  }
+
+  const handleManualAttendance = (id, manualReason) => {
+    setSavingId(id)
+    return api
+      .post('/teacher/attendance/manual', { sessionId: id, manualReason })
       .then(load)
       .catch((err) => setError(err.message))
       .finally(() => setSavingId(null))
@@ -337,7 +404,7 @@ export function Planning() {
               </select>
             </div>
             <div className="sm:col-span-4">
-              <Button type="submit" disabled={creating}>
+              <Button type="submit" loading={creating}>
                 Planifier
               </Button>
             </div>
@@ -361,6 +428,7 @@ export function Planning() {
                   savingId={savingId}
                   onCancelSession={handleCancelSession}
                   onSaveReport={handleSaveReport}
+                  onManualAttendance={handleManualAttendance}
                 />
               ))}
             </div>
@@ -382,6 +450,7 @@ export function Planning() {
                   savingId={savingId}
                   onCancelSession={handleCancelSession}
                   onSaveReport={handleSaveReport}
+                  onManualAttendance={handleManualAttendance}
                 />
               ))}
             </div>

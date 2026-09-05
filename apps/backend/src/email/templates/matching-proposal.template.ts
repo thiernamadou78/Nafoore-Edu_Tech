@@ -26,7 +26,7 @@ export function renderMatchingProposalEmail({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Un professeur vous est proposé — Nafoore</title>
+    <title>Un professeur vous est proposé — Nafoore Education</title>
   </head>
   <body style="margin:0;padding:0;background-color:#f4f3ef;font-family:Georgia,'Playfair Display',serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f3ef;padding:32px 16px;">
@@ -35,7 +35,7 @@ export function renderMatchingProposalEmail({
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(30,58,138,0.08);">
             <tr>
               <td style="background-color:#1E3A8A;padding:28px 32px;">
-                <span style="font-family:Georgia,'Playfair Display',serif;font-size:20px;font-weight:bold;color:#ffffff;letter-spacing:0.02em;">Nafoore</span>
+                <span style="font-family:Georgia,'Playfair Display',serif;font-size:20px;font-weight:bold;color:#ffffff;letter-spacing:0.02em;">Nafoore Education</span>
               </td>
             </tr>
             <tr>
@@ -48,7 +48,7 @@ export function renderMatchingProposalEmail({
                   Bonjour ${escapeHtml(fullName)},
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
-                  Nafoore a trouvé un professeur pour la demande en ${escapeHtml(subject)} concernant ${escapeHtml(studentName)}. Merci de vous connecter à votre espace famille pour consulter son profil et <strong>valider ou refuser</strong> cette proposition.
+                  Nafoore Education a trouvé un professeur pour la demande en ${escapeHtml(subject)} concernant ${escapeHtml(studentName)}. Merci de vous connecter à votre espace famille pour consulter son profil et <strong>valider ou refuser</strong> cette proposition.
                 </p>
               </td>
             </tr>

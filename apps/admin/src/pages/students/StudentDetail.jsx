@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
+  Ban,
   CalendarPlus,
   Download,
   FileText,
   History,
   Power,
+  QrCode,
+  RefreshCw,
   Save,
+  ShieldCheck,
   Sparkles,
   Trash2,
   Upload,
@@ -20,13 +24,21 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import {
+  ATTENDANCE_METHOD_LABELS,
+  CLASSE_LABELS,
+  CLASSE_OPTIONS_BY_LEVEL,
   DOCUMENT_TYPE_LABELS,
   LEVEL_LABELS,
+  PASS_STATUS_LABELS,
+  PASS_STATUS_TONES,
   PROGRESS_ENTRY_LABELS,
   PROGRESS_ENTRY_TONES,
   SESSION_STATUS_LABELS,
   SESSION_STATUS_TONES,
+  VERIFICATION_STATUS_LABELS,
+  VERIFICATION_STATUS_TONES,
 } from './labels'
+import { PassEducatifCard } from './PassEducatifCard'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -66,6 +78,27 @@ function SessionRow({ session, onSave }) {
           {SESSION_STATUS_LABELS[session.status] ?? session.status}
         </Badge>
       </div>
+      {session.attendanceLogs?.[0]?.checkinAt && (
+        <p className="mb-2 text-xs text-gray-500">
+          Arrivée{' '}
+          {new Date(session.attendanceLogs[0].checkinAt).toLocaleTimeString('fr-FR', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+          {session.attendanceLogs[0].checkoutAt && (
+            <>
+              {' '}
+              · Départ{' '}
+              {new Date(session.attendanceLogs[0].checkoutAt).toLocaleTimeString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </>
+          )}
+          {' · '}
+          {session.attendanceLogs[0].method === 'qr_scan' ? 'Scan QR' : 'Pointage manuel'}
+        </p>
+      )}
       <div className="flex flex-wrap items-end gap-2">
         <select
           value={status}
@@ -102,7 +135,8 @@ function SessionRow({ session, onSave }) {
         <Button
           variant="secondary"
           icon={Save}
-          disabled={!dirty || saving}
+          loading={saving}
+          disabled={!dirty}
           onClick={handleSave}
           className="px-3 py-1.5"
         >
@@ -117,7 +151,7 @@ export function StudentDetail() {
   const { id } = useParams()
   const [student, setStudent] = useState(null)
   const [teachers, setTeachers] = useState([])
-  const [form, setForm] = useState({ name: '', level: 'college', subjects: '', objectives: '' })
+  const [form, setForm] = useState({ name: '', level: 'college', classe: '', subjects: '', objectives: '' })
   const [assignedTeacherIds, setAssignedTeacherIds] = useState([])
   const [sessionForm, setSessionForm] = useState({
     date: '',
@@ -137,6 +171,7 @@ export function StudentDetail() {
       setForm({
         name: data.name,
         level: data.level,
+        classe: data.classe ?? '',
         subjects: data.subjects.join(', '),
         objectives: data.objectives ?? '',
       })
@@ -219,12 +254,35 @@ export function StudentDetail() {
             <label className="mb-1 block text-sm font-medium text-gray-700">Niveau</label>
             <select
               value={form.level}
-              onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  level: e.target.value,
+                  classe: CLASSE_OPTIONS_BY_LEVEL[e.target.value].includes(f.classe)
+                    ? f.classe
+                    : '',
+                }))
+              }
               className={inputClass}
             >
               {Object.entries(LEVEL_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Classe</label>
+            <select
+              value={form.classe}
+              onChange={(e) => setForm((f) => ({ ...f, classe: e.target.value }))}
+              className={inputClass}
+            >
+              <option value="">—</option>
+              {CLASSE_OPTIONS_BY_LEVEL[form.level].map((value) => (
+                <option key={value} value={value}>
+                  {CLASSE_LABELS[value]}
                 </option>
               ))}
             </select>
@@ -252,12 +310,13 @@ export function StudentDetail() {
         <div className="mt-4 flex gap-3">
           <Button
             icon={Save}
-            disabled={savingAction === 'info'}
+            loading={savingAction === 'info'}
             onClick={() =>
               run('info', () =>
                 api.patch(`/students/${id}`, {
                   name: form.name,
                   level: form.level,
+                  classe: form.classe || undefined,
                   subjects: form.subjects
                     .split(',')
                     .map((s) => s.trim())
@@ -272,7 +331,7 @@ export function StudentDetail() {
           <Button
             variant={student.isActive ? 'danger' : 'secondary'}
             icon={Power}
-            disabled={savingAction === 'active'}
+            loading={savingAction === 'active'}
             onClick={() =>
               run('active', () =>
                 api.patch(`/students/${id}/active`, { isActive: !student.isActive }),
@@ -281,6 +340,71 @@ export function StudentDetail() {
           >
             {student.isActive ? 'Désactiver' : 'Activer'}
           </Button>
+        </div>
+      </Card>
+
+      <Card className="mb-6 p-6">
+        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+          <QrCode size={16} className="text-navy" />
+          Pass Éducatif
+        </h2>
+        <div className="flex flex-wrap items-start gap-6">
+          <div className="flex flex-col items-center gap-2">
+            <PassEducatifCard student={student} />
+            <Badge tone={PASS_STATUS_TONES[student.passStatus]}>
+              {PASS_STATUS_LABELS[student.passStatus] ?? student.passStatus}
+            </Badge>
+          </div>
+          <div className="min-w-[240px] flex-1 space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                icon={RefreshCw}
+                loading={savingAction === 'qr-regenerate'}
+                onClick={() => run('qr-regenerate', () => api.post(`/students/${id}/qr/regenerate`))}
+              >
+                Régénérer le token
+              </Button>
+              <Button
+                variant={student.passStatus === 'active' ? 'danger' : 'success'}
+                icon={student.passStatus === 'active' ? Ban : ShieldCheck}
+                loading={savingAction === 'qr-status'}
+                onClick={() =>
+                  run('qr-status', () =>
+                    api.patch(`/students/${id}/qr/status`, {
+                      passStatus: student.passStatus === 'active' ? 'revoked' : 'active',
+                    }),
+                  )
+                }
+              >
+                {student.passStatus === 'active' ? 'Révoquer' : 'Réactiver'}
+              </Button>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-700">Historique des scans</p>
+              {student.attendanceLogs.length === 0 ? (
+                <p className="text-sm text-gray-500">Aucun scan pour l'instant.</p>
+              ) : (
+                <ul className="max-h-64 space-y-2 overflow-y-auto text-sm">
+                  {student.attendanceLogs.map((log) => (
+                    <li key={log.id} className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2">
+                      <div>
+                        <span className="text-gray-800">
+                          {new Date(log.createdAt).toLocaleString('fr-FR')}
+                        </span>
+                        <span className="ml-2 text-gray-500">
+                          {log.teacher.name} · {ATTENDANCE_METHOD_LABELS[log.method] ?? log.method}
+                        </span>
+                      </div>
+                      <Badge tone={VERIFICATION_STATUS_TONES[log.verificationStatus]}>
+                        {VERIFICATION_STATUS_LABELS[log.verificationStatus] ?? log.verificationStatus}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         </div>
       </Card>
 
@@ -304,7 +428,7 @@ export function StudentDetail() {
         </div>
         <Button
           icon={UserCheck}
-          disabled={savingAction === 'teachers'}
+          loading={savingAction === 'teachers'}
           onClick={() =>
             run('teachers', () =>
               api.patch(`/students/${id}/teachers`, { teacherIds: assignedTeacherIds }),
@@ -403,7 +527,8 @@ export function StudentDetail() {
           />
           <Button
             icon={CalendarPlus}
-            disabled={!sessionForm.date || savingAction === 'new-session'}
+            loading={savingAction === 'new-session'}
+            disabled={!sessionForm.date}
             onClick={() =>
               run('new-session', async () => {
                 await api.post(`/students/${id}/sessions`, {
@@ -472,7 +597,8 @@ export function StudentDetail() {
           />
           <Button
             icon={FileText}
-            disabled={!reportForm.content || savingAction === 'report'}
+            loading={savingAction === 'report'}
+            disabled={!reportForm.content}
             onClick={() =>
               run('report', async () => {
                 await api.post(`/students/${id}/progress-reports`, reportForm)
@@ -500,7 +626,16 @@ export function StudentDetail() {
           ) : (
             student.progressEntries.map((entry) => (
               <div key={entry.id} className="flex items-center justify-between text-sm">
-                <span className="text-gray-800">{entry.subject}</span>
+                <div>
+                  <span className="text-gray-800">{entry.subject}</span>
+                  <span className="ml-2 text-xs text-gray-400">
+                    {entry.teacher
+                      ? `Enseignant : ${entry.teacher.name}`
+                      : entry.adminAccount
+                        ? `Admin : ${entry.adminAccount.name}`
+                        : ''}
+                  </span>
+                </div>
                 <Badge tone={PROGRESS_ENTRY_TONES[entry.status]}>
                   {PROGRESS_ENTRY_LABELS[entry.status] ?? entry.status}
                 </Badge>
@@ -534,7 +669,8 @@ export function StudentDetail() {
           </div>
           <Button
             icon={Sparkles}
-            disabled={!progressForm.subject || savingAction === 'progress-entry'}
+            loading={savingAction === 'progress-entry'}
+            disabled={!progressForm.subject}
             onClick={() =>
               run('progress-entry', async () => {
                 await api.put(`/students/${id}/progress-entries`, progressForm)
@@ -623,7 +759,8 @@ export function StudentDetail() {
           </div>
           <Button
             icon={Upload}
-            disabled={!documentForm.file || savingAction === 'upload'}
+            loading={savingAction === 'upload'}
+            disabled={!documentForm.file}
             onClick={() =>
               run('upload', async () => {
                 const formData = new FormData()

@@ -1,10 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
 import { EmailService } from '../email/email.service';
+import { PhotosService } from '../photos/photos.service';
 import { renderApplicationReceivedEmail } from '../email/templates/application-received.template';
+import { generateCompletionToken } from '../teacher-applications/completion-token.util';
 import { CreatePublicTeacherApplicationDto } from './dto/create-public-teacher-application.dto';
+import { UpdateCompletionProfileDto } from './dto/update-completion-profile.dto';
 
 const BUCKET = 'teacher-application-documents';
 
@@ -21,7 +24,101 @@ export class TeacherApplicationsPublicService {
     private readonly prisma: PrismaService,
     private readonly supabaseAdmin: SupabaseAdminService,
     private readonly emailService: EmailService,
+    private readonly photos: PhotosService,
   ) {}
+
+  private async findByToken(token: string) {
+    const application = await this.prisma.teacherApplication.findUnique({
+      where: { completionToken: token },
+      include: { documents: { orderBy: { createdAt: 'desc' } } },
+    });
+    if (!application) {
+      throw new NotFoundException('Candidature introuvable');
+    }
+    return application;
+  }
+
+  private assertEditable(status: string) {
+    if (status === 'valide' || status === 'refuse') {
+      throw new BadRequestException("Cette candidature n'est plus modifiable");
+    }
+  }
+
+  async getByToken(token: string) {
+    const application = await this.findByToken(token);
+    const photoUrl = await this.photos.signUrl(application.photoPath);
+    return { ...application, photoUrl };
+  }
+
+  async updateProfile(token: string, dto: UpdateCompletionProfileDto) {
+    const application = await this.findByToken(token);
+    this.assertEditable(application.status);
+    return this.prisma.teacherApplication.update({
+      where: { id: application.id },
+      data: { bio: dto.bio },
+    });
+  }
+
+  async uploadPhoto(token: string, file: Express.Multer.File) {
+    const application = await this.findByToken(token);
+    this.assertEditable(application.status);
+    if (application.photoPath) {
+      await this.photos.remove(application.photoPath);
+    }
+    const path = this.photos.buildPath('teacher-applications', application.id, file.originalname);
+    await this.photos.upload(path, file);
+    await this.prisma.teacherApplication.update({
+      where: { id: application.id },
+      data: { photoPath: path },
+    });
+  }
+
+  async removePhoto(token: string) {
+    const application = await this.findByToken(token);
+    this.assertEditable(application.status);
+    if (application.photoPath) {
+      await this.photos.remove(application.photoPath);
+      await this.prisma.teacherApplication.update({
+        where: { id: application.id },
+        data: { photoPath: null },
+      });
+    }
+  }
+
+  async addDocuments(token: string, files: TeacherApplicationUploadedFiles) {
+    const application = await this.findByToken(token);
+    this.assertEditable(application.status);
+    await this.uploadDocuments(application.id, files);
+    return this.findByToken(token);
+  }
+
+  private async uploadDocuments(applicationId: string, files: TeacherApplicationUploadedFiles) {
+    const uploads = [
+      ...(files.diplomas ?? []).map((file) => ({ file, type: 'diplome' })),
+      ...(files.criminalRecord ?? []).map((file) => ({ file, type: 'casier_judiciaire' })),
+    ];
+
+    for (const { file, type } of uploads) {
+      const filePath = `${applicationId}/${randomUUID()}-${file.originalname}`;
+      const { error } = await this.supabaseAdmin.client.storage
+        .from(BUCKET)
+        .upload(filePath, file.buffer, { contentType: file.mimetype });
+      if (error) {
+        this.logger.error(
+          `Échec d'upload du document "${file.originalname}" pour la candidature ${applicationId}: ${error.message}`,
+        );
+        continue;
+      }
+      await this.prisma.teacherApplicationDocument.create({
+        data: {
+          teacherApplicationId: applicationId,
+          type,
+          fileName: file.originalname,
+          filePath,
+        },
+      });
+    }
+  }
 
   async create(dto: CreatePublicTeacherApplicationDto, files: TeacherApplicationUploadedFiles) {
     const application = await this.prisma.teacherApplication.create({
@@ -33,39 +130,16 @@ export class TeacherApplicationsPublicService {
         levels: dto.levels,
         zone: dto.zone,
         availability: dto.availability,
+        completionToken: generateCompletionToken(),
       },
     });
 
-    const uploads = [
-      ...(files.diplomas ?? []).map((file) => ({ file, type: 'diplome' })),
-      ...(files.criminalRecord ?? []).map((file) => ({ file, type: 'casier_judiciaire' })),
-    ];
-
-    for (const { file, type } of uploads) {
-      const filePath = `${application.id}/${randomUUID()}-${file.originalname}`;
-      const { error } = await this.supabaseAdmin.client.storage
-        .from(BUCKET)
-        .upload(filePath, file.buffer, { contentType: file.mimetype });
-      if (error) {
-        this.logger.error(
-          `Échec d'upload du document "${file.originalname}" pour la candidature ${application.id}: ${error.message}`,
-        );
-        continue;
-      }
-      await this.prisma.teacherApplicationDocument.create({
-        data: {
-          teacherApplicationId: application.id,
-          type,
-          fileName: file.originalname,
-          filePath,
-        },
-      });
-    }
+    await this.uploadDocuments(application.id, files);
 
     try {
       const result = await this.emailService.send({
         to: dto.candidateEmail,
-        subject: 'Nafoore — Votre candidature a bien été reçue',
+        subject: 'Nafoore Education — Votre candidature a bien été reçue',
         html: renderApplicationReceivedEmail({ fullName: dto.candidateName }),
       });
       this.logger.log(

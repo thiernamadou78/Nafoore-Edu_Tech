@@ -142,7 +142,7 @@ export function TeacherDetail() {
         <div className="mt-4 flex gap-3">
           <Button
             icon={Save}
-            disabled={savingAction === 'info'}
+            loading={savingAction === 'info'}
             onClick={() =>
               run('info', () =>
                 api.patch(`/teachers/${id}`, {
@@ -164,7 +164,7 @@ export function TeacherDetail() {
           <Button
             variant={teacher.verified ? 'danger' : 'secondary'}
             icon={Power}
-            disabled={savingAction === 'verified'}
+            loading={savingAction === 'verified'}
             onClick={() =>
               run('verified', () =>
                 api.patch(`/teachers/${id}/verified`, { verified: !teacher.verified }),

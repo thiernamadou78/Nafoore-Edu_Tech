@@ -4,9 +4,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { AssignLeadDto } from './dto/assign-lead.dto';
 import { ConvertToStudentDto } from './dto/convert-to-student.dto';
+import { CreateFamilyLeadDto } from './dto/create-family-lead.dto';
 import { CreateLeadNoteDto } from './dto/create-lead-note.dto';
 import { ListLeadsQueryDto } from './dto/list-leads-query.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
+import { generateQrToken } from '../students/qr-token.util';
 
 @Injectable()
 export class LeadsService {
@@ -14,6 +16,24 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly activityLog: ActivityLogService,
   ) {}
+
+  async createFamilyByAdmin(dto: CreateFamilyLeadDto, actorId: string) {
+    const lead = await this.prisma.lead.create({
+      data: {
+        profile: 'famille',
+        name: dto.name,
+        email: dto.email,
+        phone: dto.phone,
+        message: 'Famille créée directement depuis l’espace admin.',
+        status: 'valide',
+        assignedToId: actorId,
+      },
+    });
+
+    await this.activityLog.log(actorId, 'create_family_lead', 'leads', lead.id);
+
+    return lead;
+  }
 
   list(query: ListLeadsQueryDto) {
     const where: Prisma.LeadWhereInput = {
@@ -47,7 +67,7 @@ export class LeadsService {
           include: { adminAccount: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'asc' },
         },
-        students: { select: { id: true, name: true, level: true } },
+        students: { select: { id: true, name: true, level: true, classe: true, school: true } },
         portalAccount: { select: { id: true, status: true } },
       },
     });
@@ -123,6 +143,7 @@ export class LeadsService {
           name: existingLead.name,
           level: dto.level,
           parentLeadId: id,
+          qrToken: generateQrToken(),
         },
       });
       await tx.lead.update({ where: { id }, data: { status: 'converti' } });

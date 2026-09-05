@@ -6,6 +6,8 @@ import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { LeadsList } from './pages/leads/LeadsList'
 import { LeadDetail } from './pages/leads/LeadDetail'
+import { CreateFamily } from './pages/leads/CreateFamily'
+import { CreateChild } from './pages/leads/CreateChild'
 import { StudentsList } from './pages/students/StudentsList'
 import { StudentDetail } from './pages/students/StudentDetail'
 import { TeachersList } from './pages/teachers/TeachersList'
@@ -18,6 +20,10 @@ import { TeacherRequestDetail } from './pages/teacher-requests/TeacherRequestDet
 import { ConversationsList } from './pages/messaging/ConversationsList'
 import { ConversationDetail } from './pages/messaging/ConversationDetail'
 import { SupportTicketsList } from './pages/support/SupportTicketsList'
+import { EnterprisesList } from './pages/entreprises/EnterprisesList'
+import { EnterpriseDetail } from './pages/entreprises/EnterpriseDetail'
+import { EnterpriseImport } from './pages/entreprises/EnterpriseImport'
+import { FormulasList } from './pages/formules/FormulasList'
 
 export default function App() {
   return (
@@ -31,6 +37,8 @@ export default function App() {
             <Route path="/recrutement/:id" element={<RecruitmentDetail />} />
             <Route element={<ProtectedRoute roles={['super_admin', 'admin']} />}>
               <Route path="/leads" element={<LeadsList />} />
+              <Route path="/leads/nouvelle" element={<CreateFamily />} />
+              <Route path="/leads/nouvelle/enfants" element={<CreateChild />} />
               <Route path="/leads/:id" element={<LeadDetail />} />
               <Route path="/eleves" element={<StudentsList />} />
               <Route path="/eleves/:id" element={<StudentDetail />} />
@@ -41,6 +49,10 @@ export default function App() {
               <Route path="/conversations" element={<ConversationsList />} />
               <Route path="/conversations/:id" element={<ConversationDetail />} />
               <Route path="/support-tickets" element={<SupportTicketsList />} />
+              <Route path="/entreprises" element={<EnterprisesList />} />
+              <Route path="/entreprises/:id" element={<EnterpriseDetail />} />
+              <Route path="/entreprises/:id/import" element={<EnterpriseImport />} />
+              <Route path="/formules" element={<FormulasList />} />
             </Route>
             <Route element={<ProtectedRoute roles={['super_admin']} />}>
               <Route path="/comptes" element={<AdminAccounts />} />

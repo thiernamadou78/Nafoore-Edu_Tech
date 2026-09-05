@@ -15,6 +15,7 @@ import { CreateTeacherSessionDto } from './dto/create-teacher-session.dto';
 import { UpdateTeacherSessionDto } from './dto/update-teacher-session.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
+import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
 import { redactRemovedMessage, countUnread } from '../common/redact-message.util';
 
 // Valeur de démonstration en attendant un vrai taux horaire par matching
@@ -137,6 +138,45 @@ export class TeacherService {
       nextSession: sessions[0] ?? null,
       photoUrl,
     };
+  }
+
+  private async assertOwnsStudent(teacherAccount: AuthenticatedTeacherAccount, studentId: string) {
+    const assignment = await this.prisma.studentTeacher.findFirst({
+      where: { studentId, teacherId: teacherAccount.teacherId ?? undefined },
+    });
+    if (!assignment) {
+      throw new NotFoundException('Élève introuvable');
+    }
+  }
+
+  async listProgressEntries(teacherAccount: AuthenticatedTeacherAccount, studentId: string) {
+    await this.assertOwnsStudent(teacherAccount, studentId);
+    return this.prisma.progressEntry.findMany({
+      where: { studentId },
+      orderBy: { subject: 'asc' },
+    });
+  }
+
+  async upsertProgressEntry(
+    teacherAccount: AuthenticatedTeacherAccount,
+    studentId: string,
+    dto: UpsertProgressEntryDto,
+  ) {
+    await this.assertOwnsStudent(teacherAccount, studentId);
+    return this.prisma.progressEntry.upsert({
+      where: { studentId_subject: { studentId, subject: dto.subject } },
+      create: {
+        studentId,
+        subject: dto.subject,
+        status: dto.status,
+        teacherId: teacherAccount.teacherId,
+      },
+      update: {
+        status: dto.status,
+        teacherId: teacherAccount.teacherId,
+        adminAccountId: null,
+      },
+    });
   }
 
   async listMySessions(teacherAccount: AuthenticatedTeacherAccount) {
@@ -424,7 +464,7 @@ export class TeacherService {
       try {
         await this.emailService.send({
           to: teacherAccount.email,
-          subject: `Nafoore — Compte-rendu à rédiger pour ${session.student.name}`,
+          subject: `Nafoore Education — Compte-rendu à rédiger pour ${session.student.name}`,
           html: renderSessionReportReminderEmail({
             fullName: teacherAccount.fullName,
             studentName: session.student.name,
