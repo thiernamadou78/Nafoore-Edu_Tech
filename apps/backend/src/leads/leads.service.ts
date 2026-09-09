@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
-import { AssignLeadDto } from './dto/assign-lead.dto';
 import { ConvertToStudentDto } from './dto/convert-to-student.dto';
 import { CreateFamilyLeadDto } from './dto/create-family-lead.dto';
 import { CreateLeadNoteDto } from './dto/create-lead-note.dto';
@@ -26,7 +25,6 @@ export class LeadsService {
         phone: dto.phone,
         message: 'Famille créée directement depuis l’espace admin.',
         status: 'valide',
-        assignedToId: actorId,
       },
     });
 
@@ -51,7 +49,6 @@ export class LeadsService {
     return this.prisma.lead.findMany({
       where,
       include: {
-        assignedTo: { select: { id: true, name: true } },
         portalAccount: { select: { id: true, status: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -62,7 +59,6 @@ export class LeadsService {
     const lead = await this.prisma.lead.findUnique({
       where: { id },
       include: {
-        assignedTo: { select: { id: true, name: true } },
         notes: {
           include: { adminAccount: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'asc' },
@@ -91,41 +87,9 @@ export class LeadsService {
     const lead = await this.prisma.lead.update({
       where: { id },
       data: { status: dto.status },
-      include: { assignedTo: { select: { id: true, name: true } } },
     });
 
     await this.activityLog.log(actorId, 'update_lead_status', 'leads', id);
-
-    return lead;
-  }
-
-  async assign(id: string, dto: AssignLeadDto, actorId: string) {
-    await this.findOne(id);
-    await this.prisma.adminAccount.findUniqueOrThrow({
-      where: { id: dto.assignedToId },
-    });
-
-    const lead = await this.prisma.lead.update({
-      where: { id },
-      data: { assignedToId: dto.assignedToId },
-      include: { assignedTo: { select: { id: true, name: true } } },
-    });
-
-    await this.activityLog.log(actorId, 'assign_lead', 'leads', id);
-
-    return lead;
-  }
-
-  async unassign(id: string, actorId: string) {
-    await this.findOne(id);
-
-    const lead = await this.prisma.lead.update({
-      where: { id },
-      data: { assignedToId: null },
-      include: { assignedTo: { select: { id: true, name: true } } },
-    });
-
-    await this.activityLog.log(actorId, 'unassign_lead', 'leads', id);
 
     return lead;
   }

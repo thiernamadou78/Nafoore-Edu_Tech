@@ -100,6 +100,10 @@ export class StudentsService {
             },
           },
         },
+        recurringSchedules: {
+          where: { active: true },
+          include: { teacher: { select: { id: true, name: true } } },
+        },
       },
     });
     if (!student) {

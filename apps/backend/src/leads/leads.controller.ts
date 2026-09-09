@@ -13,7 +13,6 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { LeadOnboardingService } from '../onboarding/lead-onboarding.service';
-import { AssignLeadDto } from './dto/assign-lead.dto';
 import { ConvertToStudentDto } from './dto/convert-to-student.dto';
 import { CreateFamilyLeadDto } from './dto/create-family-lead.dto';
 import { CreateLeadNoteDto } from './dto/create-lead-note.dto';
@@ -64,23 +63,6 @@ export class LeadsController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
     return this.leadsService.updateStatus(id, dto, admin.id);
-  }
-
-  @Patch(':id/assign')
-  assign(
-    @Param('id') id: string,
-    @Body() dto: AssignLeadDto,
-    @CurrentAdmin() admin: AuthenticatedAdmin,
-  ) {
-    return this.leadsService.assign(id, dto, admin.id);
-  }
-
-  @Patch(':id/unassign')
-  unassign(
-    @Param('id') id: string,
-    @CurrentAdmin() admin: AuthenticatedAdmin,
-  ) {
-    return this.leadsService.unassign(id, admin.id);
   }
 
   @Post(':id/convert-to-student')

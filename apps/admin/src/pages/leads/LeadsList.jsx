@@ -125,7 +125,6 @@ export function LeadsList() {
                 <th className="px-4 py-3 font-medium">Contact</th>
                 <th className="px-4 py-3 font-medium">Profil</th>
                 <th className="px-4 py-3 font-medium">Statut</th>
-                <th className="px-4 py-3 font-medium">Assigné à</th>
                 <th className="px-4 py-3 font-medium">Reçu le</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -154,7 +153,6 @@ export function LeadsList() {
                       {LEAD_STATUS_LABELS[lead.status] ?? lead.status}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-gray-700">{lead.assignedTo?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-500">
                     {new Date(lead.createdAt).toLocaleDateString('fr-FR')}
                   </td>

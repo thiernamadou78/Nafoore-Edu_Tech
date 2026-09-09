@@ -160,6 +160,10 @@ export class FamilyService {
           },
           orderBy: { date: 'desc' },
         },
+        recurringSchedules: {
+          where: { active: true },
+          include: { teacher: { select: { id: true, name: true } } },
+        },
         progressReports: {
           where: { shareable: true },
           select: {

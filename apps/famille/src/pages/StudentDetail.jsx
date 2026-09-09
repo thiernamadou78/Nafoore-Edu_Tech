@@ -39,6 +39,16 @@ const inputClass =
 
 const ACTIVE_REQUEST_STATUSES = ['en_attente', 'proposition_envoyee']
 
+const DAY_LABELS = {
+  1: 'Lundi',
+  2: 'Mardi',
+  3: 'Mercredi',
+  4: 'Jeudi',
+  5: 'Vendredi',
+  6: 'Samedi',
+  7: 'Dimanche',
+}
+
 function getInitials(name) {
   const parts = name.trim().split(/\s+/)
   return parts
@@ -174,6 +184,39 @@ export function StudentDetail() {
         activeRequests={activeRequests}
         onChanged={load}
       />
+
+      {/* Programme */}
+      {student.recurringSchedules?.length > 0 && (
+        <Card className="mb-6 p-5">
+          <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+            <CalendarClock size={16} className="text-gold-500" />
+            Programme
+          </h2>
+          <div className="space-y-4">
+            {student.recurringSchedules.map((schedule) => (
+              <div key={schedule.id}>
+                <p className="mb-1.5 text-sm text-gray-700">
+                  <span className="font-medium text-gray-900">{schedule.teacher.name}</span> —{' '}
+                  {schedule.frequency} séance{schedule.frequency > 1 ? 's' : ''} par semaine
+                  {schedule.subject && ` · ${schedule.subject}`}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[...schedule.slots]
+                    .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+                    .map((slot, i) => (
+                      <Badge key={i} tone="gold">
+                        {DAY_LABELS[slot.dayOfWeek]} {slot.time}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-gray-400">
+            Pour modifier ce planning, contacte l'enseignant via la messagerie.
+          </p>
+        </Card>
+      )}
 
       {/* Progression */}
       <Card className="mb-6 p-5">

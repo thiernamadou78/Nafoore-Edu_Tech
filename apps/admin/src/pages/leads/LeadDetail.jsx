@@ -5,8 +5,6 @@ import {
   KeyRound,
   MessageSquarePlus,
   RefreshCw,
-  Save,
-  UserCheck,
   UserPlus,
 } from 'lucide-react'
 import { api } from '../../lib/api'
@@ -28,27 +26,15 @@ export function LeadDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [lead, setLead] = useState(null)
-  const [assignableAccounts, setAssignableAccounts] = useState([])
-  const [status, setStatus] = useState('')
-  const [assignedToId, setAssignedToId] = useState('')
   const [noteText, setNoteText] = useState('')
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
   const [confirmModal, setConfirmModal] = useState(null) // null | 'validate' | 'resend'
 
-  const load = () =>
-    api.get(`/leads/${id}`).then((data) => {
-      setLead(data)
-      setStatus(data.status)
-      setAssignedToId(data.assignedTo?.id ?? '')
-    })
+  const load = () => api.get(`/leads/${id}`).then(setLead)
 
   useEffect(() => {
     load().catch((err) => setError(err.message))
-    api
-      .get('/admin-accounts/assignable')
-      .then(setAssignableAccounts)
-      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
@@ -60,6 +46,24 @@ export function LeadDetail() {
       await load()
       setConfirmModal(null)
     } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingAction(null)
+    }
+  }
+
+  const handleStatusChange = async (newStatus) => {
+    const previousStatus = lead.status
+    // Mise à jour optimiste : le badge/select change tout de suite, pas
+    // besoin d'attendre le PATCH puis un second GET complet de la fiche.
+    setLead((prev) => ({ ...prev, status: newStatus }))
+    setSavingAction('status')
+    setError(null)
+    try {
+      const updated = await api.patch(`/leads/${id}/status`, { status: newStatus })
+      setLead((prev) => ({ ...prev, ...updated }))
+    } catch (err) {
+      setLead((prev) => ({ ...prev, status: previousStatus }))
       setError(err.message)
     } finally {
       setSavingAction(null)
@@ -107,59 +111,17 @@ export function LeadDetail() {
 
           <Card className="p-6">
             <h2 className="mb-3 font-semibold text-gray-900">Statut</h2>
-            <div className="space-y-2">
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className={inputClass}
-              >
-                {Object.entries(LEAD_STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <Button
-                icon={Save}
-                className="w-full"
-                disabled={status === lead.status || savingAction === 'status'}
-                onClick={() => run('status', () => api.patch(`/leads/${id}/status`, { status }))}
-              >
-                Mettre à jour
-              </Button>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="mb-3 font-semibold text-gray-900">Assigné à</h2>
-            <div className="space-y-2">
-              <select
-                value={assignedToId}
-                onChange={(e) => setAssignedToId(e.target.value)}
-                className={inputClass}
-              >
-                <option value="">Non assigné</option>
-                {assignableAccounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-              </select>
-              <Button
-                icon={UserCheck}
-                className="w-full"
-                loading={savingAction === 'assign'}
-                onClick={() =>
-                  run('assign', () =>
-                    assignedToId
-                      ? api.patch(`/leads/${id}/assign`, { assignedToId })
-                      : api.patch(`/leads/${id}/unassign`, {}),
-                  )
-                }
-              >
-                Enregistrer
-              </Button>
-            </div>
+            <select
+              value={lead.status}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className={inputClass}
+            >
+              {Object.entries(LEAD_STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </Card>
 
           <Card className="p-6">

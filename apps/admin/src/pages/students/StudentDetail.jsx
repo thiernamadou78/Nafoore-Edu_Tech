@@ -44,6 +44,16 @@ import { PassEducatifCard } from './PassEducatifCard'
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
+const DAY_LABELS = {
+  1: 'Lundi',
+  2: 'Mardi',
+  3: 'Mercredi',
+  4: 'Jeudi',
+  5: 'Vendredi',
+  6: 'Samedi',
+  7: 'Dimanche',
+}
+
 const TABS = [
   { key: 'fiche', label: 'Fiche' },
   { key: 'enseignants', label: 'Enseignants' },
@@ -499,7 +509,35 @@ export function StudentDetail() {
           )}
 
           {tab === 'seances' && (
-            <Card className="p-6">
+            <div className="space-y-6">
+              {student.recurringSchedules?.length > 0 && (
+                <Card className="p-6">
+                  <h2 className="mb-3 font-semibold text-gray-900">Programme</h2>
+                  <div className="space-y-4">
+                    {student.recurringSchedules.map((schedule) => (
+                      <div key={schedule.id}>
+                        <p className="mb-1.5 text-sm text-gray-700">
+                          <span className="font-medium text-gray-900">
+                            {schedule.teacher.name}
+                          </span>{' '}
+                          — {schedule.frequency} séance{schedule.frequency > 1 ? 's' : ''} par
+                          semaine{schedule.subject && ` · ${schedule.subject}`}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[...schedule.slots]
+                            .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+                            .map((slot, i) => (
+                              <Badge key={i} tone="gold">
+                                {DAY_LABELS[slot.dayOfWeek]} {slot.time}
+                              </Badge>
+                            ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+              <Card className="p-6">
               <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
                 <CalendarPlus size={16} className="text-navy" />
                 Séances
@@ -579,7 +617,8 @@ export function StudentDetail() {
                   Ajouter
                 </Button>
               </div>
-            </Card>
+              </Card>
+            </div>
           )}
 
           {tab === 'bilans' && (

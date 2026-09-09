@@ -21,18 +21,6 @@ export class AdminAccountsService {
       .then((accounts) => accounts.map(this.toDto));
   }
 
-  async listAssignable() {
-    const accounts = await this.prisma.adminAccount.findMany({
-      where: {
-        isActive: true,
-        roles: { some: { role: { name: { in: ['super_admin', 'admin'] } } } },
-      },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    });
-    return accounts;
-  }
-
   async create(dto: CreateAdminAccountDto, actorId: string) {
     const { data, error } =
       await this.supabaseAdmin.client.auth.admin.inviteUserByEmail(

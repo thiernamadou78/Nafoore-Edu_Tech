@@ -114,6 +114,9 @@ export class TeacherService {
           take: 1,
           select: { date: true, subject: true },
         },
+        recurringSchedules: {
+          where: { teacherId: teacherAccount.teacherId ?? undefined, active: true },
+        },
       },
     });
 
@@ -121,7 +124,7 @@ export class TeacherService {
       throw new NotFoundException('Élève introuvable');
     }
 
-    const { teachers, sessions, photoPath, parentLead, ...rest } = student;
+    const { teachers, sessions, recurringSchedules, photoPath, parentLead, ...rest } = student;
     const photoUrl = await this.photos.signUrl(photoPath);
 
     return {
@@ -136,6 +139,7 @@ export class TeacherService {
       ],
       family: parentLead,
       nextSession: sessions[0] ?? null,
+      schedule: recurringSchedules[0] ?? null,
       photoUrl,
     };
   }

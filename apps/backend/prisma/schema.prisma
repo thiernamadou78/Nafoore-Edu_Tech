@@ -94,6 +94,7 @@ model Student {
   progressEntries ProgressEntry[]
   fundingLinks   FundingLink[]
   attendanceLogs AttendanceLog[]
+  recurringSchedules RecurringSchedule[]
 
   @@map("students")
 }
@@ -120,6 +121,7 @@ model Teacher {
   supportTickets SupportTicket[]
   attendanceLogs AttendanceLog[]
   progressEntries ProgressEntry[]
+  recurringSchedules RecurringSchedule[]
 
   @@map("teachers")
 }
@@ -413,8 +415,36 @@ model Session {
   cancellationReason String? @map("cancellation_reason")
   createdAt DateTime  @default(now()) @map("created_at")
   attendanceLogs AttendanceLog[]
+  scheduleId String?  @map("schedule_id")
+  schedule   RecurringSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
 
   @@map("sessions")
+}
+
+// Planning recurrent d'un eleve avec un enseignant (ex: 2x/semaine, lundi
+// 14h et vendredi 18h). Genere automatiquement des Session reelles sur une
+// fenetre glissante (cf RecurringScheduleService) : le pointage QR continue
+// de s'appuyer uniquement sur des Session concretes, jamais sur ce modele.
+model RecurringSchedule {
+  id              String   @id @default(cuid())
+  studentId       String   @map("student_id")
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId       String   @map("teacher_id")
+  teacher         Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  frequency       Int
+  // nombre de seances par semaine, doit correspondre au nombre de creneaux
+  subject         String?
+  durationMinutes Int      @default(60) @map("duration_minutes")
+  // Creneaux : [{ "dayOfWeek": 1, "time": "14:00" }, ...] — dayOfWeek en ISO
+  // (1 = lundi ... 7 = dimanche)
+  slots           Json
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  sessions        Session[]
+
+  @@unique([studentId, teacherId])
+  @@map("recurring_schedules")
 }
 
 model ProgressReport {

@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { CurrentTeacherAccount } from '../auth/current-teacher-account.decorator';
 import { AuthenticatedTeacherAccount, TeacherAuthGuard } from '../auth/teacher-auth.guard';
 import { TeacherService } from './teacher.service';
+import { RecurringScheduleService } from './recurring-schedule.service';
 import { CreateTeacherSessionDto } from './dto/create-teacher-session.dto';
 import { UpdateTeacherSessionDto } from './dto/update-teacher-session.dto';
+import { UpsertRecurringScheduleDto } from './dto/upsert-recurring-schedule.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
 import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
@@ -11,7 +13,10 @@ import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dt
 @UseGuards(TeacherAuthGuard)
 @Controller('teacher')
 export class TeacherController {
-  constructor(private readonly teacherService: TeacherService) {}
+  constructor(
+    private readonly teacherService: TeacherService,
+    private readonly recurringScheduleService: RecurringScheduleService,
+  ) {}
 
   @Get('me')
   me(@CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount) {
@@ -76,6 +81,24 @@ export class TeacherController {
     @Body() dto: UpdateTeacherSessionDto,
   ) {
     return this.teacherService.updateSession(teacherAccount, id, dto);
+  }
+
+  @Put('students/:id/schedule')
+  upsertSchedule(
+    @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
+    @Param('id') id: string,
+    @Body() dto: UpsertRecurringScheduleDto,
+  ) {
+    return this.recurringScheduleService.upsert(teacherAccount, id, dto);
+  }
+
+  @Delete('students/:id/schedule')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeSchedule(
+    @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
+    @Param('id') id: string,
+  ) {
+    return this.recurringScheduleService.remove(teacherAccount, id);
   }
 
   @Get('dashboard')

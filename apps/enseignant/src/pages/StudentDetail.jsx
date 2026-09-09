@@ -10,6 +10,7 @@ import {
   Phone,
   School,
   Sparkles,
+  Trash2,
   Users,
 } from 'lucide-react'
 import { api } from '../lib/api'
@@ -21,6 +22,226 @@ import { LEVEL_LABELS, PROGRESS_ENTRY_LABELS, PROGRESS_ENTRY_TONES } from './lab
 
 const inputClass =
   'rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
+
+const DAY_OPTIONS = [
+  { value: 1, label: 'Lundi' },
+  { value: 2, label: 'Mardi' },
+  { value: 3, label: 'Mercredi' },
+  { value: 4, label: 'Jeudi' },
+  { value: 5, label: 'Vendredi' },
+  { value: 6, label: 'Samedi' },
+  { value: 7, label: 'Dimanche' },
+]
+const DAY_LABELS = Object.fromEntries(DAY_OPTIONS.map((d) => [d.value, d.label]))
+const DURATION_OPTIONS = [30, 45, 60, 90, 120]
+
+function defaultSlots(count) {
+  return Array.from({ length: count }, (_, i) => ({
+    dayOfWeek: DAY_OPTIONS[i % DAY_OPTIONS.length].value,
+    time: '14:00',
+  }))
+}
+
+function ScheduleSection({ studentId, schedule, subjects, onChange }) {
+  const [editing, setEditing] = useState(false)
+  const [frequency, setFrequency] = useState(schedule?.frequency ?? 2)
+  const [slots, setSlots] = useState(schedule?.slots ?? defaultSlots(2))
+  const [subject, setSubject] = useState(schedule?.subject ?? subjects[0] ?? '')
+  const [durationMinutes, setDurationMinutes] = useState(schedule?.durationMinutes ?? 60)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const startEditing = () => {
+    setFrequency(schedule?.frequency ?? 2)
+    setSlots(schedule?.slots ?? defaultSlots(2))
+    setSubject(schedule?.subject ?? subjects[0] ?? '')
+    setDurationMinutes(schedule?.durationMinutes ?? 60)
+    setError(null)
+    setEditing(true)
+  }
+
+  const handleFrequencyChange = (value) => {
+    const count = Number(value)
+    setFrequency(count)
+    setSlots((prev) => {
+      if (prev.length === count) return prev
+      if (prev.length < count) return [...prev, ...defaultSlots(count - prev.length)]
+      return prev.slice(0, count)
+    })
+  }
+
+  const updateSlot = (index, patch) => {
+    setSlots((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)))
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      const updated = await api.put(`/teacher/students/${studentId}/schedule`, {
+        frequency,
+        slots,
+        subject: subject || undefined,
+        durationMinutes,
+      })
+      onChange(updated)
+      setEditing(false)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      await api.del(`/teacher/students/${studentId}/schedule`)
+      onChange(null)
+      setEditing(false)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card className="mb-6 p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 font-semibold text-gray-900">
+          <CalendarClock size={16} className="text-gold-500" />
+          Programme
+        </h2>
+        {!editing && (
+          <Button variant="secondary" onClick={startEditing}>
+            {schedule ? 'Modifier' : 'Définir un planning'}
+          </Button>
+        )}
+      </div>
+
+      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+
+      {!editing ? (
+        schedule ? (
+          <div className="text-sm text-gray-700">
+            <p className="mb-2 font-medium text-gray-900">
+              {schedule.frequency} séance{schedule.frequency > 1 ? 's' : ''} par semaine
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {[...schedule.slots]
+                .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+                .map((slot, i) => (
+                  <Badge key={i} tone="gold">
+                    {DAY_LABELS[slot.dayOfWeek]} {slot.time}
+                  </Badge>
+                ))}
+            </div>
+            {schedule.subject && (
+              <p className="mt-2 text-xs text-gray-500">Matière : {schedule.subject}</p>
+            )}
+            <p className="mt-2 text-xs text-gray-400">
+              Les prochaines séances sont générées automatiquement sur ce rythme.
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">
+            Aucun planning récurrent défini. Renseigne une fréquence et des créneaux pour que les
+            séances se planifient automatiquement chaque semaine.
+          </p>
+        )
+      ) : (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Fréquence</label>
+              <select
+                value={frequency}
+                onChange={(e) => handleFrequencyChange(e.target.value)}
+                className={inputClass}
+              >
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    {n} fois par semaine
+                  </option>
+                ))}
+              </select>
+            </div>
+            {subjects.length > 0 && (
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Matière</label>
+                <select
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className={inputClass}
+                >
+                  {subjects.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Durée</label>
+              <select
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                className={inputClass}
+              >
+                {DURATION_OPTIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {d} min
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {slots.map((slot, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <select
+                  value={slot.dayOfWeek}
+                  onChange={(e) => updateSlot(index, { dayOfWeek: Number(e.target.value) })}
+                  className={inputClass}
+                >
+                  {DAY_OPTIONS.map((d) => (
+                    <option key={d.value} value={d.value}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="time"
+                  value={slot.time}
+                  onChange={(e) => updateSlot(index, { time: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button loading={saving} onClick={handleSave}>
+              Enregistrer le planning
+            </Button>
+            <Button variant="secondary" onClick={() => setEditing(false)}>
+              Annuler
+            </Button>
+            {schedule && (
+              <Button variant="ghost" icon={Trash2} loading={saving} onClick={handleDelete} className="text-red-600 hover:bg-red-50">
+                Supprimer le planning
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
 
 export function StudentDetail() {
   const { id } = useParams()
@@ -115,6 +336,13 @@ export function StudentDetail() {
           </div>
         )}
       </Card>
+
+      <ScheduleSection
+        studentId={id}
+        schedule={student.schedule}
+        subjects={student.subjects}
+        onChange={(schedule) => setStudent((s) => ({ ...s, schedule }))}
+      />
 
       <Card className="mb-6 p-5">
         <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">

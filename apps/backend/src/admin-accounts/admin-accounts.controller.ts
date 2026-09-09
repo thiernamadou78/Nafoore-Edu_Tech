@@ -25,12 +25,6 @@ export class AdminAccountsController {
     return this.adminAccountsService.list();
   }
 
-  @Roles('super_admin', 'admin')
-  @Get('admin-accounts/assignable')
-  listAssignable() {
-    return this.adminAccountsService.listAssignable();
-  }
-
   @Roles('super_admin')
   @Post('admin-accounts')
   create(
