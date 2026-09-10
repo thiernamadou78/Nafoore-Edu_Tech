@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentTeacherAccount } from '../auth/current-teacher-account.decorator';
 import { AuthenticatedTeacherAccount, TeacherAuthGuard } from '../auth/teacher-auth.guard';
 import { TeacherService } from './teacher.service';
@@ -7,6 +7,7 @@ import { CreateTeacherSessionDto } from './dto/create-teacher-session.dto';
 import { UpdateTeacherSessionDto } from './dto/update-teacher-session.dto';
 import { UpsertRecurringScheduleDto } from './dto/upsert-recurring-schedule.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { StartThreadDto } from './dto/start-thread.dto';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
 import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
 
@@ -97,8 +98,9 @@ export class TeacherController {
   removeSchedule(
     @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
     @Param('id') id: string,
+    @Query('subject') subject: string,
   ) {
-    return this.recurringScheduleService.remove(teacherAccount, id);
+    return this.recurringScheduleService.remove(teacherAccount, id, subject);
   }
 
   @Get('dashboard')
@@ -114,6 +116,14 @@ export class TeacherController {
   @Get('messages')
   listMessageThreads(@CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount) {
     return this.teacherService.listMyMessageThreads(teacherAccount);
+  }
+
+  @Post('messages')
+  startThread(
+    @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
+    @Body() dto: StartThreadDto,
+  ) {
+    return this.teacherService.startOrGetThread(teacherAccount, dto);
   }
 
   @Post('messages/:threadId')

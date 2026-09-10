@@ -25,7 +25,7 @@ export class TeachersService {
       subjects: teacher.subjects,
       verified: teacher.verified,
       bio: teacher.bio,
-      zone: teacher.zone,
+      address: teacher.address,
       email: teacher.email,
       phone: teacher.phone,
       photoUrl: teacher.photoPath ? (photoUrls.get(teacher.photoPath) ?? null) : null,
@@ -50,6 +50,10 @@ export class TeachersService {
             },
           },
         },
+        documents: {
+          include: { uploadedBy: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
     if (!teacher) {
@@ -73,7 +77,7 @@ export class TeachersService {
         name: dto.name,
         subjects: dto.subjects ?? [],
         bio: dto.bio,
-        zone: dto.zone,
+        address: dto.address,
         email: dto.email,
         phone: dto.phone,
         verified: true,

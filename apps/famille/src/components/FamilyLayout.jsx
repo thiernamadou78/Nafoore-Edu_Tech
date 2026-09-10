@@ -8,6 +8,7 @@ import logoSrc from './Logo.png'
 
 const NAV_LINKS = [
   { to: '/', label: 'Mes enfants' },
+  { to: '/planning', label: 'Planning' },
   { to: '/messagerie', label: 'Messagerie' },
 ]
 

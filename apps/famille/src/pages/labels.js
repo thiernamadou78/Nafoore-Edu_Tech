@@ -50,6 +50,7 @@ export const DOCUMENT_TYPE_LABELS = {
 export const TEACHER_REQUEST_FORMAT_LABELS = {
   presentiel: 'Présentiel',
   distanciel: 'Distanciel',
+  hybride: 'Hybride (présentiel et à distance)',
 }
 
 export const TEACHER_REQUEST_STATUS_LABELS = {
@@ -92,10 +93,12 @@ export const PROGRESS_ENTRY_LABELS = {
   acquis: 'Acquis',
   en_progres: 'En progrès',
   a_surveiller: 'À surveiller',
+  pas_commence: 'Pas encore commencé',
 }
 
 export const PROGRESS_ENTRY_TONES = {
   acquis: 'leaf',
   en_progres: 'leaf',
   a_surveiller: 'amberStrong',
+  pas_commence: 'gray',
 }

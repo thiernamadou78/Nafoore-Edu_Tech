@@ -1,11 +1,97 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import { toPng } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 import { Download, FileText } from 'lucide-react'
 import logoSrc from '../components/Logo.png'
 import { Button } from '../components/ui/Button'
 import { CLASSE_LABELS, FUNDING_SOURCE_LABELS, LEVEL_LABELS } from './labels'
+
+// Remplace html-to-image : sur les navigateurs Chromium récents, son clonage
+// inline (des centaines de propriétés CSS répétées sur chaque élément) fait
+// planter le rendu SVG->image côté Chrome — la carte exportée n'apparaît
+// qu'à moitié. On construit ici le même SVG (foreignObject) mais avec une
+// feuille de style classique (classes + <style>, pas de style inline par
+// élément), ce qui contourne le bug.
+async function captureNodeAsPng(node, pixelRatio = 2) {
+  if (document.fonts?.ready) await document.fonts.ready
+
+  const rect = node.getBoundingClientRect()
+  const width = Math.ceil(rect.width)
+  const height = Math.ceil(rect.height)
+
+  const localCss = Array.from(document.styleSheets)
+    .map((sheet) => {
+      try {
+        return Array.from(sheet.cssRules).map((rule) => rule.cssText).join('\n')
+      } catch {
+        return '' // feuille cross-origin (ex. Google Fonts) — récupérée séparément ci-dessous
+      }
+    })
+    .join('\n')
+
+  const fontCss = (
+    await Promise.all(
+      Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .filter((link) => new URL(link.href).origin !== window.location.origin)
+        .map((link) =>
+          fetch(link.href)
+            .then((res) => res.text())
+            .catch(() => ''),
+        ),
+    )
+  ).join('\n')
+
+  const clone = node.cloneNode(true)
+  const originalImages = Array.from(node.querySelectorAll('img'))
+  const clonedImages = Array.from(clone.querySelectorAll('img'))
+  await Promise.all(
+    clonedImages.map(async (img, i) => {
+      const original = originalImages[i]
+      if (!original || original.src.startsWith('data:')) return
+      try {
+        const blob = await fetch(original.src).then((res) => res.blob())
+        img.src = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.readAsDataURL(blob)
+        })
+      } catch {
+        // on garde l'URL d'origine si le fetch échoue
+      }
+    }),
+  )
+
+  const svgNs = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(svgNs, 'svg')
+  svg.setAttribute('width', String(width))
+  svg.setAttribute('height', String(height))
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`)
+  const foreignObject = document.createElementNS(svgNs, 'foreignObject')
+  foreignObject.setAttribute('width', '100%')
+  foreignObject.setAttribute('height', '100%')
+  const styleEl = document.createElement('style')
+  styleEl.textContent = fontCss + '\n' + localCss
+  foreignObject.appendChild(styleEl)
+  foreignObject.appendChild(clone)
+  svg.appendChild(foreignObject)
+
+  const svgDataUrl =
+    'data:image/svg+xml;charset=utf-8,' +
+    encodeURIComponent(new XMLSerializer().serializeToString(svg))
+
+  const img = new Image()
+  await new Promise((resolve, reject) => {
+    img.onload = resolve
+    img.onerror = reject
+    img.src = svgDataUrl
+  })
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width * pixelRatio
+  canvas.height = height * pixelRatio
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+  return { dataUrl: canvas.toDataURL('image/png'), width, height }
+}
 
 function slugify(name) {
   return name
@@ -81,7 +167,7 @@ export function PassEducatifCard({ student }) {
     setExporting('png')
     setExportError(null)
     try {
-      const dataUrl = await toPng(cardRef.current, { pixelRatio: 2, cacheBust: true })
+      const { dataUrl } = await captureNodeAsPng(cardRef.current)
       const link = document.createElement('a')
       link.href = dataUrl
       link.download = filename('png')
@@ -97,9 +183,7 @@ export function PassEducatifCard({ student }) {
     setExporting('pdf')
     setExportError(null)
     try {
-      const node = cardRef.current
-      const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true })
-      const { offsetWidth: width, offsetHeight: height } = node
+      const { dataUrl, width, height } = await captureNodeAsPng(cardRef.current)
       const doc = new jsPDF({
         orientation: width > height ? 'landscape' : 'portrait',
         unit: 'px',
@@ -130,9 +214,17 @@ export function PassEducatifCard({ student }) {
 
         <div className="mx-3 rounded-2xl bg-white px-6 py-6">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-50 font-serif text-xl font-bold text-navy">
-              {initials(student.name)}
-            </div>
+            {student.photoUrl ? (
+              <img
+                src={student.photoUrl}
+                alt={student.name}
+                className="h-16 w-16 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-50 font-serif text-xl font-bold text-navy">
+                {initials(student.name)}
+              </div>
+            )}
             <div>
               <p className="font-serif text-lg font-bold leading-tight text-navy">{student.name}</p>
               <p className="text-sm text-gray-500">Classe de {classeLabel}</p>

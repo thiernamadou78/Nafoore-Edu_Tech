@@ -35,6 +35,16 @@ const DAY_OPTIONS = [
 const DAY_LABELS = Object.fromEntries(DAY_OPTIONS.map((d) => [d.value, d.label]))
 const DURATION_OPTIONS = [30, 45, 60, 90, 120]
 
+// Même calcul que côté famille/admin : seules les séances confirmées
+// réalisées comptent dans le cumul d'heures.
+function formatMinutes(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = Math.round(totalMinutes % 60)
+  if (hours === 0) return `${minutes} min`
+  if (minutes === 0) return `${hours} h`
+  return `${hours} h ${String(minutes).padStart(2, '0')} min`
+}
+
 function defaultSlots(count) {
   return Array.from({ length: count }, (_, i) => ({
     dayOfWeek: DAY_OPTIONS[i % DAY_OPTIONS.length].value,
@@ -42,20 +52,22 @@ function defaultSlots(count) {
   }))
 }
 
-function ScheduleSection({ studentId, schedule, subjects, onChange }) {
+// Un prof peut enseigner plusieurs matieres a un meme eleve (ex: Maths ET
+// Physique-Chimie) : une carte de planning independante par matiere.
+function SubjectScheduleCard({ studentId, subject, schedule, defaultDurationMinutes, onChange }) {
   const [editing, setEditing] = useState(false)
   const [frequency, setFrequency] = useState(schedule?.frequency ?? 2)
   const [slots, setSlots] = useState(schedule?.slots ?? defaultSlots(2))
-  const [subject, setSubject] = useState(schedule?.subject ?? subjects[0] ?? '')
-  const [durationMinutes, setDurationMinutes] = useState(schedule?.durationMinutes ?? 60)
+  const [durationMinutes, setDurationMinutes] = useState(
+    schedule?.durationMinutes ?? defaultDurationMinutes ?? 60,
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
   const startEditing = () => {
     setFrequency(schedule?.frequency ?? 2)
     setSlots(schedule?.slots ?? defaultSlots(2))
-    setSubject(schedule?.subject ?? subjects[0] ?? '')
-    setDurationMinutes(schedule?.durationMinutes ?? 60)
+    setDurationMinutes(schedule?.durationMinutes ?? defaultDurationMinutes ?? 60)
     setError(null)
     setEditing(true)
   }
@@ -81,7 +93,7 @@ function ScheduleSection({ studentId, schedule, subjects, onChange }) {
       const updated = await api.put(`/teacher/students/${studentId}/schedule`, {
         frequency,
         slots,
-        subject: subject || undefined,
+        subject,
         durationMinutes,
       })
       onChange(updated)
@@ -97,7 +109,9 @@ function ScheduleSection({ studentId, schedule, subjects, onChange }) {
     setSaving(true)
     setError(null)
     try {
-      await api.del(`/teacher/students/${studentId}/schedule`)
+      await api.del(
+        `/teacher/students/${studentId}/schedule?subject=${encodeURIComponent(subject)}`,
+      )
       onChange(null)
       setEditing(false)
     } catch (err) {
@@ -108,11 +122,11 @@ function ScheduleSection({ studentId, schedule, subjects, onChange }) {
   }
 
   return (
-    <Card className="mb-6 p-5">
+    <Card className="mb-4 p-5">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-2 font-semibold text-gray-900">
           <CalendarClock size={16} className="text-gold-500" />
-          Programme
+          Programme — {subject}
         </h2>
         {!editing && (
           <Button variant="secondary" onClick={startEditing}>
@@ -138,17 +152,14 @@ function ScheduleSection({ studentId, schedule, subjects, onChange }) {
                   </Badge>
                 ))}
             </div>
-            {schedule.subject && (
-              <p className="mt-2 text-xs text-gray-500">Matière : {schedule.subject}</p>
-            )}
             <p className="mt-2 text-xs text-gray-400">
               Les prochaines séances sont générées automatiquement sur ce rythme.
             </p>
           </div>
         ) : (
           <p className="text-sm text-gray-500">
-            Aucun planning récurrent défini. Renseigne une fréquence et des créneaux pour que les
-            séances se planifient automatiquement chaque semaine.
+            Aucun planning récurrent défini pour cette matière. Renseigne une fréquence et des
+            créneaux pour que les séances se planifient automatiquement chaque semaine.
           </p>
         )
       ) : (
@@ -168,22 +179,6 @@ function ScheduleSection({ studentId, schedule, subjects, onChange }) {
                 ))}
               </select>
             </div>
-            {subjects.length > 0 && (
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">Matière</label>
-                <select
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className={inputClass}
-                >
-                  {subjects.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
             <div>
               <label className="mb-1 block text-xs text-gray-500">Durée</label>
               <select
@@ -197,6 +192,11 @@ function ScheduleSection({ studentId, schedule, subjects, onChange }) {
                   </option>
                 ))}
               </select>
+              {!schedule && defaultDurationMinutes && (
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Durée souhaitée par la famille — modifiable
+                </p>
+              )}
             </div>
           </div>
 
@@ -248,7 +248,10 @@ export function StudentDetail() {
   const [student, setStudent] = useState(null)
   const [error, setError] = useState(null)
   const [progressEntries, setProgressEntries] = useState([])
-  const [progressForm, setProgressForm] = useState({ subject: '', status: 'en_progres' })
+  // Vide par defaut : le statut effectif est calcule a l'usage (voir
+  // defaultProgressStatus) pour ne jamais pre-cocher "En progres" sur un
+  // eleve qui n'a encore jamais eu de seance realisee.
+  const [progressForm, setProgressForm] = useState({ subject: '', status: '' })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -265,10 +268,13 @@ export function StudentDetail() {
   const saveProgressEntry = async () => {
     setSaving(true)
     try {
-      await api.put(`/teacher/students/${id}/progress-entries`, progressForm)
+      await api.put(`/teacher/students/${id}/progress-entries`, {
+        ...progressForm,
+        status: progressForm.status || defaultProgressStatus,
+      })
       const entries = await api.get(`/teacher/students/${id}/progress-entries`)
       setProgressEntries(entries)
-      setProgressForm({ subject: '', status: 'en_progres' })
+      setProgressForm({ subject: '', status: '' })
     } finally {
       setSaving(false)
     }
@@ -281,6 +287,8 @@ export function StudentDetail() {
   if (!student) {
     return <Spinner />
   }
+
+  const defaultProgressStatus = student.totalMinutesRealized > 0 ? 'en_progres' : 'pas_commence'
 
   return (
     <div className="max-w-2xl">
@@ -317,6 +325,14 @@ export function StudentDetail() {
             </span>
           </>
         )}
+        <span className="h-5 w-px bg-gray-200" />
+        <span className="flex items-center gap-1.5">
+          <CalendarClock size={14} className="text-gray-400" />
+          Heures cumulées :{' '}
+          <span className="font-medium text-gray-800">
+            {formatMinutes(student.totalMinutesRealized ?? 0)}
+          </span>
+        </span>
       </div>
 
       <Card className="mb-6 p-5">
@@ -337,12 +353,23 @@ export function StudentDetail() {
         )}
       </Card>
 
-      <ScheduleSection
-        studentId={id}
-        schedule={student.schedule}
-        subjects={student.subjects}
-        onChange={(schedule) => setStudent((s) => ({ ...s, schedule }))}
-      />
+      {student.subjects.map((subject) => (
+        <SubjectScheduleCard
+          key={subject}
+          studentId={id}
+          subject={subject}
+          schedule={student.schedules?.find((sch) => sch.subject === subject) ?? null}
+          defaultDurationMinutes={student.requestedDurationBySubject?.[subject]}
+          onChange={(updated) =>
+            setStudent((s) => ({
+              ...s,
+              schedules: updated
+                ? [...(s.schedules ?? []).filter((sch) => sch.subject !== subject), updated]
+                : (s.schedules ?? []).filter((sch) => sch.subject !== subject),
+            }))
+          }
+        />
+      ))}
 
       <Card className="mb-6 p-5">
         <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
@@ -405,7 +432,7 @@ export function StudentDetail() {
           <div>
             <label className="mb-1 block text-xs text-gray-500">Statut</label>
             <select
-              value={progressForm.status}
+              value={progressForm.status || defaultProgressStatus}
               onChange={(e) => setProgressForm((f) => ({ ...f, status: e.target.value }))}
               className={inputClass}
             >

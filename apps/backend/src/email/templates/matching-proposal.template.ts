@@ -5,7 +5,7 @@ export interface MatchingProposalEmailInput {
   teacherName: string;
   teacherSubjects: string[];
   teacherBio: string | null;
-  teacherZone: string | null;
+  teacherAddress: string | null;
   teacherVerified: boolean;
   portalUrl: string;
 }
@@ -17,7 +17,7 @@ export function renderMatchingProposalEmail({
   teacherName,
   teacherSubjects,
   teacherBio,
-  teacherZone,
+  teacherAddress,
   teacherVerified,
   portalUrl,
 }: MatchingProposalEmailInput): string {
@@ -61,7 +61,7 @@ export function renderMatchingProposalEmail({
                         ${escapeHtml(teacherName)}${teacherVerified ? ' ✓' : ''}
                       </p>
                       <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#6b7280;">
-                        ${escapeHtml(teacherSubjects.join(', '))}${teacherZone ? ` · ${escapeHtml(teacherZone)}` : ''}
+                        ${escapeHtml(teacherSubjects.join(', '))}${teacherAddress ? ` · ${escapeHtml(teacherAddress)}` : ''}
                       </p>
                       ${
                         teacherBio

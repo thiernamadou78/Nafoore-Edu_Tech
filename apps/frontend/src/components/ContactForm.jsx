@@ -23,6 +23,8 @@ export default function ContactForm() {
     email: '',
     phone: '',
     message: '',
+    desiredStartDate: '',
+    childrenCount: '',
   })
   const [status, setStatus] = useState('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -37,7 +39,12 @@ export default function ContactForm() {
       const res = await fetch(`${API_URL}/contacts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          desiredStartDate: form.desiredStartDate || undefined,
+          childrenCount:
+            form.profile === 'famille' && form.childrenCount ? Number(form.childrenCount) : undefined,
+        }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -45,7 +52,15 @@ export default function ContactForm() {
         throw new Error(msg)
       }
       setStatus('success')
-      setForm({ profile: 'famille', name: '', email: '', phone: '', message: '' })
+      setForm({
+        profile: 'famille',
+        name: '',
+        email: '',
+        phone: '',
+        message: '',
+        desiredStartDate: '',
+        childrenCount: '',
+      })
     } catch (err) {
       setStatus('error')
       setErrorMsg(err.message)
@@ -180,6 +195,39 @@ export default function ContactForm() {
                     placeholder="jean@exemple.fr"
                     className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                   />
+                </div>
+
+                {/* Date de début souhaitée + nombre d'enfants (famille) */}
+                <div className={`grid gap-4 mb-4 ${form.profile === 'famille' ? 'sm:grid-cols-2' : ''}`}>
+                  <div>
+                    <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                      Date de début souhaitée
+                    </label>
+                    <input
+                      type="date"
+                      name="desiredStartDate"
+                      value={form.desiredStartDate}
+                      onChange={handleChange}
+                      className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
+                    />
+                  </div>
+                  {form.profile === 'famille' && (
+                    <div>
+                      <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                        Nombre d'enfants à inscrire
+                      </label>
+                      <input
+                        type="number"
+                        name="childrenCount"
+                        min="1"
+                        max="20"
+                        value={form.childrenCount}
+                        onChange={handleChange}
+                        placeholder="1"
+                        className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Message */}

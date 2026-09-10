@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   Sparkles,
   UserPlus,
   Users,
+  X,
   XCircle,
 } from 'lucide-react'
 import { api } from '../lib/api'
@@ -23,6 +24,7 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
+import { SessionsBoard } from '../components/SessionsBoard'
 import { PassEducatifCard } from './PassEducatifCard'
 import { DAYS_OF_WEEK, FREQUENCY_OPTIONS, SUBJECTS_BY_LEVEL } from './curriculum'
 import {
@@ -49,6 +51,16 @@ const DAY_LABELS = {
   7: 'Dimanche',
 }
 
+// Même logique que côté enseignant/admin : la durée cumulée ne compte que les
+// séances confirmées comme réalisées (jamais les planifiées ou annulées).
+function formatMinutes(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = Math.round(totalMinutes % 60)
+  if (hours === 0) return `${minutes} min`
+  if (minutes === 0) return `${hours} h`
+  return `${hours} h ${String(minutes).padStart(2, '0')} min`
+}
+
 function getInitials(name) {
   const parts = name.trim().split(/\s+/)
   return parts
@@ -71,6 +83,12 @@ export function StudentDetail() {
   const { id } = useParams()
   const [student, setStudent] = useState(null)
   const [error, setError] = useState(null)
+
+  const now = Date.now()
+  const sessions = student?.sessions ?? []
+  const nextSession = [...sessions]
+    .filter((s) => new Date(s.date).getTime() >= now && s.status !== 'annulee')
+    .sort((a, b) => new Date(a.date) - new Date(b.date))[0]
 
   const load = useCallback(() => {
     return api
@@ -106,12 +124,10 @@ export function StudentDetail() {
     return <Spinner />
   }
 
-  const now = Date.now()
-  const nextSession = [...student.sessions]
-    .filter((s) => new Date(s.date).getTime() >= now && s.status !== 'annulee')
-    .sort((a, b) => new Date(a.date) - new Date(b.date))[0]
   const teacherName = student.teachers[0]?.teacher.name ?? null
-  const pastSessions = student.sessions.filter((s) => s.id !== nextSession?.id)
+  const totalMinutesRealized = student.sessions
+    .filter((s) => s.status === 'realisee' && s.attendanceLogs?.length > 0)
+    .reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)
   const activeRequests = student.teacherRequests.filter((r) =>
     ACTIVE_REQUEST_STATUSES.includes(r.status),
   )
@@ -170,6 +186,12 @@ export function StudentDetail() {
           ) : (
             <span className="text-gray-400">Aucun enseignant assigné</span>
           )}
+        </div>
+        <div className="hidden h-5 w-px bg-gray-200 sm:block" />
+        <div className="flex items-center gap-2">
+          <CheckCircle2 size={16} className="shrink-0 text-gray-400" />
+          <span className="text-gray-500">Heures cumulées</span>
+          <span className="font-medium text-gray-800">{formatMinutes(totalMinutesRealized)}</span>
         </div>
       </div>
 
@@ -244,41 +266,10 @@ export function StudentDetail() {
         )}
       </Card>
 
-      {/* Historique des séances */}
+      {/* Séances, regroupées par statut */}
       <Card className="p-5">
-        <h2 className="mb-3 font-semibold text-gray-900">Historique des séances</h2>
-        {pastSessions.length > 0 ? (
-          <ul className="divide-y divide-gray-100">
-            {pastSessions.map((session) => (
-              <li key={session.id} className="py-2.5 text-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-800">
-                      {new Date(session.date).toLocaleString('fr-FR', {
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                      })}
-                      {session.subject ? ` · ${session.subject}` : ''}
-                      {session.durationMinutes ? ` · ${session.durationMinutes} min` : ''}
-                    </p>
-                    {session.teacher && (
-                      <p className="text-xs text-gray-400">{session.teacher.name}</p>
-                    )}
-                  </div>
-                  {session.attended === true && <Badge tone="leaf">Présent</Badge>}
-                  {session.attended === false && <Badge tone="clay">Absent</Badge>}
-                </div>
-                {session.notes && (
-                  <p className="mt-1.5 whitespace-pre-wrap text-xs text-gray-600">
-                    {session.notes}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-gray-500">Aucune séance pour l'instant.</p>
-        )}
+        <h2 className="mb-3 font-semibold text-gray-900">Séances</h2>
+        <SessionsBoard sessions={sessions} />
       </Card>
     </div>
   )
@@ -322,7 +313,9 @@ function TeacherRequestsSection({ student, activeRequests, onChanged }) {
 }
 
 function TeacherRequestRow({ request, onChanged }) {
-  const pending = request.matchings.find((m) => m.status === 'proposee')
+  // Plusieurs profs peuvent être proposés pour une même demande : on les
+  // empile toutes, la famille choisit celle qui lui convient.
+  const pendingProposals = request.matchings.filter((m) => m.status === 'proposee')
   const Icon = subjectIcon(request.subject)
 
   return (
@@ -340,7 +333,13 @@ function TeacherRequestRow({ request, onChanged }) {
         </Badge>
       </div>
 
-      {pending && <MatchingProposalCard matching={pending} onChanged={onChanged} />}
+      {pendingProposals.length > 0 && (
+        <div className="mt-3 space-y-3">
+          {pendingProposals.map((matching) => (
+            <MatchingProposalCard key={matching.id} matching={matching} onChanged={onChanged} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -364,7 +363,7 @@ function MatchingProposalCard({ matching, onChanged }) {
   }
 
   return (
-    <div className="mt-3 rounded-lg border-l-4 border-l-gold-400 bg-gold-400/10 p-3">
+    <div className="rounded-lg border-l-4 border-l-gold-400 bg-gold-400/10 p-3">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy/10 text-navy">
           {teacher.photoUrl ? (
@@ -384,7 +383,9 @@ function MatchingProposalCard({ matching, onChanged }) {
         </div>
       </div>
       {teacher.bio && <p className="mt-2 text-xs text-gray-600">{teacher.bio}</p>}
-      {teacher.zone && <p className="mt-1 text-xs text-gray-400">Zone : {teacher.zone}</p>}
+      {teacher.address && (
+        <p className="mt-1 text-xs text-gray-400">Adresse : {teacher.address}</p>
+      )}
 
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
@@ -411,10 +412,115 @@ function MatchingProposalCard({ matching, onChanged }) {
 }
 
 const DEFAULT_REQUEST_FORM = {
-  subject: '',
+  subjects: [],
   frequency: '',
+  durationMinutes: '',
   format: 'presentiel',
   availabilityDays: [],
+}
+
+const DURATION_OPTIONS = [30, 45, 60, 90, 120]
+
+// Recherche-au-clic plutôt que grille de pastilles : plus lisible dès que la
+// liste de matières s'allonge, et permet d'ajouter une matière absente de la
+// liste proposée.
+function SubjectPicker({ selected, onChange, availableSubjects }) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const inputRef = useRef(null)
+
+  const normalizedQuery = query.trim().toLowerCase()
+  const filtered = availableSubjects.filter(
+    (s) => !selected.includes(s) && s.toLowerCase().startsWith(normalizedQuery),
+  )
+  const isKnownSubject = availableSubjects.some((s) => s.toLowerCase() === normalizedQuery)
+  const isAlreadySelected = selected.some((s) => s.toLowerCase() === normalizedQuery)
+  const canCreate = normalizedQuery.length > 0 && !isKnownSubject && !isAlreadySelected
+
+  const addSubject = (subject) => {
+    if (!selected.includes(subject)) onChange([...selected, subject])
+    setQuery('')
+    setOpen(false)
+  }
+
+  const removeSubject = (subject) => {
+    onChange(selected.filter((s) => s !== subject))
+  }
+
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium text-gray-700">
+        Matière{selected.length > 1 ? 's' : ''}
+      </p>
+      {selected.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {selected.map((subject) => (
+            <span
+              key={subject}
+              className="inline-flex items-center gap-1 rounded-full bg-navy/10 px-2.5 py-1 text-xs font-medium text-navy"
+            >
+              {subject}
+              <button
+                type="button"
+                onClick={() => removeSubject(subject)}
+                className="rounded-full hover:opacity-70"
+                aria-label={`Retirer ${subject}`}
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setOpen(true)
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return
+            e.preventDefault()
+            if (filtered.length === 1) addSubject(filtered[0])
+            else if (canCreate) addSubject(query.trim())
+          }}
+          placeholder="Rechercher (ex : M pour Mathématiques)…"
+          className={inputClass}
+        />
+        {open && (filtered.length > 0 || canCreate) && (
+          <div
+            onMouseDown={(e) => e.preventDefault()}
+            className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+          >
+            {filtered.map((subject) => (
+              <button
+                key={subject}
+                type="button"
+                onClick={() => addSubject(subject)}
+                className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                {subject}
+              </button>
+            ))}
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => addSubject(query.trim())}
+                className="block w-full border-t border-gray-100 px-3 py-2 text-left text-sm font-medium text-navy hover:bg-gold-400/10"
+              >
+                + Créer « {query.trim()} »
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function TeacherRequestForm({ studentId, level, onCreated }) {
@@ -434,14 +540,26 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (form.subjects.length === 0) {
+      setError('Choisis au moins une matière.')
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
-      const { availabilityDays, ...rest } = form
-      await api.post(`/family/students/${studentId}/teacher-requests`, {
-        ...rest,
-        availability: availabilityDays.join(', '),
-      })
+      const { subjects: chosenSubjects, availabilityDays, durationMinutes, ...rest } = form
+      // Une demande par matière : chacune suit ensuite son propre statut et
+      // matching (un prof peut être proposé pour Maths sans l'être pour Anglais).
+      await Promise.all(
+        chosenSubjects.map((subject) =>
+          api.post(`/family/students/${studentId}/teacher-requests`, {
+            ...rest,
+            subject,
+            durationMinutes: durationMinutes || undefined,
+            availability: availabilityDays.join(', '),
+          }),
+        ),
+      )
       setForm(DEFAULT_REQUEST_FORM)
       await onCreated()
     } catch (err) {
@@ -454,22 +572,12 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3 border-t border-gray-100 pt-4">
       {error && <p className="text-sm text-red-600">{error}</p>}
+      <SubjectPicker
+        selected={form.subjects}
+        onChange={(nextSubjects) => setForm((f) => ({ ...f, subjects: nextSubjects }))}
+        availableSubjects={subjects}
+      />
       <div className="grid gap-3 sm:grid-cols-2">
-        <select
-          required
-          value={form.subject}
-          onChange={(e) => setForm({ ...form, subject: e.target.value })}
-          className={inputClass}
-        >
-          <option value="" disabled>
-            Choisir une matière
-          </option>
-          {subjects.map((subject) => (
-            <option key={subject} value={subject}>
-              {subject}
-            </option>
-          ))}
-        </select>
         <select
           required
           value={form.frequency}
@@ -482,6 +590,21 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
           {FREQUENCY_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option}
+            </option>
+          ))}
+        </select>
+        <select
+          required
+          value={form.durationMinutes}
+          onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })}
+          className={inputClass}
+        >
+          <option value="" disabled>
+            Durée de séance souhaitée
+          </option>
+          {DURATION_OPTIONS.map((minutes) => (
+            <option key={minutes} value={minutes}>
+              {minutes} min
             </option>
           ))}
         </select>
@@ -502,6 +625,14 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
             onChange={() => setForm({ ...form, format: 'distanciel' })}
           />
           Distanciel
+        </label>
+        <label className="flex items-center gap-1.5">
+          <input
+            type="radio"
+            checked={form.format === 'hybride'}
+            onChange={() => setForm({ ...form, format: 'hybride' })}
+          />
+          Hybride
         </label>
       </div>
       <div>

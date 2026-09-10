@@ -1,24 +1,41 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, CalendarClock, Power, Save } from 'lucide-react'
+import { ArrowLeft, CalendarClock, Download, FileText, Power, Save, Trash2, Upload } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { Collapsible } from '../../components/ui/Collapsible'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { PaginationControls } from '../../components/ui/PaginationControls'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
+import { usePagination } from '../../lib/usePagination'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from '../students/labels'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
+const TEACHER_DOCUMENT_TYPE_LABELS = {
+  diplome: 'Diplôme',
+  casier_judiciaire: 'Casier judiciaire',
+  autre: 'Autre',
+}
+
 export function TeacherDetail() {
   const { id } = useParams()
   const [teacher, setTeacher] = useState(null)
-  const [form, setForm] = useState({ name: '', subjects: '', bio: '', zone: '', email: '', phone: '' })
+  const [form, setForm] = useState({
+    name: '',
+    subjects: '',
+    bio: '',
+    address: '',
+    email: '',
+    phone: '',
+  })
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
+  const [documentForm, setDocumentForm] = useState({ file: null, type: 'diplome' })
 
   const load = () =>
     api.get(`/teachers/${id}`).then((data) => {
@@ -27,7 +44,7 @@ export function TeacherDetail() {
         name: data.name,
         subjects: data.subjects.join(', '),
         bio: data.bio ?? '',
-        zone: data.zone ?? '',
+        address: data.address ?? '',
         email: data.email ?? '',
         phone: data.phone ?? '',
       })
@@ -50,6 +67,8 @@ export function TeacherDetail() {
       setSavingAction(null)
     }
   }
+
+  const sessionsPage = usePagination(teacher?.sessions ?? [], 5)
 
   if (!teacher) {
     return error ? <Alert>{error}</Alert> : <p className="text-gray-500">Chargement…</p>
@@ -83,8 +102,7 @@ export function TeacherDetail() {
         />
       </Card>
 
-      <Card className="mb-6 p-6">
-        <h2 className="mb-3 font-semibold text-gray-900">Informations</h2>
+      <Collapsible title="Infos" className="mb-6">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
@@ -95,10 +113,11 @@ export function TeacherDetail() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Zone</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
             <input
-              value={form.zone}
-              onChange={(e) => setForm((f) => ({ ...f, zone: e.target.value }))}
+              value={form.address}
+              onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+              placeholder="Ex : Conakry, Kaloum"
               className={inputClass}
             />
           </div>
@@ -152,7 +171,7 @@ export function TeacherDetail() {
                     .map((s) => s.trim())
                     .filter(Boolean),
                   bio: form.bio || undefined,
-                  zone: form.zone || undefined,
+                  address: form.address || undefined,
                   email: form.email || undefined,
                   phone: form.phone || undefined,
                 }),
@@ -174,7 +193,96 @@ export function TeacherDetail() {
             {teacher.verified ? 'Désactiver' : 'Activer'}
           </Button>
         </div>
-      </Card>
+      </Collapsible>
+
+      <Collapsible title="Documents" icon={FileText} className="mb-6" badge={<Badge tone="gray">{teacher.documents.length}</Badge>}>
+        <div className="mb-4 space-y-2">
+          {teacher.documents.length === 0 ? (
+            <p className="text-sm text-gray-500">Aucun document pour l'instant.</p>
+          ) : (
+            teacher.documents.map((doc) => (
+              <div key={doc.id} className="flex items-center justify-between text-sm">
+                <div>
+                  <span className="font-medium text-gray-900">{doc.fileName}</span>
+                  <span className="ml-2 text-gray-500">
+                    {TEACHER_DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type} · {doc.uploadedBy.name} ·{' '}
+                    {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { url } = await api.get(
+                          `/teachers/${id}/documents/${doc.id}/download`,
+                        )
+                        window.open(url, '_blank', 'noopener')
+                      } catch (err) {
+                        setError(err.message)
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-navy hover:underline"
+                  >
+                    <Download size={14} />
+                    Télécharger
+                  </button>
+                  <button
+                    onClick={() =>
+                      run('delete-doc', () => api.del(`/teachers/${id}/documents/${doc.id}`))
+                    }
+                    className="text-gray-400 hover:text-red-600"
+                    title="Supprimer"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Type</label>
+            <select
+              value={documentForm.type}
+              onChange={(e) => setDocumentForm((f) => ({ ...f, type: e.target.value }))}
+              className={inputClass}
+            >
+              {Object.entries(TEACHER_DOCUMENT_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1">
+            <label className="mb-1 block text-xs text-gray-500">Fichier</label>
+            <input
+              type="file"
+              onChange={(e) =>
+                setDocumentForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))
+              }
+              className="w-full text-sm"
+            />
+          </div>
+          <Button
+            icon={Upload}
+            loading={savingAction === 'upload'}
+            disabled={!documentForm.file}
+            onClick={() =>
+              run('upload', async () => {
+                const formData = new FormData()
+                formData.append('file', documentForm.file)
+                formData.append('type', documentForm.type)
+                await api.upload(`/teachers/${id}/documents`, formData)
+                setDocumentForm({ file: null, type: 'diplome' })
+              })
+            }
+          >
+            Envoyer
+          </Button>
+        </div>
+      </Collapsible>
 
       <Card className="overflow-hidden">
         <h2 className="flex items-center gap-2 p-6 pb-3 font-semibold text-gray-900">
@@ -200,7 +308,7 @@ export function TeacherDetail() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {teacher.sessions.map((session) => (
+              {sessionsPage.visible.map((session) => (
                 <tr key={session.id}>
                   <td className="px-4 py-3 font-medium text-gray-900">{session.studentName}</td>
                   <td className="px-4 py-3 text-gray-700">{session.familyName}</td>
@@ -224,6 +332,12 @@ export function TeacherDetail() {
             </tbody>
           </table>
         )}
+        <PaginationControls
+          {...sessionsPage}
+          onShowMore={sessionsPage.showMore}
+          onCollapse={sessionsPage.collapse}
+          className="px-4 pb-4 pt-1"
+        />
       </Card>
     </div>
   )

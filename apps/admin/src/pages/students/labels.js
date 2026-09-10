@@ -51,12 +51,14 @@ export const PROGRESS_ENTRY_LABELS = {
   acquis: 'Acquis',
   en_progres: 'En progrès',
   a_surveiller: 'À surveiller',
+  pas_commence: 'Pas encore commencé',
 }
 
 export const PROGRESS_ENTRY_TONES = {
   acquis: 'green',
   en_progres: 'green',
   a_surveiller: 'amber',
+  pas_commence: 'gray',
 }
 
 export const PASS_STATUS_LABELS = {

@@ -9,6 +9,7 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
 import { ScheduleSlotDto } from './schedule-slot.dto';
@@ -25,10 +26,12 @@ export class UpsertRecurringScheduleDto {
   @Type(() => ScheduleSlotDto)
   slots: ScheduleSlotDto[];
 
-  @IsOptional()
+  // Un prof peut avoir plusieurs matieres pour le meme eleve, chacune avec
+  // son propre planning : la matiere fait donc partie de la cle du planning.
   @IsString()
+  @MinLength(1)
   @MaxLength(100)
-  subject?: string;
+  subject: string;
 
   @IsOptional()
   @IsIn([30, 45, 60, 90, 120])

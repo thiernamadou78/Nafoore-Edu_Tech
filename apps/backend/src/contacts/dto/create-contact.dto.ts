@@ -1,11 +1,16 @@
 import {
+  IsDateString,
   IsEmail,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
+  Max,
+  Min,
   MinLength,
   MaxLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateContactDto {
   @IsIn(['famille', 'mairie', 'entreprise', 'centre_formation_ecole_pro'], {
@@ -31,4 +36,17 @@ export class CreateContactDto {
   @MinLength(10, { message: 'Le message doit faire au moins 10 caractères' })
   @MaxLength(2000)
   message: string;
+
+  @IsOptional()
+  @IsDateString()
+  desiredStartDate?: string;
+
+  // Uniquement pertinent pour le profil famille : combien d'enfants elle
+  // souhaite inscrire.
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  childrenCount?: number;
 }

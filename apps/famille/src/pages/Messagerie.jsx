@@ -191,12 +191,19 @@ export function Messagerie() {
                     ))
                   )}
                 </div>
-                <form onSubmit={handleSend} className="flex gap-2">
-                  <input
+                <form onSubmit={handleSend} className="flex items-end gap-2">
+                  <textarea
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSend(e)
+                      }
+                    }}
                     placeholder="Écrire un message…"
-                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
+                    rows={3}
+                    className="max-h-40 min-h-[3rem] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
                   />
                   <Button type="submit" icon={Send} disabled={sending || !draft.trim()}>
                     Envoyer

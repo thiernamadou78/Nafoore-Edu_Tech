@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -7,7 +13,7 @@ import { resolvePortalUrl } from '../email/portal-url.util';
 import { renderRecurringScheduleUpdatedEmail } from '../email/templates/recurring-schedule-updated.template';
 import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { UpsertRecurringScheduleDto } from './dto/upsert-recurring-schedule.dto';
-import { nextOccurrences, ScheduleSlot } from './recurring-schedule.util';
+import { nextOccurrences, ScheduleSlot, slotsOverlap } from './recurring-schedule.util';
 
 // Fenêtre glissante : combien de semaines de séances réelles sont
 // matérialisées à l'avance à partir du planning récurrent. Le pointage QR
@@ -34,12 +40,16 @@ export class RecurringScheduleService {
       );
     }
     const teacherId = teacherAccount.teacherId as string;
+    // Un prof peut avoir plusieurs matieres pour le meme eleve : on verifie
+    // qu'il enseigne bien CETTE matiere precise a cet eleve.
     const assignment = await this.prisma.studentTeacher.findFirst({
-      where: { studentId, teacherId },
+      where: { studentId, teacherId, subject: dto.subject },
     });
     if (!assignment) {
-      throw new BadRequestException("Tu n'enseignes pas à cet élève");
+      throw new BadRequestException("Tu n'enseignes pas cette matière à cet élève");
     }
+
+    await this.assertNoScheduleConflict(teacherId, studentId, dto);
 
     const slots = dto.slots.map((s) => ({
       dayOfWeek: s.dayOfWeek,
@@ -47,7 +57,7 @@ export class RecurringScheduleService {
     })) as unknown as Prisma.InputJsonValue;
 
     const schedule = await this.prisma.recurringSchedule.upsert({
-      where: { studentId_teacherId: { studentId, teacherId } },
+      where: { studentId_teacherId_subject: { studentId, teacherId, subject: dto.subject } },
       create: {
         studentId,
         teacherId,
@@ -59,7 +69,6 @@ export class RecurringScheduleService {
       },
       update: {
         frequency: dto.frequency,
-        subject: dto.subject,
         durationMinutes: dto.durationMinutes ?? 60,
         slots,
         active: true,
@@ -81,16 +90,16 @@ export class RecurringScheduleService {
 
     await this.notifyFamily(schedule.id);
 
-    return this.findForStudentAndTeacher(studentId, teacherId);
+    return schedule;
   }
 
-  async remove(teacherAccount: AuthenticatedTeacherAccount, studentId: string) {
+  async remove(teacherAccount: AuthenticatedTeacherAccount, studentId: string, subject: string) {
     const teacherId = teacherAccount.teacherId as string;
     const schedule = await this.prisma.recurringSchedule.findUnique({
-      where: { studentId_teacherId: { studentId, teacherId } },
+      where: { studentId_teacherId_subject: { studentId, teacherId, subject } },
     });
     if (!schedule) {
-      throw new NotFoundException('Aucun planning récurrent pour cet élève');
+      throw new NotFoundException('Aucun planning récurrent pour cette matière');
     }
 
     await this.prisma.session.deleteMany({
@@ -106,10 +115,37 @@ export class RecurringScheduleService {
     });
   }
 
-  private async findForStudentAndTeacher(studentId: string, teacherId: string) {
-    return this.prisma.recurringSchedule.findUnique({
-      where: { studentId_teacherId: { studentId, teacherId } },
+  // Un prof ne peut pas donner deux cours en meme temps : on verifie ses
+  // creneaux face a TOUS ses autres plannings actifs (autres eleves ET
+  // autres matieres du meme eleve), jamais contre le planning qu'on est
+  // justement en train de modifier.
+  private async assertNoScheduleConflict(
+    teacherId: string,
+    studentId: string,
+    dto: UpsertRecurringScheduleDto,
+  ) {
+    const otherSchedules = await this.prisma.recurringSchedule.findMany({
+      where: {
+        teacherId,
+        active: true,
+        NOT: { studentId, subject: dto.subject },
+      },
+      include: { student: { select: { name: true } } },
     });
+
+    const newDuration = dto.durationMinutes ?? 60;
+    for (const other of otherSchedules) {
+      const otherSlots = other.slots as unknown as ScheduleSlot[];
+      for (const newSlot of dto.slots) {
+        for (const otherSlot of otherSlots) {
+          if (slotsOverlap(newSlot, newDuration, otherSlot, other.durationMinutes)) {
+            throw new ConflictException(
+              `Créneau déjà pris par le planning de ${other.student.name} (${other.subject})`,
+            );
+          }
+        }
+      }
+    }
   }
 
   private async generateSessionsForSchedule(scheduleId: string) {

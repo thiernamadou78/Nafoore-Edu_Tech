@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, GraduationCap, RotateCcw } from 'lucide-react'
+import { ArrowLeft, GraduationCap, RotateCcw, Upload } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Alert } from '../../components/ui/Alert'
+import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { CLASSE_OPTIONS_BY_LEVEL, CLASSE_LABELS } from '../students/labels'
@@ -10,7 +11,14 @@ import { CLASSE_OPTIONS_BY_LEVEL, CLASSE_LABELS } from '../students/labels'
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
-const DEFAULT_FORM = { name: '', level: 'college', classe: '', school: '', address: '' }
+const DEFAULT_FORM = {
+  name: '',
+  level: 'college',
+  classe: '',
+  school: '',
+  address: '',
+  dateNaissance: '',
+}
 
 export function CreateChild() {
   const navigate = useNavigate()
@@ -19,7 +27,10 @@ export function CreateChild() {
   const familyName = searchParams.get('familyName')
 
   const formRef = useRef(null)
+  const photoInputRef = useRef(null)
   const [form, setForm] = useState(DEFAULT_FORM)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [addedCount, setAddedCount] = useState(0)
@@ -38,18 +49,39 @@ export function CreateChild() {
     )
   }
 
+  const resetPhoto = () => {
+    setPhotoFile(null)
+    setPhotoPreview(null)
+  }
+
+  const handlePickPhoto = (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
+
   const submitChild = async () => {
     setSubmitting(true)
     setError(null)
     try {
-      await api.post('/students', {
+      const student = await api.post('/students', {
         name: form.name,
         level: form.level,
         classe: form.classe,
         school: form.school,
         address: form.address || undefined,
+        dateNaissance: form.dateNaissance || undefined,
         parentLeadId: leadId,
       })
+      if (photoFile) {
+        const formData = new FormData()
+        formData.append('file', photoFile)
+        // La photo n'est pas bloquante : l'élève est déjà créé, on pourra
+        // toujours l'ajouter/changer depuis sa fiche si l'upload échoue.
+        await api.upload(`/students/${student.id}/photo`, formData).catch(() => {})
+      }
       return true
     } catch (err) {
       setError(err.message)
@@ -73,6 +105,7 @@ export function CreateChild() {
     if (ok) {
       setAddedCount((count) => count + 1)
       setForm(DEFAULT_FORM)
+      resetPhoto()
     }
   }
 
@@ -96,6 +129,29 @@ export function CreateChild() {
         <form ref={formRef} className="space-y-4">
           {error && <Alert>{error}</Alert>}
 
+          <div className="flex items-center gap-4 rounded-xl border border-dashed border-gray-200 p-3">
+            <Avatar name={form.name || '?'} photoUrl={photoPreview} size="lg" />
+            <div>
+              <Button
+                type="button"
+                variant="secondary"
+                icon={Upload}
+                onClick={() => photoInputRef.current?.click()}
+                className="px-3 py-1.5"
+              >
+                {photoPreview ? 'Changer la photo' : 'Ajouter une photo'}
+              </Button>
+              <p className="mt-1 text-xs text-gray-400">Optionnel — modifiable plus tard</p>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePickPhoto}
+                className="hidden"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Prénom et nom</label>
             <input
@@ -103,6 +159,19 @@ export function CreateChild() {
               required
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Date de naissance
+            </label>
+            <input
+              type="date"
+              required
+              value={form.dateNaissance}
+              onChange={(e) => setForm({ ...form, dateNaissance: e.target.value })}
               className={inputClass}
             />
           </div>

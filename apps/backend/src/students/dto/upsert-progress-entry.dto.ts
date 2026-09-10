@@ -1,6 +1,11 @@
 import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
 
-export const PROGRESS_ENTRY_STATUSES = ['acquis', 'en_progres', 'a_surveiller'] as const;
+export const PROGRESS_ENTRY_STATUSES = [
+  'acquis',
+  'en_progres',
+  'a_surveiller',
+  'pas_commence',
+] as const;
 
 export class UpsertProgressEntryDto {
   @IsString()

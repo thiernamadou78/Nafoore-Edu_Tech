@@ -14,6 +14,8 @@ export class ContactsService {
         email: dto.email,
         phone: dto.phone ?? null,
         message: dto.message,
+        desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : null,
+        childrenCount: dto.childrenCount ?? null,
       },
     });
   }

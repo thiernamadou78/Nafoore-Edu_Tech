@@ -1,5 +1,5 @@
 import { Navigate, Link } from 'react-router-dom'
-import { CalendarClock, GraduationCap, UserPlus, Users } from 'lucide-react'
+import { CalendarClock, GraduationCap, Pencil, UserPlus, Users } from 'lucide-react'
 import { useStudents } from '../context/StudentsContext'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -75,11 +75,14 @@ function ChildCard({ student }) {
         )}
       </div>
 
-      <div className="p-4 pt-0">
-        <Link to={`/eleves/${student.id}`} className="block">
+      <div className="flex gap-2 p-4 pt-0">
+        <Link to={`/eleves/${student.id}`} className="flex-1">
           <Button variant="secondary" className="w-full">
             {status === 'actif' ? 'Voir le suivi' : 'Voir ma demande'}
           </Button>
+        </Link>
+        <Link to={`/eleves/${student.id}/modifier`}>
+          <Button variant="secondary" icon={Pencil} title="Modifier les infos" aria-label="Modifier les infos" />
         </Link>
       </div>
     </Card>

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, Pencil, Power, Search, Trash2, Users } from 'lucide-react'
+import { Loader2, Pencil, Power, Search, Trash2, UserPlus, Users } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Alert } from '../../components/ui/Alert'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
+import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import { LEVEL_LABELS } from './labels'
 
 const inputClass =
@@ -76,9 +78,14 @@ export function StudentsList() {
 
   return (
     <div>
-      <div className="mb-6 flex items-baseline gap-2">
-        <h1 className="text-xl font-semibold text-gray-900">Élèves</h1>
-        <span className="text-sm text-gray-400">{students.length}</span>
+      <div className="mb-6 flex items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-xl font-semibold text-gray-900">Élèves</h1>
+          <span className="text-sm text-gray-400">{students.length}</span>
+        </div>
+        <Button icon={UserPlus} onClick={() => navigate('/leads/nouvelle')}>
+          Créer une famille
+        </Button>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
@@ -129,80 +136,83 @@ export function StudentsList() {
           />
         </Card>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
-          {visibleStudents.map((student) => (
-            <Card
-              key={student.id}
-              onClick={() => navigate(`/eleves/${student.id}`)}
-              className={`flex cursor-pointer flex-col border-l-[3px] transition-shadow hover:shadow-md ${
-                student.isActive ? 'border-l-green-500' : 'border-l-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-3 p-4">
-                <Avatar name={student.name} photoUrl={student.photoUrl} size="md" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-gray-900">{student.name}</p>
-                  <p className="truncate text-xs text-gray-500">
-                    {LEVEL_LABELS[student.level] ?? student.level}
-                  </p>
-                </div>
-                <Badge tone={student.isActive ? 'green' : 'gray'}>
-                  {student.isActive ? 'Actif' : 'Inactif'}
-                </Badge>
-              </div>
-
-              <div className="border-t border-gray-100" />
-
-              <div className="flex-1 space-y-1.5 p-4 text-sm">
-                <p className="text-gray-700">
-                  <span className="text-gray-400">Matières · </span>
+        <Table>
+          <Thead>
+            <Th>Élève</Th>
+            <Th>Niveau</Th>
+            <Th>Matières</Th>
+            <Th>Enseignant(s)</Th>
+            <Th>Statut</Th>
+            <Th className="text-right">Actions</Th>
+          </Thead>
+          <Tbody>
+            {visibleStudents.map((student) => (
+              <Tr key={student.id} onClick={() => navigate(`/eleves/${student.id}`)}>
+                <Td>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`h-6 w-1 shrink-0 rounded-full ${
+                        student.isActive ? 'bg-green-500' : 'bg-gray-200'
+                      }`}
+                    />
+                    <Avatar name={student.name} photoUrl={student.photoUrl} size="sm" />
+                    <span className="font-medium text-gray-900">{student.name}</span>
+                  </div>
+                </Td>
+                <Td className="text-gray-600">{LEVEL_LABELS[student.level] ?? student.level}</Td>
+                <Td className="max-w-[220px] truncate text-gray-600">
                   {student.subjects.join(', ') || '—'}
-                </p>
-                <p className="text-gray-700">
-                  <span className="text-gray-400">Enseignant(s) · </span>
+                </Td>
+                <Td className="max-w-[220px] truncate text-gray-600">
                   {student.teachers.map((t) => t.teacher.name).join(', ') || '—'}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-1 border-t border-gray-100 p-2">
-                <button
-                  title="Modifier"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    navigate(`/eleves/${student.id}`)
-                  }}
-                  className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90"
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  title={student.isActive ? 'Désactiver' : 'Activer'}
-                  onClick={(event) => toggleActive(event, student)}
-                  disabled={pendingAction === `${student.id}:active`}
-                  className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
-                >
-                  {pendingAction === `${student.id}:active` ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Power size={16} />
-                  )}
-                </button>
-                <button
-                  title="Supprimer"
-                  onClick={(event) => handleDelete(event, student)}
-                  disabled={pendingAction === `${student.id}:delete`}
-                  className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-red-50 hover:text-red-600 active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
-                >
-                  {pendingAction === `${student.id}:delete` ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Trash2 size={16} />
-                  )}
-                </button>
-              </div>
-            </Card>
-          ))}
-        </div>
+                </Td>
+                <Td>
+                  <Badge tone={student.isActive ? 'green' : 'gray'}>
+                    {student.isActive ? 'Actif' : 'Inactif'}
+                  </Badge>
+                </Td>
+                <Td>
+                  <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      title="Modifier"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        navigate(`/eleves/${student.id}`)
+                      }}
+                      className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      title={student.isActive ? 'Désactiver' : 'Activer'}
+                      onClick={(event) => toggleActive(event, student)}
+                      disabled={pendingAction === `${student.id}:active`}
+                      className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                    >
+                      {pendingAction === `${student.id}:active` ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Power size={16} />
+                      )}
+                    </button>
+                    <button
+                      title="Supprimer"
+                      onClick={(event) => handleDelete(event, student)}
+                      disabled={pendingAction === `${student.id}:delete`}
+                      className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-red-50 hover:text-red-600 active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                    >
+                      {pendingAction === `${student.id}:delete` ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
+                  </div>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
       )}
     </div>
   )

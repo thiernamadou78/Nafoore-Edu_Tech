@@ -24,10 +24,12 @@ export class UpdateTeacherDto {
   @MaxLength(2000)
   bio?: string;
 
+  // Repere geographique general du prof (ex-"zone") — le prof se deplace
+  // pour un cours en presentiel, pas la famille.
   @IsOptional()
   @IsString()
-  @MaxLength(100)
-  zone?: string;
+  @MaxLength(200)
+  address?: string;
 
   @IsOptional()
   @IsEmail({}, { message: 'Email invalide' })

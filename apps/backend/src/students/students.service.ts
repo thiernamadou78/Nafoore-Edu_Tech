@@ -10,6 +10,8 @@ import { generateQrToken } from './qr-token.util';
 import { StudentDocumentsService } from './student-documents.service';
 
 const teacherSelect = {
+  id: true,
+  subject: true,
   teacher: { select: { id: true, name: true, subjects: true } },
 };
 
@@ -121,6 +123,7 @@ export class StudentsService {
         classe: dto.classe,
         school: dto.school,
         address: dto.address,
+        dateNaissance: dto.dateNaissance ? new Date(dto.dateNaissance) : undefined,
         subjects: dto.subjects ?? [],
         objectives: dto.objectives,
         parentLeadId: dto.parentLeadId,
@@ -175,17 +178,32 @@ export class StudentsService {
 
     const current = await this.prisma.studentTeacher.findMany({
       where: { studentId: id },
-      select: { teacherId: true },
+      select: { id: true, teacherId: true, subject: true },
     });
-    const currentIds = current.map((c) => c.teacherId);
-    const nextIds = dto.teacherIds;
-    const added = nextIds.filter((teacherId) => !currentIds.includes(teacherId));
-    const removed = currentIds.filter((teacherId) => !nextIds.includes(teacherId));
+
+    const desired = dto.assignments.flatMap((a) =>
+      a.subjects.map((subject) => ({ teacherId: a.teacherId, subject })),
+    );
+    const pairKey = (p: { teacherId: string; subject: string | null }) =>
+      `${p.teacherId}::${p.subject ?? ''}`;
+    const desiredKeys = new Set(desired.map(pairKey));
+    const currentKeys = new Set(current.map(pairKey));
+
+    // Diff par (prof, matiere) et non par prof seul : un prof qui garde une
+    // matiere ne doit jamais perdre son planning recurrent pour celle-ci en
+    // route, meme si d'autres matieres/profs changent dans la meme sauvegarde.
+    const toDeleteIds = current.filter((c) => !desiredKeys.has(pairKey(c))).map((c) => c.id);
+    const toCreate = desired.filter((d) => !currentKeys.has(pairKey(d)));
+
+    const currentTeacherIds = new Set(current.map((c) => c.teacherId));
+    const desiredTeacherIds = new Set(desired.map((d) => d.teacherId));
+    const added = [...desiredTeacherIds].filter((t) => !currentTeacherIds.has(t));
+    const removed = [...currentTeacherIds].filter((t) => !desiredTeacherIds.has(t));
 
     await this.prisma.$transaction([
-      this.prisma.studentTeacher.deleteMany({ where: { studentId: id } }),
+      this.prisma.studentTeacher.deleteMany({ where: { id: { in: toDeleteIds } } }),
       this.prisma.studentTeacher.createMany({
-        data: nextIds.map((teacherId) => ({ studentId: id, teacherId })),
+        data: toCreate.map((p) => ({ studentId: id, teacherId: p.teacherId, subject: p.subject })),
       }),
       this.prisma.studentTeacherHistory.createMany({
         data: [

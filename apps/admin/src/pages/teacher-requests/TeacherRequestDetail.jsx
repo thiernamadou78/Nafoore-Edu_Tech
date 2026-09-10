@@ -18,7 +18,7 @@ import {
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
-const CLOSED_STATUSES = ['proposition_envoyee', 'acceptee', 'annulee']
+const CLOSED_STATUSES = ['acceptee', 'annulee']
 
 export function TeacherRequestDetail() {
   const { id } = useParams()
@@ -60,6 +60,9 @@ export function TeacherRequestDetail() {
   }
 
   const canPropose = !CLOSED_STATUSES.includes(request.status)
+  // Un prof ne peut être proposé qu'une seule fois pour une même demande.
+  const alreadyProposedIds = new Set(request.matchings.map((m) => m.teacher.id))
+  const availableTeachers = teachers.filter((t) => !alreadyProposedIds.has(t.id))
 
   return (
     <div className="max-w-3xl">
@@ -98,6 +101,12 @@ export function TeacherRequestDetail() {
             <dt className="text-gray-500">Fréquence</dt>
             <dd className="text-gray-800">{request.frequency}</dd>
           </div>
+          {request.durationMinutes && (
+            <div>
+              <dt className="text-gray-500">Durée de séance souhaitée</dt>
+              <dd className="text-gray-800">{request.durationMinutes} min</dd>
+            </div>
+          )}
           {request.availability && (
             <div className="col-span-2">
               <dt className="text-gray-500">Disponibilités</dt>
@@ -114,9 +123,11 @@ export function TeacherRequestDetail() {
             Proposer
           </Button>
         </div>
-        {!canPropose && (
+        {!canPropose && <p className="text-sm text-gray-500">Cette demande est clôturée.</p>}
+        {canPropose && request.matchings.length > 0 && (
           <p className="text-sm text-gray-500">
-            Une proposition est déjà en attente de réponse, ou la demande est clôturée.
+            {request.matchings.length} prof{request.matchings.length > 1 ? 's' : ''} déjà
+            proposé{request.matchings.length > 1 ? 's' : ''} — tu peux en proposer d'autres.
           </p>
         )}
       </Card>
@@ -128,12 +139,17 @@ export function TeacherRequestDetail() {
           className={`${inputClass} mb-5`}
         >
           <option value="">Choisir un enseignant vérifié</option>
-          {teachers.map((teacher) => (
+          {availableTeachers.map((teacher) => (
             <option key={teacher.id} value={teacher.id}>
               {teacher.name} — {teacher.subjects.join(', ')}
             </option>
           ))}
         </select>
+        {availableTeachers.length === 0 && (
+          <p className="-mt-3 mb-3 text-xs text-gray-500">
+            Tous les enseignants vérifiés ont déjà été proposés pour cette demande.
+          </p>
+        )}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setModalOpen(false)}>
             Annuler

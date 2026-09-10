@@ -4,7 +4,9 @@ import { api } from '../lib/api'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { PaginationControls } from '../components/ui/PaginationControls'
 import { Spinner } from '../components/ui/Spinner'
+import { usePagination } from '../lib/usePagination'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from './labels'
 
 const MANUAL_REASON_LABELS = {
@@ -16,7 +18,7 @@ const MANUAL_REASON_LABELS = {
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
-const EMPTY_CREATE_FORM = { studentId: '', subject: '', date: '', durationMinutes: 60 }
+const SESSIONS_PAGE_SIZE = 5
 
 const DURATION_OPTIONS = [
   { value: 30, label: '30 min' },
@@ -133,25 +135,54 @@ function ManualAttendanceForm({ onCancel, onConfirm, saving }) {
   )
 }
 
-function SessionRow({ session, onCancelSession, onSaveReport, onManualAttendance, savingId }) {
+// Le statut brut ('planifiee') ne dit rien de vécu une fois la date passée :
+// on distingue visuellement "en cours" (check-in scanné, pas encore de
+// check-out) et "passée sans pointage" (ni scan ni compte-rendu), sans
+// jamais réécrire le statut réel en base tant que le prof n'a rien confirmé.
+function getDisplayStatus(session, isPast) {
+  const isCheckedIn = session.lastAttendance?.checkinAt && !session.lastAttendance?.checkoutAt
+  if (isCheckedIn) {
+    return { tone: 'amber', label: 'En cours' }
+  }
+  if (isPast && (session.status === 'planifiee' || session.status === 'confirmee')) {
+    return { tone: 'clay', label: 'Passée — à confirmer' }
+  }
+  return {
+    tone: SESSION_STATUS_TONES[session.status] ?? 'gray',
+    label: SESSION_STATUS_LABELS[session.status] ?? session.status,
+  }
+}
+
+function SessionRow({
+  session,
+  onCancelSession,
+  onSaveReport,
+  onManualAttendance,
+  savingId,
+  compact = false,
+  showStudentName = true,
+}) {
   const [reportOpen, setReportOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [manualOpen, setManualOpen] = useState(false)
   const hasReport = session.status === 'realisee' && (session.notes || session.attended !== null)
   const isPast = new Date(session.date) < new Date()
   const canPointManually = session.status === 'planifiee' || session.status === 'confirmee'
+  const displayStatus = getDisplayStatus(session, isPast)
+  const Wrapper = compact ? 'div' : Card
+  const wrapperClassName = compact
+    ? 'rounded-lg border border-gray-200 bg-white p-3'
+    : 'p-4'
 
   return (
-    <Card className="p-4">
+    <Wrapper className={wrapperClassName}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="font-medium text-gray-900">{session.studentName}</p>
+          {showStudentName && <p className="font-medium text-gray-900">{session.studentName}</p>}
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
             {session.subject && <Badge tone="gold">{session.subject}</Badge>}
             <span>{formatTimeRange(session.date, session.durationMinutes)}</span>
-            <Badge tone={SESSION_STATUS_TONES[session.status] ?? 'gray'}>
-              {SESSION_STATUS_LABELS[session.status] ?? session.status}
-            </Badge>
+            <Badge tone={displayStatus.tone}>{displayStatus.label}</Badge>
           </div>
         </div>
         <div className="flex gap-2">
@@ -239,6 +270,167 @@ function SessionRow({ session, onCancelSession, onSaveReport, onManualAttendance
           }
         />
       )}
+    </Wrapper>
+  )
+}
+
+function StudentPlanningCard({
+  student,
+  sessions,
+  savingId,
+  creating,
+  onOpenCreate,
+  onCloseCreate,
+  onSubmitCreate,
+  onCancelSession,
+  onSaveReport,
+  onManualAttendance,
+}) {
+  const [createForm, setCreateForm] = useState({
+    subject: '',
+    date: '',
+    durationMinutes: 60,
+  })
+
+  // Regroupement par statut (et non par date) : une séance planifiée mais
+  // passée sans pointage reste "à venir" (à confirmer) tant qu'elle n'a pas
+  // de statut définitif — cohérent avec la vue admin.
+  const upcoming = [...sessions]
+    .filter((s) => s.status !== 'realisee' && s.status !== 'annulee')
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+  const realisees = [...sessions]
+    .filter((s) => s.status === 'realisee')
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+  const rejetees = [...sessions]
+    .filter((s) => s.status === 'annulee')
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+
+  const upcomingPage = usePagination(upcoming, SESSIONS_PAGE_SIZE)
+  const realiseesPage = usePagination(realisees, SESSIONS_PAGE_SIZE)
+  const rejeteesPage = usePagination(rejetees, SESSIONS_PAGE_SIZE)
+  const hasRejetees = rejetees.length > 0
+
+  const columns = [
+    { key: 'upcoming', title: 'À venir', tone: 'blue', items: upcoming, page: upcomingPage },
+    { key: 'realisees', title: 'Réalisées', tone: 'green', items: realisees, page: realiseesPage },
+    ...(hasRejetees
+      ? [{ key: 'rejetees', title: 'Rejetées', tone: 'red', items: rejetees, page: rejeteesPage }]
+      : []),
+  ]
+
+  const isCreatingHere = creating === student.id
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSubmitCreate(student.id, createForm).then(() => {
+      setCreateForm({ subject: '', date: '', durationMinutes: 60 })
+    })
+  }
+
+  return (
+    <Card className="flex flex-col p-5">
+      <div className="mb-4 flex items-center justify-between gap-2 border-b border-gray-100 pb-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy/10 text-sm font-bold text-navy">
+            {student.name.charAt(0).toUpperCase()}
+          </span>
+          <h2 className="font-semibold text-gray-900">{student.name}</h2>
+        </div>
+        <Button
+          variant="secondary"
+          icon={CalendarPlus}
+          onClick={() => (isCreatingHere ? onCloseCreate() : onOpenCreate(student.id))}
+        >
+          Planifier
+        </Button>
+      </div>
+
+      {isCreatingHere && (
+        <form onSubmit={handleSubmit} className="mb-4 space-y-2 rounded-lg bg-gray-50 p-3">
+          <select
+            required
+            value={createForm.subject}
+            onChange={(e) => setCreateForm((f) => ({ ...f, subject: e.target.value }))}
+            className={inputClass}
+          >
+            <option value="">Matière…</option>
+            {student.subjects.map((subject) => (
+              <option key={subject} value={subject}>
+                {subject}
+              </option>
+            ))}
+          </select>
+          <input
+            required
+            type="datetime-local"
+            value={createForm.date}
+            onChange={(e) => setCreateForm((f) => ({ ...f, date: e.target.value }))}
+            className={inputClass}
+          />
+          <select
+            value={createForm.durationMinutes}
+            onChange={(e) =>
+              setCreateForm((f) => ({ ...f, durationMinutes: Number(e.target.value) }))
+            }
+            className={inputClass}
+          >
+            {DURATION_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <Button type="submit" loading={savingId === 'create'}>
+              Confirmer
+            </Button>
+            <Button type="button" variant="secondary" onClick={onCloseCreate}>
+              Annuler
+            </Button>
+          </div>
+        </form>
+      )}
+
+      <div className={`grid gap-3 ${hasRejetees ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+        {columns.map((column) => (
+          <div key={column.key} className="rounded-lg border border-gray-100">
+            <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                {column.title}
+              </h3>
+              <Badge tone={column.tone}>{column.items.length}</Badge>
+            </div>
+            <div className="p-2">
+              {column.items.length === 0 ? (
+                <p className="py-2 text-center text-xs text-gray-400">Aucune séance.</p>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    {column.page.visible.map((session) => (
+                      <SessionRow
+                        key={session.id}
+                        session={session}
+                        savingId={savingId}
+                        compact
+                        showStudentName={false}
+                        onCancelSession={onCancelSession}
+                        onSaveReport={onSaveReport}
+                        onManualAttendance={onManualAttendance}
+                      />
+                    ))}
+                  </div>
+                  <PaginationControls
+                    {...column.page}
+                    onShowMore={column.page.showMore}
+                    onCollapse={column.page.collapse}
+                    className="mt-2"
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </Card>
   )
 }
@@ -248,9 +440,7 @@ export function Planning() {
   const [students, setStudents] = useState(null)
   const [error, setError] = useState(null)
   const [savingId, setSavingId] = useState(null)
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [createForm, setCreateForm] = useState(EMPTY_CREATE_FORM)
-  const [creating, setCreating] = useState(false)
+  const [creatingForStudentId, setCreatingForStudentId] = useState(null)
 
   const load = () =>
     Promise.all([api.get('/teacher/sessions'), api.get('/teacher/students')])
@@ -291,19 +481,20 @@ export function Planning() {
       .finally(() => setSavingId(null))
   }
 
-  const handleCreate = (e) => {
-    e.preventDefault()
-    setCreating(true)
+  const handleCreateForStudent = (studentId, form) => {
+    setSavingId('create')
     setError(null)
-    api
-      .post('/teacher/sessions', createForm)
+    return api
+      .post('/teacher/sessions', { ...form, studentId })
       .then(() => {
-        setCreateForm(EMPTY_CREATE_FORM)
-        setShowCreateForm(false)
+        setCreatingForStudentId(null)
         return load()
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setCreating(false))
+      .catch((err) => {
+        setError(err.message)
+        throw err
+      })
+      .finally(() => setSavingId(null))
   }
 
   if (error && !sessions) {
@@ -314,149 +505,38 @@ export function Planning() {
     return <Spinner />
   }
 
-  const now = new Date()
-  const upcoming = sessions
-    .filter((s) => new Date(s.date) >= now && s.status !== 'annulee')
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-  const past = sessions
-    .filter((s) => new Date(s.date) < now || s.status === 'annulee')
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-
-  const selectedStudent = students.find((s) => s.id === createForm.studentId)
+  const sessionsByStudent = new Map(students.map((s) => [s.id, []]))
+  for (const session of sessions) {
+    sessionsByStudent.get(session.studentId)?.push(session)
+  }
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-serif text-2xl font-bold text-navy">Planning</h1>
-        <Button icon={CalendarPlus} onClick={() => setShowCreateForm((v) => !v)}>
-          Planifier une séance
-        </Button>
-      </div>
+      <h1 className="mb-6 font-serif text-2xl font-bold text-navy">Planning</h1>
 
       {error && <p className="mb-4 text-red-600">{error}</p>}
 
-      {showCreateForm && (
-        <Card className="mb-6 p-5">
-          <form onSubmit={handleCreate} className="grid gap-3 sm:grid-cols-4">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Élève</label>
-              <select
-                required
-                value={createForm.studentId}
-                onChange={(e) =>
-                  setCreateForm({
-                    ...createForm,
-                    studentId: e.target.value,
-                    subject: '',
-                  })
-                }
-                className={inputClass}
-              >
-                <option value="">Choisir…</option>
-                {students.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Matière</label>
-              <select
-                required
-                disabled={!selectedStudent}
-                value={createForm.subject}
-                onChange={(e) => setCreateForm({ ...createForm, subject: e.target.value })}
-                className={inputClass}
-              >
-                <option value="">Choisir…</option>
-                {selectedStudent?.subjects.map((subject) => (
-                  <option key={subject} value={subject}>
-                    {subject}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Date et heure</label>
-              <input
-                required
-                type="datetime-local"
-                value={createForm.date}
-                onChange={(e) => setCreateForm({ ...createForm, date: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Durée</label>
-              <select
-                value={createForm.durationMinutes}
-                onChange={(e) =>
-                  setCreateForm({ ...createForm, durationMinutes: Number(e.target.value) })
-                }
-                className={inputClass}
-              >
-                {DURATION_OPTIONS.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="sm:col-span-4">
-              <Button type="submit" loading={creating}>
-                Planifier
-              </Button>
-            </div>
-          </form>
-        </Card>
+      {students.length === 0 ? (
+        <p className="text-sm text-gray-500">Aucun élève assigné pour l'instant.</p>
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(380px,1fr))] gap-4">
+          {students.map((student) => (
+            <StudentPlanningCard
+              key={student.id}
+              student={student}
+              sessions={sessionsByStudent.get(student.id) ?? []}
+              savingId={savingId}
+              creating={creatingForStudentId}
+              onOpenCreate={setCreatingForStudentId}
+              onCloseCreate={() => setCreatingForStudentId(null)}
+              onSubmitCreate={handleCreateForStudent}
+              onCancelSession={handleCancelSession}
+              onSaveReport={handleSaveReport}
+              onManualAttendance={handleManualAttendance}
+            />
+          ))}
+        </div>
       )}
-
-      <div className="space-y-8">
-        <div>
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
-            À venir
-          </h2>
-          {upcoming.length === 0 ? (
-            <p className="text-sm text-gray-500">Aucune séance planifiée.</p>
-          ) : (
-            <div className="space-y-3">
-              {upcoming.map((session) => (
-                <SessionRow
-                  key={session.id}
-                  session={session}
-                  savingId={savingId}
-                  onCancelSession={handleCancelSession}
-                  onSaveReport={handleSaveReport}
-                  onManualAttendance={handleManualAttendance}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">
-            Passées
-          </h2>
-          {past.length === 0 ? (
-            <p className="text-sm text-gray-500">Aucune séance passée.</p>
-          ) : (
-            <div className="space-y-3">
-              {past.map((session) => (
-                <SessionRow
-                  key={session.id}
-                  session={session}
-                  savingId={savingId}
-                  onCancelSession={handleCancelSession}
-                  onSaveReport={handleSaveReport}
-                  onManualAttendance={handleManualAttendance}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   )
 }

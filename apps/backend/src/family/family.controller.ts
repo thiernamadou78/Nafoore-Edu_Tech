@@ -1,9 +1,25 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { CurrentPortalAccount } from '../auth/current-portal-account.decorator';
 import { AuthenticatedPortalAccount, PortalAuthGuard } from '../auth/portal-auth.guard';
 import { PortalRoles } from '../auth/portal-roles.decorator';
 import { PortalRolesGuard } from '../auth/portal-roles.guard';
 import { CreateFamilyStudentDto } from './dto/create-family-student.dto';
+import { UpdateFamilyStudentDto } from './dto/update-family-student.dto';
 import { SetFamilyNameDto } from './dto/set-family-name.dto';
 import { StartThreadDto } from './dto/start-thread.dto';
 import { SendFamilyMessageDto } from './dto/send-family-message.dto';
@@ -58,6 +74,35 @@ export class FamilyController {
     @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
   ) {
     return this.familyService.getStudent(portalAccount, id);
+  }
+
+  @Patch('students/:id')
+  updateStudent(
+    @Param('id') id: string,
+    @Body() dto: UpdateFamilyStudentDto,
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+  ) {
+    return this.familyService.updateStudent(portalAccount, id, dto);
+  }
+
+  @Post('students/:id/photo')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  uploadStudentPhoto(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+  ) {
+    return this.familyService.uploadStudentPhoto(portalAccount, id, file);
+  }
+
+  @Delete('students/:id/photo')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeStudentPhoto(
+    @Param('id') id: string,
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+  ) {
+    return this.familyService.removeStudentPhoto(portalAccount, id);
   }
 
   @Get('teachers')

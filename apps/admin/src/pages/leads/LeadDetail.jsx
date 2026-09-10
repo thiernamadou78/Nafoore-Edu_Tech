@@ -101,6 +101,30 @@ export function LeadDetail() {
               <p>{lead.email}</p>
               {lead.phone && <p>{lead.phone}</p>}
             </div>
+            {(lead.desiredStartDate || lead.childrenCount) && (
+              <div className="mt-3 flex gap-6 border-t border-gray-100 pt-3">
+                {lead.desiredStartDate && (
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Début souhaité
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      {new Date(lead.desiredStartDate).toLocaleDateString('fr-FR', {
+                        dateStyle: 'long',
+                      })}
+                    </p>
+                  </div>
+                )}
+                {lead.childrenCount && (
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Enfants à inscrire
+                    </p>
+                    <p className="text-sm text-gray-700">{lead.childrenCount}</p>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="mt-4 border-t border-gray-100 pt-4">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
                 Message

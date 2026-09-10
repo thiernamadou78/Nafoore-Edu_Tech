@@ -50,6 +50,7 @@ export class TeacherRequestsService {
         frequency: dto.frequency,
         format: dto.format,
         availability: dto.availability,
+        durationMinutes: dto.durationMinutes,
       },
     });
   }
@@ -69,6 +70,16 @@ export class TeacherRequestsService {
       await tx.teacherRequest.update({
         where: { id: matching.teacherRequestId },
         data: { status: 'acceptee' },
+      });
+      // La demande est résolue : les autres propositions encore en attente
+      // pour cette même demande n'ont plus lieu d'être.
+      await tx.matching.updateMany({
+        where: {
+          teacherRequestId: matching.teacherRequestId,
+          status: 'proposee',
+          id: { not: matchingId },
+        },
+        data: { status: 'refusee', respondedAt: new Date() },
       });
       await this.studentsService.addTeacherAssignment(
         matching.teacherRequest.studentId,
@@ -215,13 +226,17 @@ export class TeacherRequestsService {
     if (!request) {
       throw new NotFoundException('Demande introuvable');
     }
-    if (request.status === 'proposition_envoyee') {
-      throw new ConflictException(
-        'Une proposition est déjà en attente de réponse pour cette demande',
-      );
-    }
     if (request.status === 'acceptee' || request.status === 'annulee') {
       throw new ConflictException('Cette demande est déjà clôturée');
+    }
+
+    // Plusieurs profs peuvent être proposés pour une même demande, mais
+    // jamais le même deux fois (même s'il avait déjà été refusé).
+    const alreadyProposed = await this.prisma.matching.findFirst({
+      where: { teacherRequestId: requestId, teacherId: dto.teacherId },
+    });
+    if (alreadyProposed) {
+      throw new ConflictException('Ce professeur a déjà été proposé pour cette demande');
     }
 
     const teacher = await this.prisma.teacher.findUnique({
@@ -231,7 +246,7 @@ export class TeacherRequestsService {
         name: true,
         subjects: true,
         bio: true,
-        zone: true,
+        address: true,
         verified: true,
       },
     });
@@ -267,7 +282,7 @@ export class TeacherRequestsService {
             teacherName: teacher.name,
             teacherSubjects: teacher.subjects,
             teacherBio: teacher.bio,
-            teacherZone: teacher.zone,
+            teacherAddress: teacher.address,
             teacherVerified: teacher.verified,
             portalUrl: resolvePortalUrl('famille'),
           }),

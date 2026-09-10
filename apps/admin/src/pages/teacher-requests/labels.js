@@ -27,4 +27,5 @@ export const MATCHING_STATUS_TONES = {
 export const FORMAT_LABELS = {
   presentiel: 'Présentiel',
   distanciel: 'Distanciel',
+  hybride: 'Hybride',
 }

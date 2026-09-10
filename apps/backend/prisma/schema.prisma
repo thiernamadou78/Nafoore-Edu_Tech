@@ -18,6 +18,8 @@ model Lead {
   email            String
   phone            String?
   message          String
+  desiredStartDate DateTime?     @map("desired_start_date")
+  childrenCount    Int?          @map("children_count")
   organizationName String?       @map("organization_name")
   status           String        @default("nouveau")
   // nouveau | contacte | en_verification | valide | converti | rejete
@@ -105,7 +107,9 @@ model Teacher {
   subjects    String[]
   verified    Boolean                @default(false)
   bio         String?
-  zone        String?
+  // Adresse (ex-"zone") : le prof se déplace pour un cours en présentiel, ce
+  // champ sert surtout de repère géographique général, pas un point exact.
+  address     String?
   email       String?
   phone       String?
   photoPath   String?                @map("photo_path")
@@ -122,6 +126,7 @@ model Teacher {
   attendanceLogs AttendanceLog[]
   progressEntries ProgressEntry[]
   recurringSchedules RecurringSchedule[]
+  documents   TeacherDocument[]
 
   @@map("teachers")
 }
@@ -256,6 +261,7 @@ model AdminAccount {
   rhCredentialDispatches RhCredentialDispatchLog[]       @relation("RhCredentialDispatches")
   importBatches         ImportBatch[]
   fundingLinkSwitches   FundingLink[]                   @relation("FundingLinkSwitchedBy")
+  uploadedTeacherDocuments TeacherDocument[]
 
   @@map("admin_accounts")
 }
@@ -433,7 +439,9 @@ model RecurringSchedule {
   teacher         Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   frequency       Int
   // nombre de seances par semaine, doit correspondre au nombre de creneaux
-  subject         String?
+  subject         String
+  // Un prof peut avoir plusieurs matieres pour le meme eleve (ex: Maths ET
+  // Physique-Chimie) : chaque matiere a son propre planning independant.
   durationMinutes Int      @default(60) @map("duration_minutes")
   // Creneaux : [{ "dayOfWeek": 1, "time": "14:00" }, ...] — dayOfWeek en ISO
   // (1 = lundi ... 7 = dimanche)
@@ -443,7 +451,7 @@ model RecurringSchedule {
   updatedAt       DateTime @updatedAt @map("updated_at")
   sessions        Session[]
 
-  @@unique([studentId, teacherId])
+  @@unique([studentId, teacherId, subject])
   @@map("recurring_schedules")
 }
 
@@ -467,7 +475,7 @@ model ProgressEntry {
   student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   subject        String
   status         String
-  // acquis | en_progres | a_surveiller
+  // acquis | en_progres | a_surveiller | pas_commence
   adminAccountId String?      @map("admin_account_id")
   adminAccount   AdminAccount? @relation(fields: [adminAccountId], references: [id], onDelete: Cascade)
   teacherId      String?      @map("teacher_id")
@@ -492,6 +500,21 @@ model StudentDocument {
   createdAt    DateTime     @default(now()) @map("created_at")
 
   @@map("student_documents")
+}
+
+model TeacherDocument {
+  id           String       @id @default(cuid())
+  teacherId    String       @map("teacher_id")
+  teacher      Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  uploadedById String       @map("uploaded_by")
+  uploadedBy   AdminAccount @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  type         String
+  // diplome | casier_judiciaire | autre
+  fileName     String       @map("file_name")
+  filePath     String       @map("file_path")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  @@map("teacher_documents")
 }
 
 model StudentTeacherHistory {
@@ -521,7 +544,10 @@ model TeacherRequest {
   subject      String
   frequency    String
   format       String
-  // presentiel | distanciel
+  // presentiel | distanciel | hybride
+  durationMinutes Int? @map("duration_minutes")
+  // Duree de seance souhaitee par la famille : sert de defaut au prof quand
+  // il construira le planning, pour eviter qu'il ait a la redefinir.
   availability String?
   status       String     @default("en_attente")
   // en_attente | proposition_envoyee | acceptee | annulee

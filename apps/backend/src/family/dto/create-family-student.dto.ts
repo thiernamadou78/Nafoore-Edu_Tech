@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsDateString,
   IsIn,
   IsNotEmpty,
   IsOptional,
@@ -32,6 +33,10 @@ export class CreateFamilyStudentDto {
   @IsString()
   @MaxLength(300)
   address?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dateNaissance?: string;
 
   @IsOptional()
   @IsArray()

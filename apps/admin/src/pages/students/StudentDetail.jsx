@@ -22,8 +22,10 @@ import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { PaginationControls } from '../../components/ui/PaginationControls'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { Timeline } from '../../components/ui/Timeline'
+import { usePagination } from '../../lib/usePagination'
 import {
   ATTENDANCE_METHOD_LABELS,
   CLASSE_LABELS,
@@ -52,6 +54,16 @@ const DAY_LABELS = {
   5: 'Vendredi',
   6: 'Samedi',
   7: 'Dimanche',
+}
+
+// Même calcul que côté famille/enseignant : seules les séances confirmées
+// réalisées comptent dans le cumul d'heures.
+function formatMinutes(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = Math.round(totalMinutes % 60)
+  if (hours === 0) return `${minutes} min`
+  if (minutes === 0) return `${hours} h`
+  return `${hours} h ${String(minutes).padStart(2, '0')} min`
 }
 
 const TABS = [
@@ -96,28 +108,26 @@ function SessionRow({ session, onSave }) {
         <Badge tone={SESSION_STATUS_TONES[session.status]}>
           {SESSION_STATUS_LABELS[session.status] ?? session.status}
         </Badge>
+        {session.attendanceLogs?.[0]?.checkinAt && (
+          <Badge tone="green">
+            {new Date(session.attendanceLogs[0].checkinAt).toLocaleTimeString('fr-FR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+            {session.attendanceLogs[0].checkoutAt && (
+              <>
+                {' → '}
+                {new Date(session.attendanceLogs[0].checkoutAt).toLocaleTimeString('fr-FR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </>
+            )}
+            {' · '}
+            {session.attendanceLogs[0].method === 'qr_scan' ? 'Scan QR' : 'Manuel'}
+          </Badge>
+        )}
       </div>
-      {session.attendanceLogs?.[0]?.checkinAt && (
-        <p className="mb-2 text-xs text-gray-500">
-          Arrivée{' '}
-          {new Date(session.attendanceLogs[0].checkinAt).toLocaleTimeString('fr-FR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-          {session.attendanceLogs[0].checkoutAt && (
-            <>
-              {' '}
-              · Départ{' '}
-              {new Date(session.attendanceLogs[0].checkoutAt).toLocaleTimeString('fr-FR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </>
-          )}
-          {' · '}
-          {session.attendanceLogs[0].method === 'qr_scan' ? 'Scan QR' : 'Pointage manuel'}
-        </p>
-      )}
       <div className="flex flex-wrap items-end gap-2">
         <select
           value={status}
@@ -166,13 +176,70 @@ function SessionRow({ session, onSave }) {
   )
 }
 
+function SessionsByStatusBoard({ sessions, onSave }) {
+  const realisees = sessions.filter((s) => s.status === 'realisee')
+  const rejetees = sessions.filter((s) => s.status === 'annulee')
+  const programmees = sessions.filter((s) => s.status !== 'realisee' && s.status !== 'annulee')
+
+  // Un hook par groupe, appelés sans condition (jamais dans une boucle/branche)
+  // pour respecter les règles des hooks, même si un groupe est vide.
+  const realiseesPage = usePagination(realisees, 5)
+  const programmeesPage = usePagination(programmees, 5)
+  const rejeteesPage = usePagination(rejetees, 5)
+
+  if (sessions.length === 0) {
+    return <p className="text-sm text-gray-500">Aucune séance enregistrée.</p>
+  }
+
+  const hasRejetees = rejetees.length > 0
+  const groups = [
+    { key: 'realisees', title: 'Réalisées', tone: 'green', sessions: realisees, page: realiseesPage },
+    { key: 'programmees', title: 'À venir', tone: 'blue', sessions: programmees, page: programmeesPage },
+    ...(hasRejetees
+      ? [{ key: 'rejetees', title: 'Rejetées', tone: 'red', sessions: rejetees, page: rejeteesPage }]
+      : []),
+  ]
+
+  return (
+    <div className={`grid gap-4 ${hasRejetees ? 'lg:grid-cols-3' : 'sm:grid-cols-2'}`}>
+      {groups.map((group) => (
+        <div key={group.key} className="rounded-xl border border-gray-100">
+          <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
+            <h3 className="text-sm font-semibold text-gray-900">{group.title}</h3>
+            <Badge tone={group.tone}>{group.sessions.length}</Badge>
+          </div>
+          <div className="px-4 py-3">
+            {group.sessions.length === 0 ? (
+              <p className="py-4 text-sm text-gray-400">Aucune séance.</p>
+            ) : (
+              <>
+                {group.page.visible.map((session) => (
+                  <SessionRow key={session.id} session={session} onSave={(patch) => onSave(session.id, patch)} />
+                ))}
+                <PaginationControls
+                  {...group.page}
+                  onShowMore={group.page.showMore}
+                  onCollapse={group.page.collapse}
+                  className="pt-2"
+                />
+              </>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function StudentDetail() {
   const { id } = useParams()
   const [student, setStudent] = useState(null)
   const [teachers, setTeachers] = useState([])
   const [tab, setTab] = useState('fiche')
   const [form, setForm] = useState({ name: '', level: 'college', classe: '', subjects: '', objectives: '' })
-  const [assignedTeacherIds, setAssignedTeacherIds] = useState([])
+  // { [teacherId]: string[] } — matieres couvertes par ce prof pour cet eleve.
+  // Un prof present dans cette map (avec au moins 1 matiere) est "assigne".
+  const [teacherAssignments, setTeacherAssignments] = useState({})
   const [sessionForm, setSessionForm] = useState({
     date: '',
     teacherId: '',
@@ -180,7 +247,10 @@ export function StudentDetail() {
     notes: '',
   })
   const [reportForm, setReportForm] = useState({ period: '', content: '', shareable: false })
-  const [progressForm, setProgressForm] = useState({ subject: '', status: 'en_progres' })
+  // Vide par defaut : le statut effectif est calcule a l'usage (voir
+  // defaultProgressStatus) pour ne jamais pre-cocher "En progres" sur un
+  // eleve qui n'a encore jamais eu de seance realisee.
+  const [progressForm, setProgressForm] = useState({ subject: '', status: '' })
   const [documentForm, setDocumentForm] = useState({ file: null, type: 'bulletin' })
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
@@ -195,7 +265,22 @@ export function StudentDetail() {
         subjects: data.subjects.join(', '),
         objectives: data.objectives ?? '',
       })
-      setAssignedTeacherIds(data.teachers.map((t) => t.teacher.id))
+      const grouped = {}
+      for (const row of data.teachers) {
+        const tid = row.teacher.id
+        if (!grouped[tid]) grouped[tid] = []
+        if (row.subject) grouped[tid].push(row.subject)
+      }
+      // Lignes historiques sans matiere precisee : par defaut on coche toutes
+      // les matieres du prof pour ne rien perdre silencieusement au prochain
+      // enregistrement.
+      for (const row of data.teachers) {
+        const tid = row.teacher.id
+        if (!row.subject && grouped[tid].length === 0) {
+          grouped[tid] = [...row.teacher.subjects]
+        }
+      }
+      setTeacherAssignments(grouped)
     })
 
   useEffect(() => {
@@ -220,15 +305,36 @@ export function StudentDetail() {
     }
   }
 
-  const toggleTeacher = (teacherId) => {
-    setAssignedTeacherIds((ids) =>
-      ids.includes(teacherId) ? ids.filter((i) => i !== teacherId) : [...ids, teacherId],
-    )
+  const toggleTeacher = (teacherId, teacherSubjects) => {
+    setTeacherAssignments((prev) => {
+      if (prev[teacherId]) {
+        const { [teacherId]: _removed, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [teacherId]: [...teacherSubjects] }
+    })
+  }
+
+  const toggleSubjectForTeacher = (teacherId, subject) => {
+    setTeacherAssignments((prev) => {
+      const current = prev[teacherId] ?? []
+      const next = current.includes(subject)
+        ? current.filter((s) => s !== subject)
+        : [...current, subject]
+      if (next.length === 0) {
+        const { [teacherId]: _removed, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [teacherId]: next }
+    })
   }
 
   if (!student) {
     return error ? <Alert>{error}</Alert> : <p className="text-gray-500">Chargement…</p>
   }
+
+  const hasRealizedSession = student.sessions.some((s) => s.status === 'realisee')
+  const defaultProgressStatus = hasRealizedSession ? 'en_progres' : 'pas_commence'
 
   return (
     <div className="max-w-6xl">
@@ -453,19 +559,53 @@ export function StudentDetail() {
           {tab === 'enseignants' && (
             <div className="space-y-6">
               <Card className="p-6">
-                <h2 className="mb-3 font-semibold text-gray-900">Enseignant(s) assigné(s)</h2>
-                <div className="mb-3 flex flex-wrap gap-3">
-                  {teachers.map((teacher) => (
-                    <label key={teacher.id} className="flex items-center gap-1.5 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={assignedTeacherIds.includes(teacher.id)}
-                        onChange={() => toggleTeacher(teacher.id)}
-                        className="rounded border-gray-300 text-navy focus:ring-navy"
-                      />
-                      {teacher.name}
-                    </label>
-                  ))}
+                <h2 className="mb-1 font-semibold text-gray-900">Enseignant(s) assigné(s)</h2>
+                <p className="mb-3 text-xs text-gray-500">
+                  Un même professeur peut être coché pour plusieurs matières (ex : Maths et
+                  Physique-Chimie) — chacune aura son propre planning côté enseignant.
+                </p>
+                <div className="mb-3 space-y-3">
+                  {teachers.map((teacher) => {
+                    const selectedSubjects = teacherAssignments[teacher.id] ?? []
+                    const isChecked = Boolean(teacherAssignments[teacher.id])
+                    return (
+                      <div key={teacher.id} className="rounded-lg border border-gray-200 p-3">
+                        <label className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleTeacher(teacher.id, teacher.subjects)}
+                            className="rounded border-gray-300 text-navy focus:ring-navy"
+                          />
+                          {teacher.name}
+                        </label>
+                        {isChecked && (
+                          <div className="mt-2 flex flex-wrap gap-2 pl-5">
+                            {teacher.subjects.length === 0 ? (
+                              <p className="text-xs text-gray-400">
+                                Ce professeur n'a aucune matière renseignée sur son profil.
+                              </p>
+                            ) : (
+                              teacher.subjects.map((subject) => (
+                                <label
+                                  key={subject}
+                                  className="flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1 text-xs text-gray-700"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedSubjects.includes(subject)}
+                                    onChange={() => toggleSubjectForTeacher(teacher.id, subject)}
+                                    className="rounded border-gray-300 text-navy focus:ring-navy"
+                                  />
+                                  {subject}
+                                </label>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                   {teachers.length === 0 && (
                     <p className="text-sm text-gray-500">Aucun enseignant vérifié pour l'instant.</p>
                   )}
@@ -475,7 +615,11 @@ export function StudentDetail() {
                   loading={savingAction === 'teachers'}
                   onClick={() =>
                     run('teachers', () =>
-                      api.patch(`/students/${id}/teachers`, { teacherIds: assignedTeacherIds }),
+                      api.patch(`/students/${id}/teachers`, {
+                        assignments: Object.entries(teacherAssignments).map(
+                          ([teacherId, subjects]) => ({ teacherId, subjects }),
+                        ),
+                      }),
                     )
                   }
                 >
@@ -538,26 +682,29 @@ export function StudentDetail() {
                 </Card>
               )}
               <Card className="p-6">
-              <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-                <CalendarPlus size={16} className="text-navy" />
-                Séances
-              </h2>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 font-semibold text-gray-900">
+                  <CalendarPlus size={16} className="text-navy" />
+                  Séances
+                </h2>
+                <span className="text-sm text-gray-500">
+                  Heures cumulées :{' '}
+                  <span className="font-semibold text-gray-800">
+                    {formatMinutes(
+                      student.sessions
+                        .filter((s) => s.status === 'realisee' && s.attendanceLogs?.[0]?.checkoutAt)
+                        .reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0),
+                    )}
+                  </span>
+                </span>
+              </div>
               <div className="mb-4">
-                {student.sessions.length === 0 ? (
-                  <p className="text-sm text-gray-500">Aucune séance enregistrée.</p>
-                ) : (
-                  student.sessions.map((session) => (
-                    <SessionRow
-                      key={session.id}
-                      session={session}
-                      onSave={(patch) =>
-                        run('session', () =>
-                          api.patch(`/students/${id}/sessions/${session.id}`, patch),
-                        )
-                      }
-                    />
-                  ))
-                )}
+                <SessionsByStatusBoard
+                  sessions={student.sessions}
+                  onSave={(sessionId, patch) =>
+                    run('session', () => api.patch(`/students/${id}/sessions/${sessionId}`, patch))
+                  }
+                />
               </div>
               <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
                 <div>
@@ -735,7 +882,7 @@ export function StudentDetail() {
                   <div>
                     <label className="mb-1 block text-xs text-gray-500">Statut</label>
                     <select
-                      value={progressForm.status}
+                      value={progressForm.status || defaultProgressStatus}
                       onChange={(e) => setProgressForm((f) => ({ ...f, status: e.target.value }))}
                       className={inputClass}
                     >
@@ -752,8 +899,11 @@ export function StudentDetail() {
                     disabled={!progressForm.subject}
                     onClick={() =>
                       run('progress-entry', async () => {
-                        await api.put(`/students/${id}/progress-entries`, progressForm)
-                        setProgressForm({ subject: '', status: 'en_progres' })
+                        await api.put(`/students/${id}/progress-entries`, {
+                          ...progressForm,
+                          status: progressForm.status || defaultProgressStatus,
+                        })
+                        setProgressForm({ subject: '', status: '' })
                       })
                     }
                   >

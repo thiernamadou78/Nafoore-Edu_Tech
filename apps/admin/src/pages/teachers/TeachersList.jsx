@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Contact2, Loader2, Pencil, Plus, Power, Search, Trash2 } from 'lucide-react'
+import { Contact2, Loader2, Pencil, Plus, Power, Search, Trash2, UserPlus } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
@@ -8,11 +8,13 @@ import { Button } from '../../components/ui/Button'
 import { Alert } from '../../components/ui/Alert'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { Modal } from '../../components/ui/Modal'
+import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 
 const inputClass =
-  'rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
+  'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
-const EMPTY_FORM = { name: '', subjects: '', zone: '', email: '', phone: '' }
+const EMPTY_FORM = { name: '', subjects: '', address: '', email: '', phone: '', bio: '' }
 
 export function TeachersList() {
   const navigate = useNavigate()
@@ -20,9 +22,14 @@ export function TeachersList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [diplomaFiles, setDiplomaFiles] = useState([])
+  const [criminalRecordFile, setCriminalRecordFile] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
+  const diplomasInputRef = useRef(null)
+  const criminalRecordInputRef = useRef(null)
 
   const load = useCallback(
     () =>
@@ -75,22 +82,44 @@ export function TeachersList() {
     return teachers.filter((teacher) => teacher.name.toLowerCase().includes(term))
   }, [teachers, search])
 
+  const closeCreate = () => {
+    setShowCreate(false)
+    setForm(EMPTY_FORM)
+    setDiplomaFiles([])
+    setCriminalRecordFile(null)
+    setError(null)
+  }
+
+  const uploadDocument = (teacherId, file, type) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('type', type)
+    // Best-effort : le compte enseignant est déjà créé, un échec d'upload ne
+    // doit pas bloquer le flux (le document reste ajoutable depuis sa fiche).
+    return api.upload(`/teachers/${teacherId}/documents`, formData).catch(() => {})
+  }
+
   const handleCreate = async (event) => {
     event.preventDefault()
     setSubmitting(true)
     setError(null)
     try {
-      await api.post('/teachers', {
+      const teacher = await api.post('/teachers', {
         name: form.name,
         subjects: form.subjects
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean),
-        zone: form.zone || undefined,
+        address: form.address || undefined,
         email: form.email || undefined,
         phone: form.phone || undefined,
+        bio: form.bio || undefined,
       })
-      setForm(EMPTY_FORM)
+      await Promise.all([
+        ...diplomaFiles.map((file) => uploadDocument(teacher.id, file, 'diplome')),
+        ...(criminalRecordFile ? [uploadDocument(teacher.id, criminalRecordFile, 'casier_judiciaire')] : []),
+      ])
+      closeCreate()
       await load()
     } catch (err) {
       setError(err.message)
@@ -101,62 +130,15 @@ export function TeachersList() {
 
   return (
     <div>
-      <div className="mb-6 flex items-baseline gap-2">
-        <h1 className="text-xl font-semibold text-gray-900">Enseignants</h1>
-        <span className="text-sm text-gray-400">{teachers.length}</span>
+      <div className="mb-6 flex items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-xl font-semibold text-gray-900">Enseignants</h1>
+          <span className="text-sm text-gray-400">{teachers.length}</span>
+        </div>
+        <Button icon={UserPlus} onClick={() => setShowCreate(true)}>
+          Ajouter un enseignant
+        </Button>
       </div>
-
-      <Card className="mb-6 p-6">
-        <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
-            <input
-              required
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Matières (séparées par des virgules)
-            </label>
-            <input
-              value={form.subjects}
-              onChange={(e) => setForm((f) => ({ ...f, subjects: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Zone</label>
-            <input
-              value={form.zone}
-              onChange={(e) => setForm((f) => ({ ...f, zone: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Téléphone</label>
-            <input
-              value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <Button type="submit" icon={Plus} loading={submitting}>
-            Ajouter
-          </Button>
-        </form>
-      </Card>
 
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative">
@@ -173,92 +155,211 @@ export function TeachersList() {
         </div>
       </div>
 
-      {error && <Alert>{error}</Alert>}
+      {error && !showCreate && <Alert>{error}</Alert>}
 
-      <Card className="overflow-hidden">
-        {loading ? (
-          <p className="p-6 text-sm text-gray-500">Chargement…</p>
-        ) : visibleTeachers.length === 0 ? (
+      {loading ? (
+        <Card className="p-6">
+          <p className="text-sm text-gray-500">Chargement…</p>
+        </Card>
+      ) : visibleTeachers.length === 0 ? (
+        <Card className="overflow-hidden">
           <EmptyState
             icon={Contact2}
             title="Aucun enseignant"
             description="Ajoute-en un directement, ou valide une candidature depuis Recrutement."
           />
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-              <tr>
-                <th className="px-4 py-3 font-medium">Enseignant</th>
-                <th className="px-4 py-3 font-medium">Matières</th>
-                <th className="px-4 py-3 font-medium">Statut</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {visibleTeachers.map((teacher) => (
-                <tr
-                  key={teacher.id}
-                  onClick={() => navigate(`/enseignants/${teacher.id}`)}
-                  className="cursor-pointer hover:bg-gray-50"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar name={teacher.name} photoUrl={teacher.photoUrl} />
-                      <span className="font-medium text-gray-900">{teacher.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {teacher.subjects.join(', ') || '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={teacher.verified ? 'green' : 'gray'}>
-                      {teacher.verified ? 'Actif' : 'Inactif'}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        title="Modifier"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          navigate(`/enseignants/${teacher.id}`)
-                        }}
-                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        title={teacher.verified ? 'Désactiver' : 'Activer'}
-                        onClick={(event) => toggleVerified(event, teacher)}
-                        disabled={pendingAction === `${teacher.id}:verify`}
-                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
-                      >
-                        {pendingAction === `${teacher.id}:verify` ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                          <Power size={16} />
-                        )}
-                      </button>
-                      <button
-                        title="Supprimer"
-                        onClick={(event) => handleDelete(event, teacher)}
-                        disabled={pendingAction === `${teacher.id}:delete`}
-                        className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-red-50 hover:text-red-600 active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
-                      >
-                        {pendingAction === `${teacher.id}:delete` ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                          <Trash2 size={16} />
-                        )}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <Table>
+          <Thead>
+            <Th>Enseignant</Th>
+            <Th>Matières</Th>
+            <Th>Adresse</Th>
+            <Th>Statut</Th>
+            <Th className="text-right">Actions</Th>
+          </Thead>
+          <Tbody>
+            {visibleTeachers.map((teacher) => (
+              <Tr key={teacher.id} onClick={() => navigate(`/enseignants/${teacher.id}`)}>
+                <Td>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`h-6 w-1 shrink-0 rounded-full ${
+                        teacher.verified ? 'bg-green-500' : 'bg-gray-200'
+                      }`}
+                    />
+                    <Avatar name={teacher.name} photoUrl={teacher.photoUrl} size="sm" />
+                    <span className="font-medium text-gray-900">{teacher.name}</span>
+                  </div>
+                </Td>
+                <Td className="max-w-[240px] truncate text-gray-600">
+                  {teacher.subjects.join(', ') || '—'}
+                </Td>
+                <Td className="text-gray-600">{teacher.address || '—'}</Td>
+                <Td>
+                  <Badge tone={teacher.verified ? 'green' : 'gray'}>
+                    {teacher.verified ? 'Actif' : 'Inactif'}
+                  </Badge>
+                </Td>
+                <Td>
+                  <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      title="Modifier"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        navigate(`/enseignants/${teacher.id}`)
+                      }}
+                      className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      title={teacher.verified ? 'Désactiver' : 'Activer'}
+                      onClick={(event) => toggleVerified(event, teacher)}
+                      disabled={pendingAction === `${teacher.id}:verify`}
+                      className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-gray-100 hover:text-navy active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                    >
+                      {pendingAction === `${teacher.id}:verify` ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Power size={16} />
+                      )}
+                    </button>
+                    <button
+                      title="Supprimer"
+                      onClick={(event) => handleDelete(event, teacher)}
+                      disabled={pendingAction === `${teacher.id}:delete`}
+                      className="rounded-lg p-1.5 text-gray-400 transition-all duration-150 hover:bg-red-50 hover:text-red-600 active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                    >
+                      {pendingAction === `${teacher.id}:delete` ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
+                  </div>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      )}
+
+      <Modal open={showCreate} onClose={closeCreate} title="Ajouter un enseignant" size="lg">
+        <form onSubmit={handleCreate} className="space-y-4">
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
+              <input
+                required
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Matières (séparées par des virgules)
+              </label>
+              <input
+                value={form.subjects}
+                onChange={(e) => setForm((f) => ({ ...f, subjects: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
+              <input
+                value={form.address}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Téléphone</label>
+              <input
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Bio</label>
+            <textarea
+              rows={3}
+              value={form.bio}
+              onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+              placeholder="Présentation courte, expérience, spécialités…"
+              className={`${inputClass} resize-none`}
+            />
+          </div>
+
+          <div className="grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Diplômes (PDF, JPG, PNG)
+              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => diplomasInputRef.current?.click()}
+                className="px-3 py-1.5"
+              >
+                {diplomaFiles.length > 0 ? `${diplomaFiles.length} fichier(s)` : 'Choisir des fichiers'}
+              </Button>
+              <input
+                ref={diplomasInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => setDiplomaFiles(Array.from(e.target.files ?? []))}
+                className="hidden"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Casier judiciaire (B3)
+              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => criminalRecordInputRef.current?.click()}
+                className="px-3 py-1.5"
+              >
+                {criminalRecordFile ? criminalRecordFile.name : 'Choisir un fichier'}
+              </Button>
+              <input
+                ref={criminalRecordInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => setCriminalRecordFile(e.target.files?.[0] ?? null)}
+                className="hidden"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={closeCreate}>
+              Annuler
+            </Button>
+            <Button type="submit" icon={Plus} loading={submitting}>
+              Créer
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

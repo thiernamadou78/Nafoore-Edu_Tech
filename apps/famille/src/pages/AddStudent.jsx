@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, GraduationCap, X } from 'lucide-react'
+import { ArrowLeft, GraduationCap, Upload, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { useStudents } from '../context/StudentsContext'
 import { Badge } from '../components/ui/Badge'
@@ -18,20 +18,41 @@ const DEFAULT_FORM = {
   classe: '',
   school: '',
   address: '',
+  dateNaissance: '',
   subjects: [],
 }
 
 const PILL_TONES = ['blue', 'indigo', 'green', 'amber', 'sky', 'leaf', 'clay', 'amberStrong']
 
+function getInitials(name) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('')
+}
+
 export function AddStudent() {
   const navigate = useNavigate()
   const { refresh } = useStudents()
+  const photoInputRef = useRef(null)
   const [form, setForm] = useState(DEFAULT_FORM)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
   const availableSubjects = SUBJECTS_BY_LEVEL[form.level] ?? []
   const classeOptions = CLASSE_OPTIONS_BY_LEVEL[form.level] ?? []
+
+  const handlePickPhoto = (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
 
   const addSubject = (subject) => {
     if (!subject || form.subjects.includes(subject)) return
@@ -53,8 +74,14 @@ export function AddStudent() {
         classe: form.classe,
         school: form.school,
         address: form.address || undefined,
+        dateNaissance: form.dateNaissance || undefined,
         subjects: form.subjects,
       })
+      if (photoFile) {
+        const formData = new FormData()
+        formData.append('file', photoFile)
+        await api.upload(`/family/students/${student.id}/photo`, formData).catch(() => {})
+      }
       await refresh()
       navigate(`/eleves/${student.id}`, { replace: true })
     } catch (err) {
@@ -78,6 +105,35 @@ export function AddStudent() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <p className="text-sm text-red-600">{error}</p>}
 
+          <div className="flex items-center gap-4 rounded-xl border border-dashed border-gray-200 p-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy font-medium text-gold-400">
+              {photoPreview ? (
+                <img src={photoPreview} alt="" className="h-full w-full object-cover" />
+              ) : (
+                getInitials(form.name || '?')
+              )}
+            </div>
+            <div>
+              <Button
+                type="button"
+                variant="secondary"
+                icon={Upload}
+                onClick={() => photoInputRef.current?.click()}
+                className="px-3 py-1.5"
+              >
+                {photoPreview ? 'Changer la photo' : 'Ajouter une photo'}
+              </Button>
+              <p className="mt-1 text-xs text-gray-400">Optionnel — modifiable plus tard</p>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePickPhoto}
+                className="hidden"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Prénom et nom</label>
             <input
@@ -85,6 +141,19 @@ export function AddStudent() {
               required
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Date de naissance
+            </label>
+            <input
+              type="date"
+              required
+              value={form.dateNaissance}
+              onChange={(e) => setForm({ ...form, dateNaissance: e.target.value })}
               className={inputClass}
             />
           </div>

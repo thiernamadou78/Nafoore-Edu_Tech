@@ -14,6 +14,7 @@ import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { CreateTeacherSessionDto } from './dto/create-teacher-session.dto';
 import { UpdateTeacherSessionDto } from './dto/update-teacher-session.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { StartThreadDto } from './dto/start-thread.dto';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
 import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
 import { redactRemovedMessage, countUnread } from '../common/redact-message.util';
@@ -125,7 +126,29 @@ export class TeacherService {
     }
 
     const { teachers, sessions, recurringSchedules, photoPath, parentLead, ...rest } = student;
-    const photoUrl = await this.photos.signUrl(photoPath);
+    const [photoUrl, realized, acceptedRequests] = await Promise.all([
+      this.photos.signUrl(photoPath),
+      this.prisma.session.aggregate({
+        // Un compte-rendu seul (sans pointage QR/manuel) ne prouve pas une
+        // durée réelle : seules les séances avec un pointage clôturé comptent.
+        where: {
+          studentId,
+          status: 'realisee',
+          attendanceLogs: { some: { checkoutAt: { not: null } } },
+        },
+        _sum: { durationMinutes: true },
+      }),
+      // Duree de seance demandee par la famille pour chaque matiere : utilisee
+      // comme defaut quand le prof cree le planning, pour qu'il n'ait pas a la
+      // redefinir lui-meme.
+      this.prisma.teacherRequest.findMany({
+        where: { studentId, status: 'acceptee', durationMinutes: { not: null } },
+        select: { subject: true, durationMinutes: true },
+      }),
+    ]);
+    const requestedDurationBySubject = Object.fromEntries(
+      acceptedRequests.map((r) => [r.subject, r.durationMinutes]),
+    );
 
     return {
       ...rest,
@@ -139,7 +162,11 @@ export class TeacherService {
       ],
       family: parentLead,
       nextSession: sessions[0] ?? null,
-      schedule: recurringSchedules[0] ?? null,
+      // Un prof peut avoir plusieurs matieres pour le meme eleve : un
+      // planning independant par matiere, jamais un seul planning global.
+      schedules: recurringSchedules,
+      requestedDurationBySubject,
+      totalMinutesRealized: realized._sum.durationMinutes ?? 0,
       photoUrl,
     };
   }
@@ -188,14 +215,22 @@ export class TeacherService {
 
     const sessions = await this.prisma.session.findMany({
       where: { teacherId: teacherAccount.teacherId },
-      include: { student: { select: { id: true, name: true } } },
+      include: {
+        student: { select: { id: true, name: true } },
+        attendanceLogs: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { checkinAt: true, checkoutAt: true },
+        },
+      },
       orderBy: { date: 'desc' },
     });
 
-    return sessions.map(({ student, ...session }) => ({
+    return sessions.map(({ student, attendanceLogs, ...session }) => ({
       ...session,
       studentId: student.id,
       studentName: student.name,
+      lastAttendance: attendanceLogs[0] ?? null,
     }));
   }
 
@@ -340,7 +375,13 @@ export class TeacherService {
 
   async getPayments(teacherAccount: AuthenticatedTeacherAccount) {
     if (!teacherAccount.teacherId) {
-      return { hoursThisMonth: 0, amountThisMonth: 0, hourlyRate: DEMO_HOURLY_RATE, history: [] };
+      return {
+        minutesThisMonth: 0,
+        amountThisMonth: 0,
+        hourlyRate: DEMO_HOURLY_RATE,
+        sessionsThisMonth: [],
+        history: [],
+      };
     }
     const teacherId = teacherAccount.teacherId;
     const startOfMonth = new Date();
@@ -349,8 +390,25 @@ export class TeacherService {
 
     const [sessionsThisMonth, history] = await Promise.all([
       this.prisma.session.findMany({
-        where: { teacherId, status: 'realisee', date: { gte: startOfMonth } },
-        select: { durationMinutes: true },
+        // Un compte-rendu seul (sans pointage QR/manuel) ne prouve pas une
+        // durée réelle : seules les séances avec un pointage clôturé comptent
+        // dans les heures/la rémunération.
+        where: {
+          teacherId,
+          status: 'realisee',
+          date: { gte: startOfMonth },
+          attendanceLogs: { some: { checkoutAt: { not: null } } },
+        },
+        orderBy: { date: 'desc' },
+        include: {
+          student: { select: { name: true } },
+          attendanceLogs: {
+            where: { checkoutAt: { not: null } },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { checkinAt: true, checkoutAt: true },
+          },
+        },
       }),
       this.prisma.teacherPayment.findMany({
         where: { teacherId },
@@ -358,15 +416,49 @@ export class TeacherService {
       }),
     ]);
 
-    const hoursThisMonth =
-      sessionsThisMonth.reduce((sum, s) => sum + s.durationMinutes, 0) / 60;
+    const minutesThisMonth = sessionsThisMonth.reduce((sum, s) => sum + s.durationMinutes, 0);
+    const hoursThisMonth = minutesThisMonth / 60;
 
     return {
-      hoursThisMonth: Math.round(hoursThisMonth * 100) / 100,
+      minutesThisMonth,
       amountThisMonth: Math.round(hoursThisMonth * DEMO_HOURLY_RATE * 100) / 100,
       hourlyRate: DEMO_HOURLY_RATE,
+      sessionsThisMonth: sessionsThisMonth.map(({ student, attendanceLogs, ...session }) => ({
+        ...session,
+        studentName: student.name,
+        checkinAt: attendanceLogs[0]?.checkinAt ?? null,
+        checkoutAt: attendanceLogs[0]?.checkoutAt ?? null,
+      })),
       history,
     };
+  }
+
+  async startOrGetThread(teacherAccount: AuthenticatedTeacherAccount, dto: StartThreadDto) {
+    const teacherId = teacherAccount.teacherId as string;
+    const owns = await this.prisma.studentTeacher.findFirst({
+      where: { teacherId, student: { parentLeadId: dto.leadId } },
+    });
+    if (!owns) {
+      throw new NotFoundException('Famille introuvable');
+    }
+
+    const existing = await this.prisma.messageThread.findFirst({
+      where: { teacherId, leadId: dto.leadId },
+    });
+    if (existing) return existing;
+
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: dto.leadId },
+      select: { name: true, portalAccount: { select: { familyName: true } } },
+    });
+
+    return this.prisma.messageThread.create({
+      data: {
+        teacherId,
+        leadId: dto.leadId,
+        familyName: lead?.portalAccount?.familyName ?? lead?.name ?? 'Famille',
+      },
+    });
   }
 
   async listMyMessageThreads(teacherAccount: AuthenticatedTeacherAccount) {

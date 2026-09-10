@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PhotosService } from '../photos/photos.service';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
 import { CreateFamilyStudentDto } from './dto/create-family-student.dto';
+import { UpdateFamilyStudentDto } from './dto/update-family-student.dto';
 import { SetFamilyNameDto } from './dto/set-family-name.dto';
 import { StartThreadDto } from './dto/start-thread.dto';
 import { SendFamilyMessageDto } from './dto/send-family-message.dto';
@@ -54,11 +55,62 @@ export class FamilyService {
         classe: dto.classe,
         school: dto.school,
         address: dto.address,
+        dateNaissance: dto.dateNaissance ? new Date(dto.dateNaissance) : undefined,
         subjects: dto.subjects ?? [],
         parentLeadId: portalAccount.leadId,
         qrToken: generateQrToken(),
       },
     });
+  }
+
+  async updateStudent(
+    portalAccount: AuthenticatedPortalAccount,
+    studentId: string,
+    dto: UpdateFamilyStudentDto,
+  ) {
+    await this.assertOwnsStudent(portalAccount, studentId);
+    return this.prisma.student.update({
+      where: { id: studentId },
+      data: {
+        name: dto.name,
+        level: dto.level,
+        classe: dto.classe,
+        school: dto.school,
+        address: dto.address,
+        dateNaissance: dto.dateNaissance ? new Date(dto.dateNaissance) : undefined,
+        subjects: dto.subjects,
+      },
+    });
+  }
+
+  private async assertOwnsStudent(portalAccount: AuthenticatedPortalAccount, studentId: string) {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+    if (!student || student.parentLeadId !== portalAccount.leadId) {
+      throw new NotFoundException('Élève introuvable');
+    }
+    return student;
+  }
+
+  async uploadStudentPhoto(
+    portalAccount: AuthenticatedPortalAccount,
+    studentId: string,
+    file: Express.Multer.File,
+  ) {
+    const student = await this.assertOwnsStudent(portalAccount, studentId);
+    if (student.photoPath) {
+      await this.photos.remove(student.photoPath);
+    }
+    const path = this.photos.buildPath('students', studentId, file.originalname);
+    await this.photos.upload(path, file);
+    await this.prisma.student.update({ where: { id: studentId }, data: { photoPath: path } });
+  }
+
+  async removeStudentPhoto(portalAccount: AuthenticatedPortalAccount, studentId: string) {
+    const student = await this.assertOwnsStudent(portalAccount, studentId);
+    if (student.photoPath) {
+      await this.photos.remove(student.photoPath);
+      await this.prisma.student.update({ where: { id: studentId }, data: { photoPath: null } });
+    }
   }
 
   async listMyStudents(portalAccount: AuthenticatedPortalAccount) {
@@ -157,6 +209,14 @@ export class FamilyService {
             notes: true,
             durationMinutes: true,
             teacher: { select: { id: true, name: true } },
+            // Utilisé pour ne compter dans les heures cumulées que les
+            // séances avec un pointage QR/manuel clôturé (un compte-rendu
+            // seul ne prouve pas une durée réelle).
+            attendanceLogs: {
+              where: { checkoutAt: { not: null } },
+              select: { id: true },
+              take: 1,
+            },
           },
           orderBy: { date: 'desc' },
         },
@@ -204,7 +264,7 @@ export class FamilyService {
                     name: true,
                     subjects: true,
                     bio: true,
-                    zone: true,
+                    address: true,
                     verified: true,
                     photoPath: true,
                   },

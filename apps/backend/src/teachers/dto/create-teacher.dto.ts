@@ -26,7 +26,7 @@ export class CreateTeacherDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  zone?: string;
+  address?: string;
 
   @IsOptional()
   @IsEmail({}, { message: 'Email invalide' })

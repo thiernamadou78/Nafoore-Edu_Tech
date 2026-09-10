@@ -1,7 +1,21 @@
-import { IsArray, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ArrayMinSize, IsArray, IsString, ValidateNested } from 'class-validator';
+
+// Un prof peut enseigner plusieurs matieres a un meme eleve : chaque
+// assignation precise donc les matieres couvertes pour ce couple prof/eleve.
+export class TeacherAssignmentDto {
+  @IsString()
+  teacherId: string;
+
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Sélectionnez au moins une matière pour ce professeur' })
+  @IsString({ each: true })
+  subjects: string[];
+}
 
 export class AssignTeachersDto {
   @IsArray()
-  @IsString({ each: true })
-  teacherIds: string[];
+  @ValidateNested({ each: true })
+  @Type(() => TeacherAssignmentDto)
+  assignments: TeacherAssignmentDto[];
 }
