@@ -9,6 +9,7 @@ import {
   Min,
   MinLength,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -37,10 +38,12 @@ export class CreateContactDto {
   @MaxLength(2000)
   message: string;
 
-  // Renseignee par les familles pour permettre de proposer un enseignant
-  // proche geographiquement (deplacement au domicile).
-  @IsOptional()
+  // Obligatoire pour les familles (permet de proposer un enseignant proche
+  // geographiquement) ; sans objet pour les autres profils (mairie,
+  // entreprise, centre de formation).
+  @ValidateIf((dto) => dto.profile === 'famille')
   @IsString()
+  @MinLength(1, { message: "L'adresse est obligatoire" })
   @MaxLength(300)
   address?: string;
 

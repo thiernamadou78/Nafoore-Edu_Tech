@@ -13,4 +13,9 @@ export class CreateFamilyLeadDto {
   @IsString()
   @MaxLength(20)
   phone?: string;
+
+  @IsString()
+  @MinLength(1, { message: "L'adresse est obligatoire" })
+  @MaxLength(300)
+  address: string;
 }

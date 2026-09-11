@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Inbox, Search } from 'lucide-react'
+import { ChevronRight, Inbox, MapPinOff, Search } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Alert } from '../../components/ui/Alert'
 import { Avatar } from '../../components/ui/Avatar'
@@ -140,7 +140,14 @@ export function LeadsList() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-700">
-                    {PROFILE_LABELS[lead.profile] ?? lead.profile}
+                    <div className="flex items-center gap-1.5">
+                      {PROFILE_LABELS[lead.profile] ?? lead.profile}
+                      {lead.profile === 'famille' && !lead.address && (
+                        <span title="Adresse manquante">
+                          <MapPinOff size={14} className="text-amber-500" />
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={LEAD_STATUS_TONES[lead.status]}>

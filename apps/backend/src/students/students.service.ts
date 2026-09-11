@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PhotosService } from '../photos/photos.service';
+import { GeocodingService } from '../geocoding/geocoding.service';
 import { AssignTeachersDto } from './dto/assign-teachers.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { ListStudentsQueryDto } from './dto/list-students-query.dto';
@@ -17,10 +18,13 @@ const teacherSelect = {
 
 @Injectable()
 export class StudentsService {
+  private readonly logger = new Logger(StudentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly photos: PhotosService,
     private readonly studentDocuments: StudentDocumentsService,
+    private readonly geocoding: GeocodingService,
   ) {}
 
   async list(query: ListStudentsQueryDto) {
@@ -115,8 +119,8 @@ export class StudentsService {
     return { ...student, photoUrl };
   }
 
-  create(dto: CreateStudentDto) {
-    return this.prisma.student.create({
+  async create(dto: CreateStudentDto) {
+    const student = await this.prisma.student.create({
       data: {
         name: dto.name,
         level: dto.level,
@@ -130,6 +134,20 @@ export class StudentsService {
         qrToken: generateQrToken(),
       },
     });
+    if (dto.address) this.geocodeAndSave(student.id, dto.address);
+    return student;
+  }
+
+  // Best-effort, en tâche de fond : ne doit jamais retarder ni faire échouer
+  // la création/mise à jour de l'élève.
+  private geocodeAndSave(studentId: string, address: string) {
+    this.geocoding
+      .geocode(address)
+      .then((coords) => {
+        if (!coords) return;
+        return this.prisma.student.update({ where: { id: studentId }, data: coords });
+      })
+      .catch((error) => this.logger.warn(`Géocodage de l'élève ${studentId} échoué: ${error}`));
   }
 
   async regenerateQrToken(id: string) {
@@ -147,7 +165,9 @@ export class StudentsService {
 
   async update(id: string, dto: UpdateStudentDto) {
     await this.findOneRaw(id);
-    return this.prisma.student.update({ where: { id }, data: dto });
+    const student = await this.prisma.student.update({ where: { id }, data: dto });
+    if (dto.address) this.geocodeAndSave(id, dto.address);
+    return student;
   }
 
   async setActive(id: string, isActive: boolean) {

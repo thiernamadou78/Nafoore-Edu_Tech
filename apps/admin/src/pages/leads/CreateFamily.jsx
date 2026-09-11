@@ -9,7 +9,7 @@ import { Card } from '../../components/ui/Card'
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
-const DEFAULT_FORM = { name: '', email: '', phone: '' }
+const DEFAULT_FORM = { name: '', email: '', phone: '', address: '' }
 
 export function CreateFamily() {
   const navigate = useNavigate()
@@ -26,10 +26,11 @@ export function CreateFamily() {
         name: form.name,
         email: form.email,
         phone: form.phone || undefined,
+        address: form.address,
       })
-      navigate(
-        `/leads/nouvelle/enfants?leadId=${lead.id}&familyName=${encodeURIComponent(form.name)}`,
-      )
+      const params = new URLSearchParams({ leadId: lead.id, familyName: form.name })
+      if (form.address) params.set('address', form.address)
+      navigate(`/leads/nouvelle/enfants?${params.toString()}`)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -91,6 +92,21 @@ export function CreateFamily() {
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               className={inputClass}
             />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
+            <input
+              type="text"
+              required
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="Quartier, commune, ville…"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              Permet d'afficher la famille sur la carte du tableau de bord.
+            </p>
           </div>
 
           <Button type="submit" icon={UserPlus} loading={submitting} className="w-full">

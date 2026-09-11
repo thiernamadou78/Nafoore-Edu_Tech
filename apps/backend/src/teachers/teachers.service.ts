@@ -1,15 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PhotosService } from '../photos/photos.service';
+import { GeocodingService } from '../geocoding/geocoding.service';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { ListTeachersQueryDto } from './dto/list-teachers-query.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
 
 @Injectable()
 export class TeachersService {
+  private readonly logger = new Logger(TeachersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly photos: PhotosService,
+    private readonly geocoding: GeocodingService,
   ) {}
 
   async list(query: ListTeachersQueryDto) {
@@ -71,8 +75,8 @@ export class TeachersService {
     return { ...teacher, sessions, photoUrl };
   }
 
-  create(dto: CreateTeacherDto) {
-    return this.prisma.teacher.create({
+  async create(dto: CreateTeacherDto) {
+    const teacher = await this.prisma.teacher.create({
       data: {
         name: dto.name,
         subjects: dto.subjects ?? [],
@@ -83,11 +87,27 @@ export class TeachersService {
         verified: true,
       },
     });
+    if (dto.address) this.geocodeAndSave(teacher.id, dto.address);
+    return teacher;
   }
 
   async update(id: string, dto: UpdateTeacherDto) {
     await this.findOneRaw(id);
-    return this.prisma.teacher.update({ where: { id }, data: dto });
+    const teacher = await this.prisma.teacher.update({ where: { id }, data: dto });
+    if (dto.address) this.geocodeAndSave(id, dto.address);
+    return teacher;
+  }
+
+  // Best-effort, en tâche de fond : ne doit jamais retarder ni faire échouer
+  // la création/mise à jour de l'enseignant.
+  private geocodeAndSave(teacherId: string, address: string) {
+    this.geocoding
+      .geocode(address)
+      .then((coords) => {
+        if (!coords) return;
+        return this.prisma.teacher.update({ where: { id: teacherId }, data: coords });
+      })
+      .catch((error) => this.logger.warn(`Géocodage de l'enseignant ${teacherId} échoué: ${error}`));
   }
 
   async setVerified(id: string, verified: boolean) {

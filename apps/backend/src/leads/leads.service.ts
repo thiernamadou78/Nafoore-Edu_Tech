@@ -1,19 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { GeocodingService } from '../geocoding/geocoding.service';
 import { ConvertToStudentDto } from './dto/convert-to-student.dto';
 import { CreateFamilyLeadDto } from './dto/create-family-lead.dto';
 import { CreateLeadNoteDto } from './dto/create-lead-note.dto';
 import { ListLeadsQueryDto } from './dto/list-leads-query.dto';
+import { UpdateLeadAddressDto } from './dto/update-lead-address.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 import { generateQrToken } from '../students/qr-token.util';
 
 @Injectable()
 export class LeadsService {
+  private readonly logger = new Logger(LeadsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly activityLog: ActivityLogService,
+    private readonly geocoding: GeocodingService,
   ) {}
 
   async createFamilyByAdmin(dto: CreateFamilyLeadDto, actorId: string) {
@@ -23,12 +28,23 @@ export class LeadsService {
         name: dto.name,
         email: dto.email,
         phone: dto.phone,
+        address: dto.address ?? null,
         message: 'Famille créée directement depuis l’espace admin.',
         status: 'valide',
       },
     });
 
     await this.activityLog.log(actorId, 'create_family_lead', 'leads', lead.id);
+
+    if (dto.address) {
+      this.geocoding
+        .geocode(dto.address)
+        .then((coords) => {
+          if (!coords) return;
+          return this.prisma.lead.update({ where: { id: lead.id }, data: coords });
+        })
+        .catch((error) => this.logger.warn(`Géocodage du lead ${lead.id} échoué: ${error}`));
+    }
 
     return lead;
   }
@@ -90,6 +106,29 @@ export class LeadsService {
     });
 
     await this.activityLog.log(actorId, 'update_lead_status', 'leads', id);
+
+    return lead;
+  }
+
+  async updateAddress(id: string, dto: UpdateLeadAddressDto, actorId: string) {
+    await this.findOne(id);
+
+    // Reinitialise les coordonnees le temps du nouveau geocodage — evite
+    // d'afficher un pin a l'ancienne position si l'adresse a change.
+    const lead = await this.prisma.lead.update({
+      where: { id },
+      data: { address: dto.address, latitude: null, longitude: null },
+    });
+
+    await this.activityLog.log(actorId, 'update_lead_address', 'leads', id);
+
+    this.geocoding
+      .geocode(dto.address)
+      .then((coords) => {
+        if (!coords) return;
+        return this.prisma.lead.update({ where: { id }, data: coords });
+      })
+      .catch((error) => this.logger.warn(`Géocodage du lead ${id} échoué: ${error}`));
 
     return lead;
   }

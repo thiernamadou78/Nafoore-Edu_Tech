@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
   CalendarClock,
-  GraduationCap,
+  Clock,
+  Contact2,
   Inbox,
   Smile,
   TrendingUp,
@@ -13,7 +14,7 @@ import { api } from '../lib/api'
 import { Alert } from '../components/ui/Alert'
 import { Badge } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
-import { PROFILE_LABELS } from './leads/statusLabels'
+import { DashboardMap } from './DashboardMap'
 import { STATUS_LABELS as APPLICATION_STATUS_LABELS } from './recruitment/statusLabels'
 
 function formatDaysSince(dateString) {
@@ -57,17 +58,18 @@ export function Dashboard() {
   if (error) return <Alert>{error}</Alert>
   if (!summary) return <p className="text-gray-500">Chargement…</p>
 
-  const profileEntries = Object.entries(summary.studentsByProfile).filter(
-    ([, count]) => count > 0,
-  )
-  const maxProfileCount = Math.max(1, ...profileEntries.map(([, count]) => count))
-
   return (
     <div>
       <h1 className="mb-6 text-xl font-semibold text-gray-900">Tableau de bord</h1>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatTile label="Élèves actifs" value={summary.activeStudents} icon={Users} />
+        <StatTile label="Enseignants actifs" value={summary.activeTeachers} icon={Contact2} />
+        <StatTile
+          label="Heures enseignées"
+          value={`${summary.totalHoursTaught.toLocaleString('fr-FR')} h`}
+          icon={Clock}
+        />
         <StatTile label="Leads ce mois-ci" value={summary.leadsThisMonth} icon={Inbox} />
         <StatTile
           label="Taux de conversion lead → inscription"
@@ -77,32 +79,7 @@ export function Dashboard() {
         <StatTile label="Taux de satisfaction" icon={Smile} comingSoon />
       </div>
 
-      <Card className="mb-6 p-6">
-        <h2 className="mb-4 flex items-center gap-2 font-semibold text-gray-900">
-          <GraduationCap size={16} className="text-navy" />
-          Élèves par profil
-        </h2>
-        {profileEntries.length === 0 ? (
-          <p className="text-sm text-gray-500">Aucun élève pour l'instant.</p>
-        ) : (
-          <div className="space-y-3">
-            {profileEntries.map(([profile, count]) => (
-              <div key={profile} className="flex items-center gap-3">
-                <span className="w-24 shrink-0 text-sm text-gray-600">
-                  {PROFILE_LABELS[profile] ?? profile}
-                </span>
-                <div className="h-6 flex-1 overflow-hidden rounded-full bg-gray-100">
-                  <div
-                    className="h-6 rounded-full bg-navy"
-                    style={{ width: `${(count / maxProfileCount) * 100}%` }}
-                  />
-                </div>
-                <span className="w-8 shrink-0 text-right text-sm text-gray-700">{count}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <DashboardMap />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-6">

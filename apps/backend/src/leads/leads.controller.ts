@@ -17,6 +17,7 @@ import { ConvertToStudentDto } from './dto/convert-to-student.dto';
 import { CreateFamilyLeadDto } from './dto/create-family-lead.dto';
 import { CreateLeadNoteDto } from './dto/create-lead-note.dto';
 import { ListLeadsQueryDto } from './dto/list-leads-query.dto';
+import { UpdateLeadAddressDto } from './dto/update-lead-address.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 import { LeadsService } from './leads.service';
 
@@ -63,6 +64,15 @@ export class LeadsController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
     return this.leadsService.updateStatus(id, dto, admin.id);
+  }
+
+  @Patch(':id/address')
+  updateAddress(
+    @Param('id') id: string,
+    @Body() dto: UpdateLeadAddressDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.leadsService.updateAddress(id, dto, admin.id);
   }
 
   @Post(':id/convert-to-student')

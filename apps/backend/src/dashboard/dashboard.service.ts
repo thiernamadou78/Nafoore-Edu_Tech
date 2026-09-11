@@ -16,19 +16,24 @@ export class DashboardService {
 
     const [
       activeStudents,
+      activeTeachers,
       leadsThisMonth,
       totalLeads,
       convertedLeads,
-      studentsWithLead,
+      minutesTaught,
       staleLeads,
       pendingApplications,
     ] = await Promise.all([
       this.prisma.student.count(),
+      this.prisma.teacher.count({ where: { verified: true } }),
       this.prisma.lead.count({ where: { createdAt: { gte: startOfMonth } } }),
       this.prisma.lead.count(),
       this.prisma.lead.count({ where: { status: 'converti' } }),
-      this.prisma.student.findMany({
-        include: { parentLead: { select: { profile: true } } },
+      // Ne compte que les seances avec un pointage de fin confirme (meme
+      // convention que totalMinutesRealized cote portail enseignant/famille).
+      this.prisma.session.aggregate({
+        where: { status: 'realisee', attendanceLogs: { some: { checkoutAt: { not: null } } } },
+        _sum: { durationMinutes: true },
       }),
       this.prisma.lead.findMany({
         where: { status: 'nouveau', createdAt: { lte: staleThreshold } },
@@ -42,31 +47,32 @@ export class DashboardService {
       }),
     ]);
 
-    const studentsByProfile = studentsWithLead.reduce(
-      (acc, student) => {
-        const profile = student.parentLead?.profile ?? 'autre';
-        acc[profile] = (acc[profile] ?? 0) + 1;
-        return acc;
-      },
-      {
-        famille: 0,
-        mairie: 0,
-        entreprise: 0,
-        centre_formation_ecole_pro: 0,
-        autre: 0,
-      } as Record<string, number>,
-    );
-
     return {
       activeStudents,
+      activeTeachers,
+      totalHoursTaught: Math.round((minutesTaught._sum.durationMinutes ?? 0) / 60),
       leadsThisMonth,
       conversionRate: totalLeads > 0 ? convertedLeads / totalLeads : 0,
-      studentsByProfile,
       alerts: {
         staleLeads,
         pendingTeacherApplications: pendingApplications,
       },
     };
+  }
+
+  async getMapData() {
+    const [students, teachers] = await Promise.all([
+      this.prisma.student.findMany({
+        where: { latitude: { not: null }, longitude: { not: null } },
+        select: { id: true, name: true, address: true, latitude: true, longitude: true },
+      }),
+      this.prisma.teacher.findMany({
+        where: { latitude: { not: null }, longitude: { not: null } },
+        select: { id: true, name: true, address: true, latitude: true, longitude: true },
+      }),
+    ]);
+
+    return { students, teachers };
   }
 
   async getNotifications() {

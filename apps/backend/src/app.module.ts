@@ -24,6 +24,7 @@ import { ContractsModule } from './contracts/contracts.module';
 import { RhAccountsModule } from './rh-accounts/rh-accounts.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { PushModule } from './push/push.module';
+import { GeocodingModule } from './geocoding/geocoding.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { PushModule } from './push/push.module';
     EnterprisesModule,
     AttendanceModule,
     PushModule,
+    GeocodingModule,
   ],
 })
 export class AppModule {}

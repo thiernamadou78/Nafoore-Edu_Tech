@@ -19,6 +19,10 @@ model Lead {
   phone            String?
   message          String
   address          String?
+  // Geocodees automatiquement (best-effort) a partir de `address` — servent
+  // au pin "famille" sur la carte du tableau de bord admin.
+  latitude         Float?
+  longitude        Float?
   desiredStartDate DateTime?     @map("desired_start_date")
   childrenCount    Int?          @map("children_count")
   organizationName String?       @map("organization_name")
@@ -78,6 +82,10 @@ model Student {
   sequenceNumber Int               @unique @default(autoincrement()) @map("sequence_number")
   school         String?
   address        String?
+  // Geocodees automatiquement (best-effort) a partir de `address` — servent
+  // au pin "élève" sur la carte du tableau de bord admin.
+  latitude       Float?
+  longitude      Float?
   subjects       String[]          @default([])
   objectives     String?
   isActive       Boolean           @default(true) @map("is_active")
@@ -111,6 +119,10 @@ model Teacher {
   // Adresse (ex-"zone") : le prof se déplace pour un cours en présentiel, ce
   // champ sert surtout de repère géographique général, pas un point exact.
   address     String?
+  // Geocodees automatiquement (best-effort) a partir de `address` — servent
+  // au pin "enseignant" sur la carte du tableau de bord admin.
+  latitude    Float?
+  longitude   Float?
   email       String?
   phone       String?
   photoPath   String?                @map("photo_path")

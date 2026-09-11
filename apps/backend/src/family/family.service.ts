@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PhotosService } from '../photos/photos.service';
+import { GeocodingService } from '../geocoding/geocoding.service';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
 import { CreateFamilyStudentDto } from './dto/create-family-student.dto';
 import { UpdateFamilyStudentDto } from './dto/update-family-student.dto';
@@ -16,9 +17,12 @@ const teacherSelect = {
 
 @Injectable()
 export class FamilyService {
+  private readonly logger = new Logger(FamilyService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly photos: PhotosService,
+    private readonly geocoding: GeocodingService,
   ) {}
 
   me(portalAccount: AuthenticatedPortalAccount) {
@@ -47,8 +51,8 @@ export class FamilyService {
     });
   }
 
-  createStudent(portalAccount: AuthenticatedPortalAccount, dto: CreateFamilyStudentDto) {
-    return this.prisma.student.create({
+  async createStudent(portalAccount: AuthenticatedPortalAccount, dto: CreateFamilyStudentDto) {
+    const student = await this.prisma.student.create({
       data: {
         name: dto.name,
         level: dto.level,
@@ -61,6 +65,8 @@ export class FamilyService {
         qrToken: generateQrToken(),
       },
     });
+    if (dto.address) this.geocodeAndSave(student.id, dto.address);
+    return student;
   }
 
   async updateStudent(
@@ -69,7 +75,7 @@ export class FamilyService {
     dto: UpdateFamilyStudentDto,
   ) {
     await this.assertOwnsStudent(portalAccount, studentId);
-    return this.prisma.student.update({
+    const student = await this.prisma.student.update({
       where: { id: studentId },
       data: {
         name: dto.name,
@@ -81,6 +87,20 @@ export class FamilyService {
         subjects: dto.subjects,
       },
     });
+    if (dto.address) this.geocodeAndSave(studentId, dto.address);
+    return student;
+  }
+
+  // Best-effort, en tâche de fond : ne doit jamais retarder ni faire échouer
+  // la création/mise à jour de l'élève.
+  private geocodeAndSave(studentId: string, address: string) {
+    this.geocoding
+      .geocode(address)
+      .then((coords) => {
+        if (!coords) return;
+        return this.prisma.student.update({ where: { id: studentId }, data: coords });
+      })
+      .catch((error) => this.logger.warn(`Géocodage de l'élève ${studentId} échoué: ${error}`));
   }
 
   private async assertOwnsStudent(portalAccount: AuthenticatedPortalAccount, studentId: string) {

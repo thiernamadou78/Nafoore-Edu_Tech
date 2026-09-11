@@ -19,4 +19,9 @@ export class DashboardController {
   getNotifications() {
     return this.dashboardService.getNotifications();
   }
+
+  @Get('map')
+  getMapData() {
+    return this.dashboardService.getMapData();
+  }
 }

@@ -5,6 +5,7 @@ import {
   KeyRound,
   MapPin,
   MessageSquarePlus,
+  Pencil,
   RefreshCw,
   UserPlus,
 } from 'lucide-react'
@@ -31,6 +32,8 @@ export function LeadDetail() {
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
   const [confirmModal, setConfirmModal] = useState(null) // null | 'validate' | 'resend'
+  const [editingAddress, setEditingAddress] = useState(false)
+  const [addressDraft, setAddressDraft] = useState('')
 
   const load = () => api.get(`/leads/${id}`).then(setLead)
 
@@ -71,6 +74,18 @@ export function LeadDetail() {
     }
   }
 
+  const startEditingAddress = () => {
+    setAddressDraft(lead.address ?? '')
+    setEditingAddress(true)
+  }
+
+  const handleSaveAddress = () =>
+    run('address', async () => {
+      const updated = await api.patch(`/leads/${id}/address`, { address: addressDraft })
+      setLead((prev) => ({ ...prev, ...updated }))
+      setEditingAddress(false)
+    })
+
   if (!lead) {
     return error ? <Alert>{error}</Alert> : <p className="text-gray-500">Chargement…</p>
   }
@@ -102,10 +117,60 @@ export function LeadDetail() {
               <p>{lead.email}</p>
               {lead.phone && <p>{lead.phone}</p>}
             </div>
-            {lead.address && (
-              <div className="mt-3 flex items-start gap-1.5 border-t border-gray-100 pt-3 text-sm text-gray-700">
-                <MapPin size={15} className="mt-0.5 shrink-0 text-gray-400" />
-                <span>{lead.address}</span>
+            {lead.profile === 'famille' && (
+              <div className="mt-3 border-t border-gray-100 pt-3">
+                {editingAddress ? (
+                  <div className="space-y-2">
+                    <input
+                      autoFocus
+                      value={addressDraft}
+                      onChange={(e) => setAddressDraft(e.target.value)}
+                      placeholder="Quartier, commune, ville…"
+                      className={inputClass}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        loading={savingAction === 'address'}
+                        disabled={!addressDraft.trim()}
+                        onClick={handleSaveAddress}
+                        className="px-3 py-1.5 text-xs"
+                      >
+                        Enregistrer
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setEditingAddress(false)}
+                        className="px-3 py-1.5 text-xs"
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </div>
+                ) : lead.address ? (
+                  <div className="flex items-start justify-between gap-2 text-sm text-gray-700">
+                    <div className="flex items-start gap-1.5">
+                      <MapPin size={15} className="mt-0.5 shrink-0 text-gray-400" />
+                      <span>{lead.address}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={startEditingAddress}
+                      className="shrink-0 text-gray-400 hover:text-navy"
+                      title="Modifier l'adresse"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startEditingAddress}
+                    className="flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:underline"
+                  >
+                    <MapPin size={15} />
+                    Ajouter une adresse
+                  </button>
+                )}
               </div>
             )}
             {(lead.desiredStartDate || lead.childrenCount) && (
