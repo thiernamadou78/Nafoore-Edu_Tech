@@ -14,7 +14,10 @@ import {
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
+import { isPushSupported, subscribeToPush } from '../lib/pushNotifications'
 import logoSrc from './Logo.png'
+
+const PUSH_BANNER_DISMISSED_KEY = 'nafoore-enseignant-push-dismissed'
 
 const NAV_LINKS = [
   { to: '/', label: 'Tableau de bord', icon: Home },
@@ -37,6 +40,31 @@ export function TeacherLayout() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [moreOpen, setMoreOpen] = useState(false)
   const moreRef = useRef(null)
+  const [showPushBanner, setShowPushBanner] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
+  const [pushError, setPushError] = useState(null)
+
+  useEffect(() => {
+    if (!isPushSupported()) return
+    const dismissed = localStorage.getItem(PUSH_BANNER_DISMISSED_KEY) === '1'
+    if (!dismissed && Notification.permission === 'default') {
+      setShowPushBanner(true)
+    }
+  }, [])
+
+  const handleEnablePush = () => {
+    setPushLoading(true)
+    setPushError(null)
+    subscribeToPush(api)
+      .then(() => setShowPushBanner(false))
+      .catch((err) => setPushError(err.message))
+      .finally(() => setPushLoading(false))
+  }
+
+  const dismissPushBanner = () => {
+    localStorage.setItem(PUSH_BANNER_DISMISSED_KEY, '1')
+    setShowPushBanner(false)
+  }
 
   const refreshUnreadCount = useCallback(() => {
     return api
@@ -111,6 +139,35 @@ export function TeacherLayout() {
         </nav>
       </header>
       <div className="h-[3px] bg-gradient-to-r from-gold-500 via-gold-400 to-gold-500" />
+
+      {showPushBanner && (
+        <div className="border-b border-gold-400/30 bg-gold-400/10 px-6 py-2.5">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-navy">
+              Active les notifications pour être rappelé de scanner en début et fin de séance.
+            </span>
+            <div className="flex items-center gap-3">
+              {pushError && <span className="text-xs text-red-600">{pushError}</span>}
+              <button
+                type="button"
+                onClick={handleEnablePush}
+                disabled={pushLoading}
+                className="rounded-full bg-navy px-3 py-1.5 text-xs font-semibold text-white hover:bg-navy/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {pushLoading ? 'Activation…' : 'Activer les notifications'}
+              </button>
+              <button
+                type="button"
+                onClick={dismissPushBanner}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                Plus tard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="mx-auto max-w-5xl px-6 py-8 pb-24 sm:pb-8">
         <Outlet context={{ refreshUnreadCount }} />
       </main>

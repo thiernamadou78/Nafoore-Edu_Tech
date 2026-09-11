@@ -25,10 +25,14 @@ export function CreateChild() {
   const [searchParams] = useSearchParams()
   const leadId = searchParams.get('leadId')
   const familyName = searchParams.get('familyName')
+  // Preremplie depuis l'adresse donnee par la famille au formulaire de
+  // contact : l'enfant vit generalement au meme endroit, et c'est ce champ
+  // qui sert a proposer un enseignant proche geographiquement.
+  const leadAddress = searchParams.get('address') ?? ''
 
   const formRef = useRef(null)
   const photoInputRef = useRef(null)
-  const [form, setForm] = useState(DEFAULT_FORM)
+  const [form, setForm] = useState({ ...DEFAULT_FORM, address: leadAddress })
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -104,7 +108,7 @@ export function CreateChild() {
     const ok = await submitChild()
     if (ok) {
       setAddedCount((count) => count + 1)
-      setForm(DEFAULT_FORM)
+      setForm({ ...DEFAULT_FORM, address: leadAddress })
       resetPhoto()
     }
   }

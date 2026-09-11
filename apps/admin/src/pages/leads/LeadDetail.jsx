@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   KeyRound,
+  MapPin,
   MessageSquarePlus,
   RefreshCw,
   UserPlus,
@@ -101,6 +102,12 @@ export function LeadDetail() {
               <p>{lead.email}</p>
               {lead.phone && <p>{lead.phone}</p>}
             </div>
+            {lead.address && (
+              <div className="mt-3 flex items-start gap-1.5 border-t border-gray-100 pt-3 text-sm text-gray-700">
+                <MapPin size={15} className="mt-0.5 shrink-0 text-gray-400" />
+                <span>{lead.address}</span>
+              </div>
+            )}
             {(lead.desiredStartDate || lead.childrenCount) && (
               <div className="mt-3 flex gap-6 border-t border-gray-100 pt-3">
                 {lead.desiredStartDate && (
@@ -194,11 +201,11 @@ export function LeadDetail() {
               <Button
                 variant="secondary"
                 icon={UserPlus}
-                onClick={() =>
-                  navigate(
-                    `/leads/nouvelle/enfants?leadId=${id}&familyName=${encodeURIComponent(lead.name)}`,
-                  )
-                }
+                onClick={() => {
+                  const params = new URLSearchParams({ leadId: id, familyName: lead.name })
+                  if (lead.address) params.set('address', lead.address)
+                  navigate(`/leads/nouvelle/enfants?${params.toString()}`)
+                }}
               >
                 Ajouter un enfant
               </Button>

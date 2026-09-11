@@ -70,7 +70,11 @@ function describeResult(result) {
         message: `${name} est déjà pointé(e) à l'arrivée — pas besoin de rescanner tout de suite.`,
       }
     }
-    return { variant: 'success', title: 'Bienvenue !', message: `${name} — bonne séance.` }
+    return {
+      variant: 'success',
+      title: 'Arrivée enregistrée',
+      message: `${name} est bien arrivé(e) — bonne séance !`,
+    }
   }
   if (result.action === 'checkout') {
     vibrate(VIBRATION.success)
@@ -125,6 +129,9 @@ export function Pointage() {
   const [result, setResult] = useState(null)
   const [starting, setStarting] = useState(true)
   const [paused, setPaused] = useState(false)
+  const [showReasonField, setShowReasonField] = useState(false)
+  const [earlyReason, setEarlyReason] = useState('')
+  const [confirmingEarly, setConfirmingEarly] = useState(false)
 
   useEffect(() => {
     const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID)
@@ -173,10 +180,34 @@ export function Pointage() {
   const resumeScanning = () => {
     setResult(null)
     setPaused(false)
+    setShowReasonField(false)
+    setEarlyReason('')
     scanningRef.current = true
   }
 
-  const feedback = result && !result.error ? describeResult(result) : null
+  const handleConfirmEarlyCheckout = async (e) => {
+    e.preventDefault()
+    if (!earlyReason.trim()) return
+    setConfirmingEarly(true)
+    try {
+      const scanResult = await api.post('/teacher/attendance/checkout-confirm', {
+        sessionId: result.sessionId,
+        reason: earlyReason,
+      })
+      vibrate(VIBRATION.success)
+      setResult(scanResult)
+      setShowReasonField(false)
+      setEarlyReason('')
+    } catch (err) {
+      vibrate(VIBRATION.attention)
+      setResult({ error: err.message })
+    } finally {
+      setConfirmingEarly(false)
+    }
+  }
+
+  const isEarlyCheckoutConfirm = result?.action === 'checkout_confirm_required'
+  const feedback = result && !result.error && !isEarlyCheckoutConfirm ? describeResult(result) : null
 
   return (
     <div className="mx-auto max-w-xl">
@@ -184,6 +215,72 @@ export function Pointage() {
 
       {cameraError && <Alert>{cameraError}</Alert>}
       {result?.error && <Alert>{result.error}</Alert>}
+
+      {isEarlyCheckoutConfirm && (
+        <div className="mb-4 overflow-hidden rounded-2xl bg-amber-500 text-white shadow-lg shadow-black/10">
+          <div className="flex items-start gap-4 px-5 py-5">
+            <AlertTriangle size={40} strokeWidth={1.75} className="mt-0.5 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold leading-tight">Fin de séance anticipée</p>
+              <p className="mt-1 text-sm leading-snug text-white/90">
+                Il vous reste {result.remainingMinutes} minute{result.remainingMinutes > 1 ? 's' : ''} sur
+                la séance de {result.student?.name ?? 'cet élève'}. Voulez-vous confirmer la fin de
+                séance ?
+              </p>
+
+              {!showReasonField ? (
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowReasonField(true)}
+                    className="rounded-full bg-white px-3.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-white/90"
+                  >
+                    Oui, terminer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resumeScanning}
+                    className="rounded-full bg-black/10 px-3.5 py-1.5 text-xs font-bold hover:bg-black/20"
+                  >
+                    Non, annuler
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleConfirmEarlyCheckout} className="mt-3 space-y-2">
+                  <textarea
+                    autoFocus
+                    required
+                    value={earlyReason}
+                    onChange={(e) => setEarlyReason(e.target.value)}
+                    rows={2}
+                    placeholder="Raison de la fin anticipée…"
+                    className="w-full resize-none rounded-lg border-0 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={confirmingEarly || !earlyReason.trim()}
+                      className="rounded-full bg-white px-3.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {confirmingEarly ? 'Confirmation…' : 'Confirmer la fin de séance'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowReasonField(false)
+                        setEarlyReason('')
+                      }}
+                      className="rounded-full bg-black/10 px-3.5 py-1.5 text-xs font-bold hover:bg-black/20"
+                    >
+                      Retour
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {feedback && (
         <div

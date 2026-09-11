@@ -9,6 +9,7 @@ import { UpsertRecurringScheduleDto } from './dto/upsert-recurring-schedule.dto'
 import { SendMessageDto } from './dto/send-message.dto';
 import { StartThreadDto } from './dto/start-thread.dto';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
+import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
 
 @UseGuards(TeacherAuthGuard)
@@ -153,12 +154,26 @@ export class TeacherController {
     return this.teacherService.listMyReviews(teacherAccount);
   }
 
+  @Get('support')
+  listSupportTickets(@CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount) {
+    return this.teacherService.listMySupportTickets(teacherAccount);
+  }
+
   @Post('support')
   createSupportTicket(
     @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
     @Body() dto: CreateSupportTicketDto,
   ) {
     return this.teacherService.createSupportTicket(teacherAccount, dto);
+  }
+
+  @Post('support/:id/messages')
+  replyToSupportTicket(
+    @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
+    @Param('id') id: string,
+    @Body() dto: ReplySupportTicketDto,
+  ) {
+    return this.teacherService.replyToSupportTicket(teacherAccount, id, dto);
   }
 
   @Post('reminders/simulate')

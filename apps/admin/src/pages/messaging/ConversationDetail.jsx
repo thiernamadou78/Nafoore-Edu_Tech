@@ -3,7 +3,6 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Alert } from '../../components/ui/Alert'
-import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 
@@ -108,14 +107,12 @@ export function ConversationDetail() {
         <div className="space-y-4">
           {thread.messages.map((message) => {
             const isFamily = message.sender !== 'teacher'
+            const senderName = isFamily
+              ? (thread.familyLeadName ?? thread.familyName)
+              : thread.teacherName
             return (
               <div key={message.id} className={`flex flex-col ${isFamily ? 'items-end' : 'items-start'}`}>
-                <div className="mb-1 flex items-center gap-1.5 px-1 text-xs text-gray-400">
-                  <Badge tone={isFamily ? 'green' : 'blue'} className="px-1.5 py-0">
-                    {isFamily ? 'Famille' : 'Enseignant'}
-                  </Badge>
-                  {formatTime(message.createdAt)}
-                </div>
+                <p className="mb-1 px-1 text-xs font-medium text-gray-400">{senderName}</p>
                 <div
                   className={`max-w-[75%] rounded-xl px-3.5 py-2 text-sm ${
                     message.removedAt
@@ -125,7 +122,14 @@ export function ConversationDetail() {
                         : 'bg-gray-100 text-gray-800'
                   }`}
                 >
-                  <p>{message.body}</p>
+                  <p className="whitespace-pre-wrap">{message.body}</p>
+                  <p
+                    className={`mt-1 text-[11px] ${
+                      !message.removedAt && isFamily ? 'text-white/60' : 'text-gray-400'
+                    }`}
+                  >
+                    {formatTime(message.createdAt)}
+                  </p>
                 </div>
 
                 {message.removedAt ? (

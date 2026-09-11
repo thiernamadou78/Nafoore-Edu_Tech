@@ -37,6 +37,13 @@ export class CreateContactDto {
   @MaxLength(2000)
   message: string;
 
+  // Renseignee par les familles pour permettre de proposer un enseignant
+  // proche geographiquement (deplacement au domicile).
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  address?: string;
+
   @IsOptional()
   @IsDateString()
   desiredStartDate?: string;

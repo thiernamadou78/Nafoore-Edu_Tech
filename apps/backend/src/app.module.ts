@@ -23,6 +23,7 @@ import { FormulasModule } from './formulas/formulas.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { RhAccountsModule } from './rh-accounts/rh-accounts.module';
 import { AttendanceModule } from './attendance/attendance.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { AttendanceModule } from './attendance/attendance.module';
     RhAccountsModule,
     EnterprisesModule,
     AttendanceModule,
+    PushModule,
   ],
 })
 export class AppModule {}

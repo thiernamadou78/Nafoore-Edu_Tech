@@ -202,6 +202,9 @@ export function Messagerie() {
               <Button type="submit" disabled={starting}>
                 Envoyer à l'équipe
               </Button>
+              <p className="text-xs text-gray-400">
+                Tu retrouveras ce message et la réponse de l'équipe dans l'onglet Support.
+              </p>
             </form>
           )}
         </Card>

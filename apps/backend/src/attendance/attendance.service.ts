@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ManualAttendanceDto } from './dto/manual-attendance.dto';
 import { ScanAttendanceDto } from './dto/scan-attendance.dto';
+import { ConfirmEarlyCheckoutDto } from './dto/confirm-early-checkout.dto';
 
 const SCAN_WINDOW_MINUTES = 30;
 const SESSION_LOOKUP_WINDOW_HOURS = 6;
@@ -12,11 +13,13 @@ const MIN_MINUTES_BEFORE_CHECKOUT = 3;
 
 export interface ScanResult {
   verificationStatus: 'valid' | 'pass_revoked' | 'funding_expired' | 'no_session_found';
-  action: 'checkin' | 'checkout' | null;
+  action: 'checkin' | 'checkout' | 'checkout_confirm_required' | null;
   student: { id: string; name: string } | null;
   durationMinutes?: number;
   alreadyCheckedIn?: boolean;
   nearestSessionAt?: Date | null;
+  remainingMinutes?: number;
+  sessionId?: string;
 }
 
 @Injectable()
@@ -88,6 +91,23 @@ export class AttendanceService {
     }
 
     const checkoutAt = new Date();
+    const scheduledEnd = new Date(session.date.getTime() + session.durationMinutes * 60_000);
+    if (checkoutAt.getTime() < scheduledEnd.getTime()) {
+      // Fin anticipee : on ne cloture rien tant que le prof n'a pas confirme
+      // explicitement (voir confirmEarlyCheckout) — évite qu'un scan
+      // accidentel ne clôture une séance en cours.
+      const remainingMinutes = Math.ceil(
+        (scheduledEnd.getTime() - checkoutAt.getTime()) / 60_000,
+      );
+      return {
+        verificationStatus: 'valid',
+        action: 'checkout_confirm_required',
+        student: studentSummary,
+        remainingMinutes,
+        sessionId: session.id,
+      };
+    }
+
     await this.prisma.attendanceLog.update({
       where: { id: openLog.id },
       data: { checkoutAt },
@@ -105,6 +125,45 @@ export class AttendanceService {
       verificationStatus: 'valid',
       action: 'checkout',
       student: studentSummary,
+      durationMinutes,
+    };
+  }
+
+  async confirmEarlyCheckout(teacherId: string, dto: ConfirmEarlyCheckoutDto): Promise<ScanResult> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: dto.sessionId },
+      include: { student: { select: { id: true, name: true } } },
+    });
+    if (!session || session.teacherId !== teacherId) {
+      throw new NotFoundException('Séance introuvable');
+    }
+
+    const openLog = await this.prisma.attendanceLog.findFirst({
+      where: { sessionId: session.id, checkoutAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!openLog) {
+      throw new NotFoundException('Aucun pointage en cours pour cette séance');
+    }
+
+    const checkoutAt = new Date();
+    await this.prisma.attendanceLog.update({
+      where: { id: openLog.id },
+      data: { checkoutAt, earlyEndReason: dto.reason },
+    });
+    const durationMinutes = Math.max(
+      1,
+      Math.round((checkoutAt.getTime() - (openLog.checkinAt as Date).getTime()) / 60000),
+    );
+    await this.prisma.session.update({
+      where: { id: session.id },
+      data: { status: 'realisee', attended: true, durationMinutes },
+    });
+
+    return {
+      verificationStatus: 'valid',
+      action: 'checkout',
+      student: { id: session.student.id, name: session.student.name },
       durationMinutes,
     };
   }

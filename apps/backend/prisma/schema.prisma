@@ -18,6 +18,7 @@ model Lead {
   email            String
   phone            String?
   message          String
+  address          String?
   desiredStartDate DateTime?     @map("desired_start_date")
   childrenCount    Int?          @map("children_count")
   organizationName String?       @map("organization_name")
@@ -127,6 +128,7 @@ model Teacher {
   progressEntries ProgressEntry[]
   recurringSchedules RecurringSchedule[]
   documents   TeacherDocument[]
+  pushSubscriptions PushSubscription[]
 
   @@map("teachers")
 }
@@ -189,15 +191,27 @@ model TeacherReview {
 }
 
 model SupportTicket {
-  id        String   @id @default(cuid())
-  teacherId String   @map("teacher_id")
-  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  id        String            @id @default(cuid())
+  teacherId String            @map("teacher_id")
+  teacher   Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   subject   String
   message   String
-  status    String   @default("ouvert") // ouvert | traite
-  createdAt DateTime @default(now()) @map("created_at")
+  status    String            @default("ouvert") // ouvert | traite
+  messages  SupportMessage[]
+  createdAt DateTime          @default(now()) @map("created_at")
 
   @@map("support_tickets")
+}
+
+model SupportMessage {
+  id        String        @id @default(cuid())
+  ticketId  String        @map("ticket_id")
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender    String        // teacher | admin
+  body      String
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@map("support_messages")
 }
 
 model Testimonial {
@@ -423,8 +437,26 @@ model Session {
   attendanceLogs AttendanceLog[]
   scheduleId String?  @map("schedule_id")
   schedule   RecurringSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  // Evite de renvoyer plusieurs fois le rappel push "pense a scanner" au
+  // debut / a la fin de la seance (cron qui tourne toutes les minutes).
+  checkinReminderSentAt  DateTime? @map("checkin_reminder_sent_at")
+  checkoutReminderSentAt DateTime? @map("checkout_reminder_sent_at")
 
   @@map("sessions")
+}
+
+// Abonnement Web Push d'un enseignant (un par appareil/navigateur).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  teacherId String   @map("teacher_id")
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([teacherId])
+  @@map("push_subscriptions")
 }
 
 // Planning recurrent d'un eleve avec un enseignant (ex: 2x/semaine, lundi
@@ -774,6 +806,8 @@ model AttendanceLog {
   // qr_scan | manuel
   manualReason       String?   @map("manual_reason")
   // qr_oublie | probleme_technique | autre
+  earlyEndReason     String?   @map("early_end_reason")
+  // Raison donnee par le prof quand il confirme une fin de seance anticipee
   createdAt          DateTime  @default(now()) @map("created_at")
 
   @@index([studentId])

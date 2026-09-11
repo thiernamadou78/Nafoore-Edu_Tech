@@ -23,6 +23,7 @@ export default function ContactForm() {
     email: '',
     phone: '',
     message: '',
+    address: '',
     desiredStartDate: '',
     childrenCount: '',
   })
@@ -41,6 +42,7 @@ export default function ContactForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          address: form.profile === 'famille' && form.address ? form.address : undefined,
           desiredStartDate: form.desiredStartDate || undefined,
           childrenCount:
             form.profile === 'famille' && form.childrenCount ? Number(form.childrenCount) : undefined,
@@ -58,6 +60,7 @@ export default function ContactForm() {
         email: '',
         phone: '',
         message: '',
+        address: '',
         desiredStartDate: '',
         childrenCount: '',
       })
@@ -196,6 +199,26 @@ export default function ContactForm() {
                     className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                   />
                 </div>
+
+                {/* Adresse (famille) : indispensable pour proposer un enseignant proche du domicile */}
+                {form.profile === 'famille' && (
+                  <div className="mb-4">
+                    <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                      Adresse <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      name="address"
+                      value={form.address}
+                      onChange={handleChange}
+                      required
+                      placeholder="Quartier, commune, ville…"
+                      className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
+                    />
+                    <p className="mt-1 font-sans text-[11px] text-gray-400">
+                      Nous permet de vous proposer un enseignant à la fois expérimenté et proche de chez vous.
+                    </p>
+                  </div>
+                )}
 
                 {/* Date de début souhaitée + nombre d'enfants (famille) */}
                 <div className={`grid gap-4 mb-4 ${form.profile === 'famille' ? 'sm:grid-cols-2' : ''}`}>

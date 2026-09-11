@@ -16,6 +16,7 @@ import { UpdateTeacherSessionDto } from './dto/update-teacher-session.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { StartThreadDto } from './dto/start-thread.dto';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
+import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
 import { redactRemovedMessage, countUnread } from '../common/redact-message.util';
 
@@ -536,6 +537,33 @@ export class TeacherService {
         subject: dto.subject,
         message: dto.message,
       },
+    });
+  }
+
+  async listMySupportTickets(teacherAccount: AuthenticatedTeacherAccount) {
+    if (!teacherAccount.teacherId) return [];
+    return this.prisma.supportTicket.findMany({
+      where: { teacherId: teacherAccount.teacherId },
+      include: { messages: { orderBy: { createdAt: 'asc' } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async replyToSupportTicket(
+    teacherAccount: AuthenticatedTeacherAccount,
+    ticketId: string,
+    dto: ReplySupportTicketDto,
+  ) {
+    const ticket = await this.prisma.supportTicket.findUnique({ where: { id: ticketId } });
+    if (!ticket || ticket.teacherId !== teacherAccount.teacherId) {
+      throw new NotFoundException('Ticket introuvable');
+    }
+    await this.prisma.supportMessage.create({
+      data: { ticketId, sender: 'teacher', body: dto.body },
+    });
+    return this.prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+      include: { messages: { orderBy: { createdAt: 'asc' } } },
     });
   }
 

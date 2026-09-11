@@ -5,6 +5,7 @@ import { renderModerationWarningEmail } from '../email/templates/moderation-warn
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { ModerateMessageDto } from './dto/moderate-message.dto';
 import { UpdateSupportTicketDto } from './dto/update-support-ticket.dto';
+import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 
 @Injectable()
 export class AdminMessagingService {
@@ -115,7 +116,10 @@ export class AdminMessagingService {
 
   listSupportTickets() {
     return this.prisma.supportTicket.findMany({
-      include: { teacher: { select: { name: true } } },
+      include: {
+        teacher: { select: { name: true } },
+        messages: { orderBy: { createdAt: 'asc' } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -126,5 +130,22 @@ export class AdminMessagingService {
       throw new NotFoundException('Ticket introuvable');
     }
     return this.prisma.supportTicket.update({ where: { id }, data: { status: dto.status } });
+  }
+
+  async replySupportTicket(id: string, dto: ReplySupportTicketDto) {
+    const ticket = await this.prisma.supportTicket.findUnique({ where: { id } });
+    if (!ticket) {
+      throw new NotFoundException('Ticket introuvable');
+    }
+    await this.prisma.supportMessage.create({
+      data: { ticketId: id, sender: 'admin', body: dto.body },
+    });
+    return this.prisma.supportTicket.findUnique({
+      where: { id },
+      include: {
+        teacher: { select: { name: true } },
+        messages: { orderBy: { createdAt: 'asc' } },
+      },
+    });
   }
 }
