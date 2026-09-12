@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, UserPlus } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDate } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
@@ -93,7 +94,7 @@ export function TeacherRequestsList() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-gray-500">
-                    {new Date(request.createdAt).toLocaleDateString('fr-FR')}
+                    {formatDate(request.createdAt)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <ChevronRight size={16} className="text-gray-300" />

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDate, formatDateTime } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -48,9 +49,7 @@ function ModerateForm({ onCancel, onConfirm, saving }) {
   )
 }
 
-function formatTime(date) {
-  return new Date(date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-}
+const formatTime = formatDateTime
 
 export function ConversationDetail() {
   const { id } = useParams()
@@ -134,7 +133,7 @@ export function ConversationDetail() {
 
                 {message.removedAt ? (
                   <p className="mt-1 max-w-[75%] px-1 text-xs text-red-600">
-                    Retiré le {new Date(message.removedAt).toLocaleDateString('fr-FR')} par{' '}
+                    Retiré le {formatDate(message.removedAt)} par{' '}
                     {message.removedBy?.name ?? 'un admin'} — motif : {message.removedReason}
                   </p>
                 ) : moderatingId === message.id ? (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Star } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDate } from '../lib/format'
 import { Card } from '../components/ui/Card'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
@@ -70,7 +71,7 @@ export function Avis() {
               </div>
               {review.comment && <p className="text-sm text-gray-700">{review.comment}</p>}
               <p className="mt-2 text-xs text-gray-400">
-                {new Date(review.createdAt).toLocaleDateString('fr-FR', { dateStyle: 'long' })}
+                {formatDate(review.createdAt)}
               </p>
             </Card>
           ))}

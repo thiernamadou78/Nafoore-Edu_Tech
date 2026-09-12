@@ -10,13 +10,14 @@ import {
   UserPlus,
 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDate, formatDateTime } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
 import { Timeline } from '../../components/ui/Timeline'
-import { LEAD_STATUS_LABELS, LEAD_STATUS_TONES, PROFILE_LABELS } from './statusLabels'
+import { LEAD_STATUS_LABELS, LEAD_STATUS_TONES, PROFILE_LABELS, SERVICE_LABELS } from './statusLabels'
 import { CLASSE_LABELS, LEVEL_LABELS } from '../students/labels'
 
 const VALIDATABLE_STATUSES = ['en_verification', 'valide']
@@ -112,6 +113,11 @@ export function LeadDetail() {
                 {LEAD_STATUS_LABELS[lead.status] ?? lead.status}
               </Badge>
               <Badge tone="gray">{PROFILE_LABELS[lead.profile] ?? lead.profile}</Badge>
+              {lead.services?.map((service) => (
+                <Badge key={service} tone="gold">
+                  {SERVICE_LABELS[service] ?? service}
+                </Badge>
+              ))}
             </div>
             <div className="mt-3 space-y-0.5 text-sm text-gray-600">
               <p>{lead.email}</p>
@@ -181,9 +187,7 @@ export function LeadDetail() {
                       Début souhaité
                     </p>
                     <p className="text-sm text-gray-700">
-                      {new Date(lead.desiredStartDate).toLocaleDateString('fr-FR', {
-                        dateStyle: 'long',
-                      })}
+                      {formatDate(lead.desiredStartDate)}
                     </p>
                   </div>
                 )}
@@ -303,7 +307,7 @@ export function LeadDetail() {
                     <p className="text-sm text-gray-700">{note.note}</p>
                     <p className="text-xs text-gray-400">
                       {note.adminAccount.name} ·{' '}
-                      {new Date(note.createdAt).toLocaleString('fr-FR')}
+                      {formatDateTime(note.createdAt)}
                     </p>
                   </>
                 )}

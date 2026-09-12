@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarClock, FileWarning, GraduationCap, Sparkles, Users } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDateTime } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -88,10 +89,7 @@ export function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-500">
-                    {new Date(session.date).toLocaleString('fr-FR', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
+                    {formatDateTime(session.date)}
                   </span>
                   <Badge tone={SESSION_STATUS_TONES[session.status] ?? 'gray'}>
                     {SESSION_STATUS_LABELS[session.status] ?? session.status}

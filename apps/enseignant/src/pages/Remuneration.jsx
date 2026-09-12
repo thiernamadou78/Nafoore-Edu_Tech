@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarClock, Euro } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDate } from '../lib/format'
 import { Badge } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
 import { EmptyState } from '../components/ui/EmptyState'
@@ -86,7 +87,7 @@ export function Remuneration() {
                       {session.subject && <span className="font-normal text-gray-500"> · {session.subject}</span>}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {new Date(session.date).toLocaleDateString('fr-FR', { dateStyle: 'medium' })}
+                      {formatDate(session.date)}
                       {session.checkinAt && session.checkoutAt && (
                         <> · {formatTime(session.checkinAt)} – {formatTime(session.checkoutAt)}</>
                       )}

@@ -18,6 +18,11 @@ model Lead {
   email            String
   phone            String?
   message          String
+  // aide_devoirs | soutien_scolaire | preparation_brevet | preparation_bac |
+  // coaching_methodologique | stages_vacances | accompagnement_bilingue
+  // Plusieurs possibles : une famille peut avoir plusieurs enfants avec des
+  // besoins differents.
+  services         String[]      @default([])
   address          String?
   // Geocodees automatiquement (best-effort) a partir de `address` — servent
   // au pin "famille" sur la carte du tableau de bord admin.

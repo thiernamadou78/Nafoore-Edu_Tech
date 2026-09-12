@@ -1,4 +1,6 @@
 import {
+  ArrayMinSize,
+  IsArray,
   IsDateString,
   IsEmail,
   IsIn,
@@ -12,6 +14,16 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export const CONTACT_SERVICES = [
+  'aide_devoirs',
+  'soutien_scolaire',
+  'preparation_brevet',
+  'preparation_bac',
+  'coaching_methodologique',
+  'stages_vacances',
+  'accompagnement_bilingue',
+] as const;
 
 export class CreateContactDto {
   @IsIn(['famille', 'mairie', 'entreprise', 'centre_formation_ecole_pro'], {
@@ -37,6 +49,13 @@ export class CreateContactDto {
   @MinLength(10, { message: 'Le message doit faire au moins 10 caractères' })
   @MaxLength(2000)
   message: string;
+
+  // Sert a l'admin pour qualifier le contact et preparer un devis adapte.
+  // Plusieurs possibles (ex: une famille avec des enfants aux besoins differents).
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Choisissez au moins un service' })
+  @IsIn(CONTACT_SERVICES, { each: true, message: 'Service invalide' })
+  services: string[];
 
   // Obligatoire pour les familles (permet de proposer un enseignant proche
   // geographiquement) ; sans objet pour les autres profils (mairie,

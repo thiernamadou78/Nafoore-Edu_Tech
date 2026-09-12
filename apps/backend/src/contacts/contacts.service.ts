@@ -20,6 +20,7 @@ export class ContactsService {
         email: dto.email,
         phone: dto.phone ?? null,
         message: dto.message,
+        services: dto.services,
         address: dto.address ?? null,
         desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : null,
         childrenCount: dto.childrenCount ?? null,

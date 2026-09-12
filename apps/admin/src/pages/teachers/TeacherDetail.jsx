@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarClock, Download, FileText, Power, Save, Trash2, Upload } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDate, formatDateTime } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -206,7 +207,7 @@ export function TeacherDetail() {
                   <span className="font-medium text-gray-900">{doc.fileName}</span>
                   <span className="ml-2 text-gray-500">
                     {TEACHER_DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type} · {doc.uploadedBy.name} ·{' '}
-                    {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
+                    {formatDate(doc.createdAt)}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -314,10 +315,7 @@ export function TeacherDetail() {
                   <td className="px-4 py-3 text-gray-700">{session.familyName}</td>
                   <td className="px-4 py-3 text-gray-700">{session.subject ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-700">
-                    {new Date(session.date).toLocaleString('fr-FR', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
+                    {formatDateTime(session.date)}
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={SESSION_STATUS_TONES[session.status]}>

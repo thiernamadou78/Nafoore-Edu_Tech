@@ -35,6 +35,11 @@ export async function subscribeToPush(api) {
   let subscription = await registration.pushManager.getSubscription()
   if (!subscription) {
     const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+    if (!vapidKey) {
+      throw new Error(
+        "Notifications indisponibles pour l'instant (configuration manquante). Contactez l'équipe Nafoore Education.",
+      )
+    }
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey),

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { LifeBuoy, Send, SquarePen } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDateTime as formatTime } from '../lib/format'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -12,10 +13,6 @@ const inputClass =
 
 const STATUS_LABELS = { ouvert: 'Ouvert', traite: 'Traité' }
 const STATUS_TONES = { ouvert: 'amber', traite: 'green' }
-
-function formatTime(date) {
-  return new Date(date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-}
 
 export function Support() {
   const [tickets, setTickets] = useState(null)

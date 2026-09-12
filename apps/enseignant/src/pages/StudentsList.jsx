@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarClock, GraduationCap } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDateTime } from '../lib/format'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -49,10 +50,7 @@ function StudentCard({ student }) {
           <CalendarClock size={15} className="shrink-0 text-gray-400" />
           {student.nextSession ? (
             <span>
-              {new Date(student.nextSession.date).toLocaleString('fr-FR', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
+              {formatDateTime(student.nextSession.date)}
             </span>
           ) : (
             <span className="text-gray-500">Aucune séance planifiée</span>

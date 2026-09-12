@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, LifeBuoy, Loader2, RotateCcw, Send } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDate, formatDateTime } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -14,9 +15,7 @@ const STATUS_TONES = { ouvert: 'amber', traite: 'green' }
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
-function formatTime(date) {
-  return new Date(date).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
-}
+const formatTime = formatDateTime
 
 function TicketDetailModal({ ticket, onClose, onChanged }) {
   const [reply, setReply] = useState('')
@@ -178,7 +177,7 @@ export function SupportTicketsList() {
                   <td className="px-4 py-3 text-gray-700">{ticket.subject}</td>
                   <td className="max-w-xs truncate px-4 py-3 text-gray-500">{ticket.message}</td>
                   <td className="px-4 py-3 text-gray-500">
-                    {new Date(ticket.createdAt).toLocaleDateString('fr-FR')}
+                    {formatDate(ticket.createdAt)}
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={STATUS_TONES[ticket.status]}>

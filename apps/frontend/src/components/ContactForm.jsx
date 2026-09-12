@@ -7,6 +7,16 @@ const PROFILES = [
   { value: 'centre_formation_ecole_pro', label: 'Centre de formation / École pro', icon: '🎓' },
 ]
 
+const SERVICES = [
+  { value: 'aide_devoirs', label: 'Aide aux devoirs' },
+  { value: 'soutien_scolaire', label: 'Soutien scolaire' },
+  { value: 'preparation_brevet', label: 'Préparation Brevet' },
+  { value: 'preparation_bac', label: 'Préparation Bac' },
+  { value: 'coaching_methodologique', label: 'Coaching méthodologique' },
+  { value: 'stages_vacances', label: 'Stages vacances' },
+  { value: 'accompagnement_bilingue', label: 'Accompagnement bilingue' },
+]
+
 const BENEFITS = [
   { icon: '⚡', text: 'Réponse sous 24h ouvrées' },
   { icon: '🎁', text: 'Bilan initial offert' },
@@ -23,6 +33,7 @@ export default function ContactForm() {
     email: '',
     phone: '',
     message: '',
+    services: [],
     address: '',
     desiredStartDate: '',
     childrenCount: '',
@@ -32,8 +43,21 @@ export default function ContactForm() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
+  const toggleService = (value) =>
+    setForm((f) => ({
+      ...f,
+      services: f.services.includes(value)
+        ? f.services.filter((s) => s !== value)
+        : [...f.services, value],
+    }))
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (form.services.length === 0) {
+      setStatus('error')
+      setErrorMsg('Choisissez au moins un service.')
+      return
+    }
     setStatus('loading')
     setErrorMsg('')
     try {
@@ -60,6 +84,7 @@ export default function ContactForm() {
         email: '',
         phone: '',
         message: '',
+        services: [],
         address: '',
         desiredStartDate: '',
         childrenCount: '',
@@ -198,6 +223,32 @@ export default function ContactForm() {
                     placeholder="jean@exemple.fr"
                     className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                   />
+                </div>
+
+                {/* Services souhaités — sert à l'équipe pour qualifier la demande et préparer un devis adapté. Plusieurs choix possibles (ex: enfants aux besoins différents). */}
+                <div className="mb-4">
+                  <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Quels services vous intéressent ? <span className="text-red-400">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {SERVICES.map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => toggleService(value)}
+                        className={`px-3.5 py-2 rounded-full font-sans text-xs font-semibold border-2 transition-all ${
+                          form.services.includes(value)
+                            ? 'bg-navy text-white border-navy shadow-md shadow-navy/20'
+                            : 'text-gray-500 border-gray-200 hover:border-navy/30'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 font-sans text-[11px] text-gray-400">
+                    Plusieurs choix possibles — par exemple si vous avez plusieurs enfants avec des besoins différents.
+                  </p>
                 </div>
 
                 {/* Adresse (famille) : indispensable pour proposer un enseignant proche du domicile */}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { MessageSquare, Send, SquarePen } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDateTime as formatTime } from '../lib/format'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { EmptyState } from '../components/ui/EmptyState'
@@ -9,10 +10,6 @@ import { Spinner } from '../components/ui/Spinner'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
-
-function formatTime(date) {
-  return new Date(date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-}
 
 export function Messagerie() {
   const { refreshUnreadCount } = useOutletContext()

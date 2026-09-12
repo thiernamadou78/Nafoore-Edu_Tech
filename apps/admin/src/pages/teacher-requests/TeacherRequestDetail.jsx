@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Send } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDate } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -172,9 +173,9 @@ export function TeacherRequestDetail() {
                   <p className="font-medium text-gray-800">{matching.teacher.name}</p>
                   <p className="text-xs text-gray-400">
                     Proposé par {matching.proposedBy.name} le{' '}
-                    {new Date(matching.createdAt).toLocaleDateString('fr-FR')}
+                    {formatDate(matching.createdAt)}
                     {matching.respondedAt &&
-                      ` · répondu le ${new Date(matching.respondedAt).toLocaleDateString('fr-FR')}`}
+                      ` · répondu le ${formatDate(matching.respondedAt)}`}
                   </p>
                   {matching.refusalReason && (
                     <p className="mt-1 text-xs text-gray-500">Motif : {matching.refusalReason}</p>

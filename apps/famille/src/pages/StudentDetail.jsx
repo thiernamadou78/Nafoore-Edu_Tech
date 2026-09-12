@@ -19,6 +19,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDateTime } from '../lib/format'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -167,10 +168,7 @@ export function StudentDetail() {
           <span className="text-gray-500">Prochaine séance</span>
           {nextSession ? (
             <span className="font-medium text-gray-800">
-              {new Date(nextSession.date).toLocaleString('fr-FR', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
+              {formatDateTime(nextSession.date)}
               {nextSession.subject ? ` · ${nextSession.subject}` : ''}
             </span>
           ) : (

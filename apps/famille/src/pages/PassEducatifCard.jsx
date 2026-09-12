@@ -129,7 +129,7 @@ function getValidity(student) {
 }
 
 function formatDate(date) {
-  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
 function initials(name) {

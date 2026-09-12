@@ -1,6 +1,7 @@
 import { Badge } from './ui/Badge'
 import { PaginationControls } from './ui/PaginationControls'
 import { usePagination } from '../lib/usePagination'
+import { formatDateTime } from '../lib/format'
 
 // Grille 3 colonnes (À venir / Réalisées / Rejetées), même logique que côté
 // admin/prof — réutilisée sur la fiche élève et sur l'onglet Planning.
@@ -51,10 +52,7 @@ export function SessionsBoard({ sessions }) {
                     <li key={session.id} className="py-2 text-xs">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-gray-800">
-                          {new Date(session.date).toLocaleString('fr-FR', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
+                          {formatDateTime(session.date)}
                           {session.subject ? ` · ${session.subject}` : ''}
                         </p>
                         {session.attended === true && <Badge tone="leaf">Présent</Badge>}

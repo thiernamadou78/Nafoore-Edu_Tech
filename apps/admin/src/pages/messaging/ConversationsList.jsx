@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MessageSquare } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDateTime } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -57,10 +58,7 @@ export function ConversationsList() {
                   <td className="px-4 py-3 text-gray-700">{thread.familyName}</td>
                   <td className="px-4 py-3 text-gray-700">{thread.messageCount}</td>
                   <td className="px-4 py-3 text-gray-500">
-                    {new Date(thread.lastMessageAt).toLocaleString('fr-FR', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
+                    {formatDateTime(thread.lastMessageAt)}
                   </td>
                 </tr>
               ))}

@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDate } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
@@ -265,7 +266,7 @@ export function RecruitmentDetail() {
                         <span className="font-medium text-gray-900">{doc.fileName}</span>
                         <span className="ml-2 text-gray-500">
                           {DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type} ·{' '}
-                          {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
+                          {formatDate(doc.createdAt)}
                         </span>
                       </div>
                       <button

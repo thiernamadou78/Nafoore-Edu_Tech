@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarPlus, Check, ScanLine, X } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDate } from '../lib/format'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -31,7 +32,7 @@ const DURATION_OPTIONS = [
 function formatTimeRange(date, durationMinutes) {
   const start = new Date(date)
   const end = new Date(start.getTime() + durationMinutes * 60000)
-  const dateLabel = start.toLocaleDateString('fr-FR', { dateStyle: 'medium' })
+  const dateLabel = formatDate(start)
   const startLabel = start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   const endLabel = end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   return `${dateLabel}, ${startLabel} – ${endLabel}`

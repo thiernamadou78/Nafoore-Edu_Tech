@@ -14,6 +14,7 @@ import {
   Users,
 } from 'lucide-react'
 import { api } from '../lib/api'
+import { formatDateTime } from '../lib/format'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -378,10 +379,7 @@ export function StudentDetail() {
         </h2>
         {student.nextSession ? (
           <p className="text-sm text-gray-700">
-            {new Date(student.nextSession.date).toLocaleString('fr-FR', {
-              dateStyle: 'full',
-              timeStyle: 'short',
-            })}
+            {formatDateTime(student.nextSession.date)}
             {student.nextSession.subject && ` · ${student.nextSession.subject}`}
           </p>
         ) : (

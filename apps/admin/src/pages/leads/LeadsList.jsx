@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Inbox, MapPinOff, Search } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDate } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { LEAD_STATUS_LABELS, LEAD_STATUS_TONES, PROFILE_LABELS } from './statusLabels'
+import { LEAD_STATUS_LABELS, LEAD_STATUS_TONES, PROFILE_LABELS, SERVICE_LABELS } from './statusLabels'
 
 const inputClass =
   'rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -118,6 +119,7 @@ export function LeadsList() {
               <tr>
                 <th className="px-4 py-3 font-medium">Contact</th>
                 <th className="px-4 py-3 font-medium">Profil</th>
+                <th className="px-4 py-3 font-medium">Service</th>
                 <th className="px-4 py-3 font-medium">Statut</th>
                 <th className="px-4 py-3 font-medium">Reçu le</th>
                 <th className="px-4 py-3" />
@@ -149,13 +151,20 @@ export function LeadsList() {
                       )}
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {lead.services?.length > 0 ? (
+                      lead.services.map((s) => SERVICE_LABELS[s] ?? s).join(', ')
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge tone={LEAD_STATUS_TONES[lead.status]}>
                       {LEAD_STATUS_LABELS[lead.status] ?? lead.status}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-gray-500">
-                    {new Date(lead.createdAt).toLocaleDateString('fr-FR')}
+                    {formatDate(lead.createdAt)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <ChevronRight size={16} className="text-gray-300" />

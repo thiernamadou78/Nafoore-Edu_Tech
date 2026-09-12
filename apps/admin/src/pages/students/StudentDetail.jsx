@@ -18,6 +18,7 @@ import {
   UserCheck,
 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDate, formatDateTime } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -99,10 +100,7 @@ function SessionRow({ session, onSave }) {
     <div className="border-b border-gray-100 py-3 last:border-0">
       <div className="mb-2 flex flex-wrap items-center gap-3 text-sm">
         <span className="font-medium text-gray-900">
-          {new Date(session.date).toLocaleString('fr-FR', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-          })}
+          {formatDateTime(session.date)}
         </span>
         <span className="text-gray-500">{session.teacher?.name ?? 'Enseignant non assigné'}</span>
         <Badge tone={SESSION_STATUS_TONES[session.status]}>
@@ -426,7 +424,7 @@ export function StudentDetail() {
                   {student.attendanceLogs.map((log) => (
                     <li key={log.id} className="border-b border-gray-100 pb-2">
                       <div className="text-gray-800">
-                        {new Date(log.createdAt).toLocaleString('fr-FR')}
+                        {formatDateTime(log.createdAt)}
                       </div>
                       <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
                         <span>
@@ -643,7 +641,7 @@ export function StudentDetail() {
                       <span className="font-medium text-gray-900">{entry.teacher.name}</span>
                       <span className="text-gray-500">
                         par {entry.adminAccount.name} ·{' '}
-                        {new Date(entry.createdAt).toLocaleString('fr-FR')}
+                        {formatDateTime(entry.createdAt)}
                       </span>
                     </div>
                   )}
@@ -786,7 +784,7 @@ export function StudentDetail() {
                             <span className="font-medium text-gray-600">{report.period}</span>
                           )}
                           <span>{report.adminAccount.name}</span>
-                          <span>{new Date(report.createdAt).toLocaleDateString('fr-FR')}</span>
+                          <span>{formatDate(report.createdAt)}</span>
                           {report.shareable && <Badge tone="green">Partageable</Badge>}
                         </div>
                         <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">
@@ -930,7 +928,7 @@ export function StudentDetail() {
                         <span className="font-medium text-gray-900">{doc.fileName}</span>
                         <span className="ml-2 text-gray-500">
                           {DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type} · {doc.uploadedBy.name} ·{' '}
-                          {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
+                          {formatDate(doc.createdAt)}
                         </span>
                       </div>
                       <div className="flex items-center gap-3">

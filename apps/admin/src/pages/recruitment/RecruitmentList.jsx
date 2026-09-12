@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, GraduationCap, Search } from 'lucide-react'
 import { api } from '../../lib/api'
+import { formatDate } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
@@ -137,9 +138,7 @@ export function RecruitmentList() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-gray-500">
-                    {application.interviewDate
-                      ? new Date(application.interviewDate).toLocaleDateString('fr-FR')
-                      : '—'}
+                    {application.interviewDate ? formatDate(application.interviewDate) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <ChevronRight size={16} className="text-gray-300" />

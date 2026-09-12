@@ -22,7 +22,9 @@ const TEMPLATE_COLUMNS = [
 ]
 
 function formatDate(value) {
-  return value ? new Date(value).toLocaleDateString('fr-FR') : '—'
+  return value
+    ? new Date(value).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+    : '—'
 }
 
 export function EnterpriseImport() {

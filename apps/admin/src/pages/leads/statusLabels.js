@@ -22,3 +22,13 @@ export const PROFILE_LABELS = {
   entreprise: 'Entreprise',
   centre_formation_ecole_pro: 'Centre de formation / École pro',
 }
+
+export const SERVICE_LABELS = {
+  aide_devoirs: 'Aide aux devoirs',
+  soutien_scolaire: 'Soutien scolaire',
+  preparation_brevet: 'Préparation Brevet',
+  preparation_bac: 'Préparation Bac',
+  coaching_methodologique: 'Coaching méthodologique',
+  stages_vacances: 'Stages vacances',
+  accompagnement_bilingue: 'Accompagnement bilingue',
+}
