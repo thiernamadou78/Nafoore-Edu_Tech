@@ -159,7 +159,7 @@ export function Support() {
                 </div>
                 <div className="mb-4 flex-1 space-y-3">
                   <div className="max-w-[75%] rounded-xl bg-gray-100 px-3.5 py-2 text-sm text-gray-800">
-                    <p className="whitespace-pre-wrap">{selected.message}</p>
+                    <p className="whitespace-pre-wrap break-words">{selected.message}</p>
                     <p className="mt-1 text-[11px] text-gray-400">{formatTime(selected.createdAt)}</p>
                   </div>
                   {selected.messages.map((message) => (
@@ -171,7 +171,7 @@ export function Support() {
                           : 'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      <p className="whitespace-pre-wrap">{message.body}</p>
+                      <p className="whitespace-pre-wrap break-words">{message.body}</p>
                       <p
                         className={`mt-1 text-[11px] ${
                           message.sender === 'teacher' ? 'text-white/60' : 'text-gray-400'

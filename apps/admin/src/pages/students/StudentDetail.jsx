@@ -787,7 +787,7 @@ export function StudentDetail() {
                           <span>{formatDate(report.createdAt)}</span>
                           {report.shareable && <Badge tone="green">Partageable</Badge>}
                         </div>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-700">
                           {report.content}
                         </p>
                       </>

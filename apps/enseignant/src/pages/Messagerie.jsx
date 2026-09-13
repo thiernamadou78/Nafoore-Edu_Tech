@@ -255,7 +255,7 @@ export function Messagerie() {
                               : 'bg-gray-100 text-gray-800'
                         } ${message.sender === 'teacher' && message.removedAt ? 'ml-auto' : ''}`}
                       >
-                        <p>{message.body}</p>
+                        <p className="break-words">{message.body}</p>
                         <p
                           className={`mt-1 text-[11px] ${
                             !message.removedAt && message.sender === 'teacher'

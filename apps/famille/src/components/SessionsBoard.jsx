@@ -62,7 +62,7 @@ export function SessionsBoard({ sessions }) {
                         <p className="text-[11px] text-gray-400">{session.teacher.name}</p>
                       )}
                       {session.notes && (
-                        <p className="mt-1 whitespace-pre-wrap text-[11px] text-gray-600">
+                        <p className="mt-1 whitespace-pre-wrap break-words text-[11px] text-gray-600">
                           {session.notes}
                         </p>
                       )}

@@ -65,7 +65,7 @@ function TicketDetailModal({ ticket, onClose, onChanged }) {
 
       <div className="mb-4 max-h-96 space-y-3 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-4">
         <div className="max-w-[85%] rounded-xl bg-gray-100 px-3.5 py-2 text-sm text-gray-800">
-          <p className="whitespace-pre-wrap">{ticket.message}</p>
+          <p className="whitespace-pre-wrap break-words">{ticket.message}</p>
           <p className="mt-1 text-[11px] text-gray-400">{formatTime(ticket.createdAt)}</p>
         </div>
         {ticket.messages.map((message) => (
@@ -77,7 +77,7 @@ function TicketDetailModal({ ticket, onClose, onChanged }) {
                 : 'bg-gray-100 text-gray-800'
             }`}
           >
-            <p className="whitespace-pre-wrap">{message.body}</p>
+            <p className="whitespace-pre-wrap break-words">{message.body}</p>
             <p className={`mt-1 text-[11px] ${message.sender === 'admin' ? 'text-white/60' : 'text-gray-400'}`}>
               {formatTime(message.createdAt)}
             </p>

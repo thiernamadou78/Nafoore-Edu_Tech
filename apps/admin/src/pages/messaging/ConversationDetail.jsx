@@ -121,7 +121,7 @@ export function ConversationDetail() {
                         : 'bg-gray-100 text-gray-800'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{message.body}</p>
+                  <p className="whitespace-pre-wrap break-words">{message.body}</p>
                   <p
                     className={`mt-1 text-[11px] ${
                       !message.removedAt && isFamily ? 'text-white/60' : 'text-gray-400'

@@ -205,7 +205,7 @@ export function LeadDetail() {
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
                 Message
               </p>
-              <p className="whitespace-pre-wrap text-sm text-gray-700">{lead.message}</p>
+              <p className="whitespace-pre-wrap break-words text-sm text-gray-700">{lead.message}</p>
             </div>
           </Card>
 
