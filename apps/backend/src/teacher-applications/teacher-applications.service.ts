@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
@@ -252,15 +246,17 @@ export class TeacherApplicationsService {
         });
     }
 
-    if (status === 'valide') {
+    if (status === 'valide' && !existing.teacherAccount) {
       // Cree le compte (Supabase Auth + TeacherAccount) et envoie l'email de
       // bienvenue avec le mot de passe temporaire — auparavant seulement
       // declenchable manuellement via "Creer le compte", ce qui faisait que
-      // la validation ne notifiait jamais le prof. Best-effort : si un
-      // compte existe deja (ex: validation directe sans passer par
-      // documents_requis, ou double-clic), on l'ignore silencieusement.
+      // la validation ne notifiait jamais le prof. On a deja verifie
+      // ci-dessus qu'aucun compte n'existe encore pour CETTE candidature,
+      // donc toute erreur ici (ex: email deja utilise par un autre compte)
+      // est une vraie collision — trop importante pour etre ignoree
+      // silencieusement, meme si on reste best-effort (une candidature
+      // validee ne doit jamais echouer a cause d'un souci de compte).
       this.teacherOnboarding.createAccount(id, actorId).catch((error) => {
-        if (error instanceof ConflictException) return;
         this.logger.error(
           `Échec de la création automatique du compte enseignant pour la candidature ${id}`,
           error instanceof Error ? error.stack : undefined,
