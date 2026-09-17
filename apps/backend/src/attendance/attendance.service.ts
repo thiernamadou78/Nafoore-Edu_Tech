@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ManualAttendanceDto } from './dto/manual-attendance.dto';
 import { ScanAttendanceDto } from './dto/scan-attendance.dto';
@@ -10,6 +10,12 @@ const SESSION_LOOKUP_WINDOW_HOURS = 6;
 // même caméra qui a recapturé le QR par accident (famille pas encore rangé le
 // pass) plutôt qu'un vrai check-out — évite de clôturer une séance de 1 minute.
 const MIN_MINUTES_BEFORE_CHECKOUT = 3;
+// Le pointage manuel est un secours (QR oublié / problème technique), pas un
+// moyen de valider une séance a posteriori ou par avance : on le borne autour
+// de l'horaire réellement prévu, sinon il contournerait entièrement la
+// garantie de présence réelle qu'apporte le Pass QR.
+const MANUAL_TOLERANCE_BEFORE_MINUTES = 30;
+const MANUAL_TOLERANCE_AFTER_HOURS = 6;
 
 export interface ScanResult {
   verificationStatus: 'valid' | 'pass_revoked' | 'funding_expired' | 'no_session_found';
@@ -116,9 +122,13 @@ export class AttendanceService {
       1,
       Math.round((checkoutAt.getTime() - (openLog.checkinAt as Date).getTime()) / 60000),
     );
+    // Le pointage clôture la PRÉSENCE (attendanceLog), pas la séance : le
+    // statut ne passe à "realisee" qu'une fois le compte-rendu soumis (voir
+    // TeacherService.updateSession) — sinon une séance pointée sans jamais
+    // être documentée resterait indéfiniment invisible comme "manquante".
     await this.prisma.session.update({
       where: { id: session.id },
-      data: { status: 'realisee', attended: true, durationMinutes },
+      data: { durationMinutes },
     });
 
     return {
@@ -126,6 +136,7 @@ export class AttendanceService {
       action: 'checkout',
       student: studentSummary,
       durationMinutes,
+      sessionId: session.id,
     };
   }
 
@@ -155,9 +166,11 @@ export class AttendanceService {
       1,
       Math.round((checkoutAt.getTime() - (openLog.checkinAt as Date).getTime()) / 60000),
     );
+    // Cf. scan() : le compte-rendu reste requis pour passer la séance en
+    // "realisee", la fin anticipée clôture seulement la présence.
     await this.prisma.session.update({
       where: { id: session.id },
-      data: { status: 'realisee', attended: true, durationMinutes },
+      data: { durationMinutes },
     });
 
     return {
@@ -165,6 +178,7 @@ export class AttendanceService {
       action: 'checkout',
       student: { id: session.student.id, name: session.student.name },
       durationMinutes,
+      sessionId: session.id,
     };
   }
 
@@ -175,26 +189,32 @@ export class AttendanceService {
     }
 
     const now = new Date();
-    const [log] = await this.prisma.$transaction([
-      this.prisma.attendanceLog.create({
-        data: {
-          sessionId: session.id,
-          studentId: session.studentId,
-          teacherId,
-          checkinAt: now,
-          checkoutAt: now,
-          verificationStatus: 'valid',
-          method: 'manuel',
-          manualReason: dto.manualReason,
-        },
-      }),
-      this.prisma.session.update({
-        where: { id: session.id },
-        data: { status: 'realisee', attended: true },
-      }),
-    ]);
-
-    return log;
+    const scheduledEnd = new Date(session.date.getTime() + session.durationMinutes * 60_000);
+    const earliestAllowed = new Date(
+      session.date.getTime() - MANUAL_TOLERANCE_BEFORE_MINUTES * 60_000,
+    );
+    const latestAllowed = new Date(
+      scheduledEnd.getTime() + MANUAL_TOLERANCE_AFTER_HOURS * 3_600_000,
+    );
+    if (now < earliestAllowed || now > latestAllowed) {
+      throw new BadRequestException(
+        "Le pointage manuel n'est possible que dans les heures qui entourent l'horaire prévu de la séance",
+      );
+    }
+    // Comme pour le scan QR, le pointage manuel clôture la présence mais pas
+    // la séance : le compte-rendu reste requis pour passer en "realisee".
+    return this.prisma.attendanceLog.create({
+      data: {
+        sessionId: session.id,
+        studentId: session.studentId,
+        teacherId,
+        checkinAt: now,
+        checkoutAt: now,
+        verificationStatus: 'valid',
+        method: 'manuel',
+        manualReason: dto.manualReason,
+      },
+    });
   }
 
   private async hasExpiredFunding(studentId: string): Promise<boolean> {

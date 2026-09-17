@@ -1,13 +1,12 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { SUBJECT_OPTIONS } from '../../common/subjects';
 
 export const TEACHER_REQUEST_FORMATS = ['presentiel', 'distanciel', 'hybride'] as const;
 export const TEACHER_REQUEST_DURATIONS = [30, 45, 60, 90, 120] as const;
 
 export class CreateTeacherRequestDto {
-  @IsString()
-  @MinLength(1)
-  @MaxLength(120)
+  @IsIn(SUBJECT_OPTIONS, { message: 'Matière inconnue' })
   subject: string;
 
   @IsString()

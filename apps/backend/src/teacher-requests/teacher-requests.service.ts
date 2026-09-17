@@ -8,9 +8,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { renderMatchingConfirmationEmail } from '../email/templates/matching-confirmation.template';
 import { renderMatchingProposalEmail } from '../email/templates/matching-proposal.template';
+import { renderTeacherProposedEmail } from '../email/templates/teacher-proposed.template';
 import { resolvePortalUrl } from '../email/portal-url.util';
 import { StudentsService } from '../students/students.service';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
+import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { CreateTeacherRequestDto } from './dto/create-teacher-request.dto';
 import { ProposeMatchingDto } from './dto/propose-matching.dto';
 import { RefuseMatchingDto } from './dto/refuse-matching.dto';
@@ -24,6 +26,12 @@ const adminMatchingSelect = {
   refusalReason: true,
   teacher: { select: { id: true, name: true } },
   proposedBy: { select: { id: true, name: true } },
+};
+
+const adminInterestSelect = {
+  id: true,
+  createdAt: true,
+  teacher: { select: { id: true, name: true } },
 };
 
 @Injectable()
@@ -171,6 +179,10 @@ export class TeacherRequestsService {
           orderBy: { createdAt: 'desc' },
           select: adminMatchingSelect,
         },
+        interests: {
+          orderBy: { createdAt: 'desc' },
+          select: adminInterestSelect,
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -198,6 +210,10 @@ export class TeacherRequestsService {
         matchings: {
           orderBy: { createdAt: 'desc' },
           select: adminMatchingSelect,
+        },
+        interests: {
+          orderBy: { createdAt: 'desc' },
+          select: adminInterestSelect,
         },
       },
     });
@@ -248,6 +264,7 @@ export class TeacherRequestsService {
         bio: true,
         address: true,
         verified: true,
+        account: { select: { email: true } },
       },
     });
     if (!teacher) {
@@ -300,7 +317,91 @@ export class TeacherRequestsService {
         });
     }
 
+    if (teacher.account?.email) {
+      // Le prof doit savoir qu'il a été proposé, pas seulement la famille —
+      // sinon il découvre son propre matching seulement si la famille le
+      // contacte, ou jamais s'il n'a pas encore de compte actif surveillé.
+      this.emailService
+        .send({
+          to: teacher.account.email,
+          subject: `Nafoore Education — Vous avez été proposé pour ${request.student.name}`,
+          html: renderTeacherProposedEmail({
+            teacherName: teacher.name,
+            studentName: request.student.name,
+            subject: request.subject,
+            portalUrl: resolvePortalUrl('teacher'),
+          }),
+        })
+        .catch((sendError) => {
+          this.logger.error(
+            `Échec d'envoi de l'email de proposition au prof (demande ${requestId})`,
+            sendError instanceof Error ? sendError.stack : undefined,
+          );
+        });
+    }
+
     return matching;
+  }
+
+  // "Demandes qui me concernent" côté prof : ouvertes, sur une matière qu'il
+  // enseigne, et pas déjà proposées à lui (il verrait alors une demande où
+  // il est déjà dans le circuit de décision, redondant avec Mes élèves).
+  async listOpenForTeacher(teacherAccount: AuthenticatedTeacherAccount) {
+    if (!teacherAccount.teacherId) return [];
+    const teacherId = teacherAccount.teacherId;
+
+    const teacher = await this.prisma.teacher.findUnique({
+      where: { id: teacherId },
+      select: { subjects: true },
+    });
+    if (!teacher || teacher.subjects.length === 0) return [];
+
+    const requests = await this.prisma.teacherRequest.findMany({
+      where: {
+        status: { in: ['en_attente', 'proposition_envoyee'] },
+        subject: { in: teacher.subjects },
+        matchings: { none: { teacherId } },
+      },
+      include: {
+        student: { select: { level: true } },
+        interests: { where: { teacherId }, select: { id: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return requests.map(({ interests, ...request }) => ({
+      ...request,
+      interested: interests.length > 0,
+    }));
+  }
+
+  async expressInterest(teacherAccount: AuthenticatedTeacherAccount, requestId: string) {
+    if (!teacherAccount.teacherId) {
+      throw new NotFoundException('Profil enseignant introuvable');
+    }
+    const request = await this.prisma.teacherRequest.findUnique({ where: { id: requestId } });
+    if (!request) {
+      throw new NotFoundException('Demande introuvable');
+    }
+
+    await this.prisma.teacherRequestInterest.upsert({
+      where: {
+        teacherRequestId_teacherId: { teacherRequestId: requestId, teacherId: teacherAccount.teacherId },
+      },
+      create: { teacherRequestId: requestId, teacherId: teacherAccount.teacherId },
+      update: {},
+    });
+    return { interested: true };
+  }
+
+  async withdrawInterest(teacherAccount: AuthenticatedTeacherAccount, requestId: string) {
+    if (!teacherAccount.teacherId) {
+      throw new NotFoundException('Profil enseignant introuvable');
+    }
+    await this.prisma.teacherRequestInterest.deleteMany({
+      where: { teacherRequestId: requestId, teacherId: teacherAccount.teacherId },
+    });
+    return { interested: false };
   }
 
   private async assertOwnedStudent(

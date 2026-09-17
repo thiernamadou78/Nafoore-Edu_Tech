@@ -29,6 +29,7 @@ import { Timeline } from '../../components/ui/Timeline'
 import { usePagination } from '../../lib/usePagination'
 import {
   ATTENDANCE_METHOD_LABELS,
+  MANUAL_REASON_LABELS,
   CLASSE_LABELS,
   CLASSE_OPTIONS_BY_LEVEL,
   DOCUMENT_TYPE_LABELS,
@@ -425,6 +426,15 @@ export function StudentDetail() {
                     <li key={log.id} className="border-b border-gray-100 pb-2">
                       <div className="text-gray-800">
                         {formatDateTime(log.createdAt)}
+                        {log.checkoutAt && (
+                          <span className="text-gray-400">
+                            {' → '}
+                            {new Date(log.checkoutAt).toLocaleTimeString('fr-FR', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
                         <span>
@@ -434,6 +444,16 @@ export function StudentDetail() {
                           {VERIFICATION_STATUS_LABELS[log.verificationStatus] ?? log.verificationStatus}
                         </Badge>
                       </div>
+                      {log.manualReason && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Motif : {MANUAL_REASON_LABELS[log.manualReason] ?? log.manualReason}
+                        </p>
+                      )}
+                      {log.earlyEndReason && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Fin anticipée : {log.earlyEndReason}
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>

@@ -8,7 +8,9 @@ import {
   MessageSquare,
   MoreHorizontal,
   ScanLine,
+  Sparkles,
   Star,
+  User,
   Users,
 } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
@@ -24,10 +26,12 @@ const NAV_LINKS = [
   { to: '/eleves', label: 'Mes élèves', icon: Users },
   { to: '/planning', label: 'Planning', icon: CalendarClock },
   { to: '/pointage', label: 'Pointage', icon: ScanLine },
+  { to: '/demandes', label: 'Demandes', icon: Sparkles },
   { to: '/remuneration', label: 'Rémunération', icon: Euro },
   { to: '/messagerie', label: 'Messagerie', icon: MessageSquare },
   { to: '/avis', label: 'Avis', icon: Star },
   { to: '/support', label: 'Support', icon: LifeBuoy },
+  { to: '/profil', label: 'Mon profil', icon: User },
 ]
 
 // Les 3 destinations les plus utilisées sur téléphone (entre deux séances),

@@ -54,15 +54,17 @@ function ReportForm({ session, onCancel, onSave, saving }) {
         Élève présent
       </label>
       <textarea
+        required
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         rows={3}
-        placeholder="Ce qui a été travaillé, points à retravailler…"
+        placeholder="Ce qui a été travaillé, points à retravailler… (obligatoire pour clôturer la séance)"
         className={`${inputClass} resize-none`}
       />
       <div className="flex gap-2">
         <Button
           loading={saving}
+          disabled={!notes.trim()}
           onClick={() => onSave({ attended, notes, status: 'realisee' })}
         >
           Enregistrer
@@ -162,13 +164,38 @@ function SessionRow({
   savingId,
   compact = false,
   showStudentName = true,
+  autoOpenReport = false,
 }) {
   const [reportOpen, setReportOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [manualOpen, setManualOpen] = useState(false)
+
+  // Juste après un pointage manuel, on pousse directement le prof à
+  // renseigner le compte-rendu au lieu d'attendre qu'il pense à revenir sur
+  // cette ligne plus tard (cf. gap : les séances pointées sans note restaient
+  // invisibles indéfiniment).
+  useEffect(() => {
+    if (autoOpenReport) setReportOpen(true)
+  }, [autoOpenReport])
   const hasReport = session.status === 'realisee' && (session.notes || session.attended !== null)
   const isPast = new Date(session.date) < new Date()
-  const canPointManually = session.status === 'planifiee' || session.status === 'confirmee'
+  // Reflete cote client la fenetre appliquee par le backend
+  // (attendance.service.ts) : le pointage manuel est un secours ponctuel,
+  // pas un moyen de valider une seance des jours avant/apres.
+  const scheduledStart = new Date(session.date)
+  const scheduledEnd = new Date(scheduledStart.getTime() + session.durationMinutes * 60000)
+  const withinManualWindow =
+    Date.now() >= scheduledStart.getTime() - 30 * 60000 &&
+    Date.now() <= scheduledEnd.getTime() + 6 * 3600000
+  // Une presence deja pointee (QR ou manuel) n'a pas besoin d'un second
+  // pointage : il ne manque plus que le compte-rendu pour cloturer.
+  const hasCompletedAttendance = Boolean(
+    session.lastAttendance?.checkinAt && session.lastAttendance?.checkoutAt,
+  )
+  const canPointManually =
+    (session.status === 'planifiee' || session.status === 'confirmee') &&
+    withinManualWindow &&
+    !hasCompletedAttendance
   const displayStatus = getDisplayStatus(session, isPast)
   const Wrapper = compact ? 'div' : Card
   const wrapperClassName = compact
@@ -286,6 +313,7 @@ function StudentPlanningCard({
   onCancelSession,
   onSaveReport,
   onManualAttendance,
+  autoReportIds,
 }) {
   const [createForm, setCreateForm] = useState({
     subject: '',
@@ -417,6 +445,7 @@ function StudentPlanningCard({
                         onCancelSession={onCancelSession}
                         onSaveReport={onSaveReport}
                         onManualAttendance={onManualAttendance}
+                        autoOpenReport={autoReportIds.has(session.id)}
                       />
                     ))}
                   </div>
@@ -442,6 +471,7 @@ export function Planning() {
   const [error, setError] = useState(null)
   const [savingId, setSavingId] = useState(null)
   const [creatingForStudentId, setCreatingForStudentId] = useState(null)
+  const [autoReportIds, setAutoReportIds] = useState(() => new Set())
 
   const load = () =>
     Promise.all([api.get('/teacher/sessions'), api.get('/teacher/students')])
@@ -477,7 +507,10 @@ export function Planning() {
     setSavingId(id)
     return api
       .post('/teacher/attendance/manual', { sessionId: id, manualReason })
-      .then(load)
+      .then(() => {
+        setAutoReportIds((prev) => new Set(prev).add(id))
+        return load()
+      })
       .catch((err) => setError(err.message))
       .finally(() => setSavingId(null))
   }
@@ -534,6 +567,7 @@ export function Planning() {
               onCancelSession={handleCancelSession}
               onSaveReport={handleSaveReport}
               onManualAttendance={handleManualAttendance}
+              autoReportIds={autoReportIds}
             />
           ))}
         </div>

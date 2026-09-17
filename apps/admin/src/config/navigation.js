@@ -1,12 +1,14 @@
 import {
   Building2,
   Contact2,
+  Globe,
   GraduationCap,
   Inbox,
   LayoutDashboard,
   LayoutList,
   LifeBuoy,
   MessageSquare,
+  RadioTower,
   ShieldCheck,
   UserPlus,
   Users,
@@ -36,6 +38,12 @@ export const NAV_ITEMS = [
     icon: MessageSquare,
   },
   {
+    label: 'Suivi des pointages',
+    path: '/pointages',
+    roles: ['super_admin', 'admin'],
+    icon: RadioTower,
+  },
+  {
     label: 'Support',
     path: '/support-tickets',
     roles: ['super_admin', 'admin'],
@@ -52,6 +60,12 @@ export const NAV_ITEMS = [
     path: '/formules',
     roles: ['super_admin', 'admin'],
     icon: LayoutList,
+  },
+  {
+    label: 'Site vitrine',
+    path: '/site-vitrine',
+    roles: ['super_admin', 'admin'],
+    icon: Globe,
   },
   { label: 'Comptes admin', path: '/comptes', roles: ['super_admin'], icon: ShieldCheck },
 ]

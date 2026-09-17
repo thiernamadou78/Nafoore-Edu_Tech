@@ -11,6 +11,7 @@ import { StartThreadDto } from './dto/start-thread.dto';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
 import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
+import { UpdateMySubjectsDto } from './dto/update-my-subjects.dto';
 
 @UseGuards(TeacherAuthGuard)
 @Controller('teacher')
@@ -31,6 +32,19 @@ export class TeacherController {
   ) {
     await this.teacherService.markPasswordChanged(teacherAccount.id);
     return { mustChangePassword: false };
+  }
+
+  @Get('me/subjects')
+  getMySubjects(@CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount) {
+    return this.teacherService.getMySubjects(teacherAccount);
+  }
+
+  @Patch('me/subjects')
+  updateMySubjects(
+    @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
+    @Body() dto: UpdateMySubjectsDto,
+  ) {
+    return this.teacherService.updateMySubjects(teacherAccount, dto.subjects);
   }
 
   @Get('students')
@@ -176,8 +190,4 @@ export class TeacherController {
     return this.teacherService.replyToSupportTicket(teacherAccount, id, dto);
   }
 
-  @Post('reminders/simulate')
-  simulateReminders(@CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount) {
-    return this.teacherService.simulateReportReminders(teacherAccount);
-  }
 }

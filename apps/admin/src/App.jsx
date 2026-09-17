@@ -24,6 +24,8 @@ import { EnterprisesList } from './pages/entreprises/EnterprisesList'
 import { EnterpriseDetail } from './pages/entreprises/EnterpriseDetail'
 import { EnterpriseImport } from './pages/entreprises/EnterpriseImport'
 import { FormulasList } from './pages/formules/FormulasList'
+import { SiteVitrine } from './pages/site-vitrine/SiteVitrine'
+import { AttendanceAlerts } from './pages/attendance/AttendanceAlerts'
 
 export default function App() {
   return (
@@ -48,11 +50,13 @@ export default function App() {
               <Route path="/demandes-professeur/:id" element={<TeacherRequestDetail />} />
               <Route path="/conversations" element={<ConversationsList />} />
               <Route path="/conversations/:id" element={<ConversationDetail />} />
+              <Route path="/pointages" element={<AttendanceAlerts />} />
               <Route path="/support-tickets" element={<SupportTicketsList />} />
               <Route path="/entreprises" element={<EnterprisesList />} />
               <Route path="/entreprises/:id" element={<EnterpriseDetail />} />
               <Route path="/entreprises/:id/import" element={<EnterpriseImport />} />
               <Route path="/formules" element={<FormulasList />} />
+              <Route path="/site-vitrine" element={<SiteVitrine />} />
             </Route>
             <Route element={<ProtectedRoute roles={['super_admin']} />}>
               <Route path="/comptes" element={<AdminAccounts />} />

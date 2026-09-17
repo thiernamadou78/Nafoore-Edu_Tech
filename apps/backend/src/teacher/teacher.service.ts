@@ -5,11 +5,13 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { PhotosService } from '../photos/photos.service';
 import { EmailService } from '../email/email.service';
 import { resolvePortalUrl } from '../email/portal-url.util';
 import { renderSessionReportReminderEmail } from '../email/templates/session-report-reminder.template';
+import { renderSessionCancelledEmail } from '../email/templates/session-cancelled.template';
 import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { CreateTeacherSessionDto } from './dto/create-teacher-session.dto';
 import { UpdateTeacherSessionDto } from './dto/update-teacher-session.dto';
@@ -48,6 +50,26 @@ export class TeacherService {
     await this.prisma.teacherAccount.update({
       where: { id: teacherAccountId },
       data: { mustChangePassword: false },
+    });
+  }
+
+  async getMySubjects(teacherAccount: AuthenticatedTeacherAccount) {
+    if (!teacherAccount.teacherId) return { subjects: [] };
+    const teacher = await this.prisma.teacher.findUnique({
+      where: { id: teacherAccount.teacherId },
+      select: { subjects: true },
+    });
+    return { subjects: teacher?.subjects ?? [] };
+  }
+
+  async updateMySubjects(teacherAccount: AuthenticatedTeacherAccount, subjects: string[]) {
+    if (!teacherAccount.teacherId) {
+      throw new NotFoundException('Profil enseignant introuvable');
+    }
+    return this.prisma.teacher.update({
+      where: { id: teacherAccount.teacherId },
+      data: { subjects },
+      select: { subjects: true },
     });
   }
 
@@ -313,6 +335,13 @@ export class TeacherService {
       throw new BadRequestException("Un motif d'annulation est requis");
     }
 
+    // Le pointage (QR ou manuel) clôture la présence mais jamais la séance
+    // elle-même : sans compte-rendu, une intervention pointée resterait
+    // "réalisée" sans jamais avoir été documentée.
+    if (dto.status === 'realisee' && !dto.notes?.trim()) {
+      throw new BadRequestException('Un compte-rendu est requis pour clôturer une séance');
+    }
+
     if (dto.date || dto.durationMinutes) {
       const startsAt = dto.date ? new Date(dto.date) : session.date;
       const durationMinutes = dto.durationMinutes ?? session.durationMinutes;
@@ -324,7 +353,7 @@ export class TeacherService {
       );
     }
 
-    return this.prisma.session.update({
+    const updated = await this.prisma.session.update({
       where: { id: sessionId },
       data: {
         date: dto.date ? new Date(dto.date) : undefined,
@@ -334,6 +363,57 @@ export class TeacherService {
         notes: dto.notes,
         cancellationReason: dto.cancellationReason,
       },
+    });
+
+    if (dto.status === 'annulee' && session.status !== 'annulee') {
+      this.notifyFamilyOfCancellation(updated).catch((error) => {
+        this.logger.error(
+          `Échec d'envoi de l'email d'annulation pour la séance ${sessionId}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      });
+    }
+
+    return updated;
+  }
+
+  // Best-effort : ne doit jamais faire échouer l'annulation elle-même si
+  // l'email ne part pas (famille sans email valide, panne du provider…).
+  private async notifyFamilyOfCancellation(session: {
+    id: string;
+    studentId: string;
+    teacherId: string | null;
+    date: Date;
+    cancellationReason: string | null;
+  }) {
+    if (!session.teacherId) return;
+
+    const [student, teacher] = await Promise.all([
+      this.prisma.student.findUnique({
+        where: { id: session.studentId },
+        select: {
+          name: true,
+          parentLead: {
+            select: { email: true, portalAccount: { select: { email: true } } },
+          },
+        },
+      }),
+      this.prisma.teacher.findUnique({ where: { id: session.teacherId }, select: { name: true } }),
+    ]);
+
+    const recipient = student?.parentLead?.portalAccount?.email ?? student?.parentLead?.email;
+    if (!recipient || !student || !teacher) return;
+
+    await this.emailService.send({
+      to: recipient,
+      subject: `Nafoore Education — Séance annulée pour ${student.name}`,
+      html: renderSessionCancelledEmail({
+        studentName: student.name,
+        teacherName: teacher.name,
+        sessionDate: session.date.toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' }),
+        reason: session.cancellationReason ?? 'Non précisé',
+        portalUrl: resolvePortalUrl('famille'),
+      }),
     });
   }
 
@@ -567,46 +647,71 @@ export class TeacherService {
     });
   }
 
-  // Déclenchement manuel (outil de démonstration) : aucune tâche planifiée
-  // automatique n'existe dans ce backend. Cherche les séances passées depuis
-  // plus de 24h sans compte-rendu et envoie un rappel par email.
-  async simulateReportReminders(teacherAccount: AuthenticatedTeacherAccount) {
-    if (!teacherAccount.teacherId) return { sent: 0 };
+  // Backstop automatique : le prof est censé être invité à renseigner le
+  // compte-rendu juste après son pointage (front, Pointage.jsx / Planning.jsx),
+  // mais ce filet de sécurité couvre les cas où il ignore/ferme cette
+  // invitation — ou n'a jamais pointé du tout. Un seul email par séance
+  // (reportReminderSentAt), pas de relance répétée.
+  @Cron(CronExpression.EVERY_HOUR)
+  async remindMissingReports() {
+    const now = new Date();
+    // Séance jamais touchée (toujours planifiee/confirmee) : on laisse 24h
+    // de battement avant de considérer que le compte-rendu est "manquant".
+    const untouchedCutoff = new Date(now.getTime() - 24 * 3_600_000);
+    // Séance pointée réalisée mais sans note pédagogique : battement plus
+    // court, l'invitation immédiate côté front a déjà eu sa chance.
+    const emptyReportCutoff = new Date(now.getTime() - 2 * 3_600_000);
 
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const sessions = await this.prisma.session.findMany({
+    const candidates = await this.prisma.session.findMany({
       where: {
-        teacherId: teacherAccount.teacherId,
-        date: { lt: cutoff },
-        status: { notIn: ['annulee', 'realisee'] },
+        status: { not: 'annulee' },
+        reportReminderSentAt: null,
+        date: { lt: now },
+        teacherId: { not: null },
       },
-      include: { student: { select: { name: true } } },
+      include: {
+        student: { select: { name: true } },
+        teacher: { select: { name: true, account: { select: { email: true } } } },
+      },
     });
 
     let sent = 0;
-    for (const session of sessions) {
+    for (const session of candidates) {
+      const scheduledEnd = new Date(session.date.getTime() + session.durationMinutes * 60_000);
+      const isUntouched = session.status !== 'realisee' && session.date < untouchedCutoff;
+      const isEmptyReport =
+        session.status === 'realisee' && !session.notes?.trim() && scheduledEnd < emptyReportCutoff;
+      if (!isUntouched && !isEmptyReport) continue;
+
+      const recipient = session.teacher?.account?.email;
+      if (!recipient) continue;
+
       try {
         await this.emailService.send({
-          to: teacherAccount.email,
+          to: recipient,
           subject: `Nafoore Education — Compte-rendu à rédiger pour ${session.student.name}`,
           html: renderSessionReportReminderEmail({
-            fullName: teacherAccount.fullName,
+            fullName: session.teacher?.name ?? '',
             studentName: session.student.name,
-            sessionDate: session.date.toLocaleDateString('fr-FR', {
-              dateStyle: 'medium',
-            }),
+            sessionDate: session.date.toLocaleDateString('fr-FR', { dateStyle: 'medium' }),
             portalUrl: resolvePortalUrl('teacher'),
           }),
+        });
+        await this.prisma.session.update({
+          where: { id: session.id },
+          data: { reportReminderSentAt: now },
         });
         sent += 1;
       } catch (error) {
         this.logger.error(
-          `Échec d'envoi du rappel pour la séance ${session.id}`,
+          `Échec d'envoi du rappel de compte-rendu pour la séance ${session.id}`,
           error instanceof Error ? error.stack : undefined,
         );
       }
     }
 
-    return { sent, candidates: sessions.length };
+    if (sent > 0) {
+      this.logger.log(`${sent} rappel(s) de compte-rendu manquant envoyé(s)`);
+    }
   }
 }

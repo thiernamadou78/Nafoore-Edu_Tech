@@ -41,6 +41,11 @@ export function TeacherRequestDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
+  const openProposeModal = (teacherId = '') => {
+    setSelectedTeacherId(teacherId)
+    setModalOpen(true)
+  }
+
   const proposeMatching = async () => {
     setSaving(true)
     setError(null)
@@ -120,7 +125,7 @@ export function TeacherRequestDetail() {
       <Card className="mb-6 p-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">Proposer un enseignant</h2>
-          <Button icon={Send} disabled={!canPropose} onClick={() => setModalOpen(true)}>
+          <Button icon={Send} disabled={!canPropose} onClick={() => openProposeModal()}>
             Proposer
           </Button>
         </div>
@@ -132,6 +137,44 @@ export function TeacherRequestDetail() {
           </p>
         )}
       </Card>
+
+      {request.interests?.length > 0 && (
+        <Card className="mb-6 p-6">
+          <h2 className="mb-3 font-semibold text-gray-900">Enseignants intéressés</h2>
+          <p className="mb-3 text-sm text-gray-500">
+            Ces profs enseignent {request.subject} et se sont signalés comme disponibles pour
+            cette demande.
+          </p>
+          <ul className="divide-y divide-gray-100">
+            {request.interests.map((interest) => {
+              const alreadyProposedToThisTeacher = alreadyProposedIds.has(interest.teacher.id)
+              return (
+                <li key={interest.id} className="flex items-center justify-between py-3 text-sm">
+                  <div>
+                    <p className="font-medium text-gray-800">{interest.teacher.name}</p>
+                    <p className="text-xs text-gray-400">
+                      Intéressé le {formatDate(interest.createdAt)}
+                    </p>
+                  </div>
+                  {alreadyProposedToThisTeacher ? (
+                    <Badge tone="gray">Déjà proposé</Badge>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      icon={Send}
+                      disabled={!canPropose}
+                      onClick={() => openProposeModal(interest.teacher.id)}
+                      className="px-3 py-1.5 text-xs"
+                    >
+                      Proposer
+                    </Button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </Card>
+      )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Proposer un enseignant">
         <select

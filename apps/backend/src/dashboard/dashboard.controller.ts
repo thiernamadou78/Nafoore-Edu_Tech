@@ -24,4 +24,9 @@ export class DashboardController {
   getMapData() {
     return this.dashboardService.getMapData();
   }
+
+  @Get('attendance-alerts')
+  getAttendanceAlerts() {
+    return this.dashboardService.getAttendanceAlerts();
+  }
 }

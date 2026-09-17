@@ -15,6 +15,8 @@ import { Remuneration } from './pages/Remuneration'
 import { Messagerie } from './pages/Messagerie'
 import { Avis } from './pages/Avis'
 import { Support } from './pages/Support'
+import { Demandes } from './pages/Demandes'
+import { Profil } from './pages/Profil'
 
 export default function App() {
   return (
@@ -31,6 +33,8 @@ export default function App() {
             <Route path="/eleves/:id" element={<StudentDetail />} />
             <Route path="/planning" element={<Planning />} />
             <Route path="/pointage" element={<Pointage />} />
+            <Route path="/demandes" element={<Demandes />} />
+            <Route path="/profil" element={<Profil />} />
             <Route path="/remuneration" element={<Remuneration />} />
             <Route path="/messagerie" element={<Messagerie />} />
             <Route path="/avis" element={<Avis />} />

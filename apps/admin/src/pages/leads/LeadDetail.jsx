@@ -35,6 +35,7 @@ export function LeadDetail() {
   const [confirmModal, setConfirmModal] = useState(null) // null | 'validate' | 'resend'
   const [editingAddress, setEditingAddress] = useState(false)
   const [addressDraft, setAddressDraft] = useState('')
+  const [postalCodeDraft, setPostalCodeDraft] = useState('')
 
   const load = () => api.get(`/leads/${id}`).then(setLead)
 
@@ -77,12 +78,16 @@ export function LeadDetail() {
 
   const startEditingAddress = () => {
     setAddressDraft(lead.address ?? '')
+    setPostalCodeDraft(lead.postalCode ?? '')
     setEditingAddress(true)
   }
 
   const handleSaveAddress = () =>
     run('address', async () => {
-      const updated = await api.patch(`/leads/${id}/address`, { address: addressDraft })
+      const updated = await api.patch(`/leads/${id}/address`, {
+        address: addressDraft,
+        postalCode: postalCodeDraft,
+      })
       setLead((prev) => ({ ...prev, ...updated }))
       setEditingAddress(false)
     })
@@ -134,10 +139,18 @@ export function LeadDetail() {
                       placeholder="Quartier, commune, ville…"
                       className={inputClass}
                     />
+                    <input
+                      value={postalCodeDraft}
+                      onChange={(e) => setPostalCodeDraft(e.target.value)}
+                      placeholder="Code postal (75015)"
+                      pattern="\d{5}"
+                      maxLength={5}
+                      className={inputClass}
+                    />
                     <div className="flex gap-2">
                       <Button
                         loading={savingAction === 'address'}
-                        disabled={!addressDraft.trim()}
+                        disabled={!addressDraft.trim() || !postalCodeDraft.trim()}
                         onClick={handleSaveAddress}
                         className="px-3 py-1.5 text-xs"
                       >
@@ -156,7 +169,10 @@ export function LeadDetail() {
                   <div className="flex items-start justify-between gap-2 text-sm text-gray-700">
                     <div className="flex items-start gap-1.5">
                       <MapPin size={15} className="mt-0.5 shrink-0 text-gray-400" />
-                      <span>{lead.address}</span>
+                      <span>
+                        {lead.address}
+                        {lead.postalCode && ` (${lead.postalCode})`}
+                      </span>
                     </div>
                     <button
                       type="button"
@@ -273,6 +289,7 @@ export function LeadDetail() {
                 onClick={() => {
                   const params = new URLSearchParams({ leadId: id, familyName: lead.name })
                   if (lead.address) params.set('address', lead.address)
+                  if (lead.postalCode) params.set('postalCode', lead.postalCode)
                   navigate(`/leads/nouvelle/enfants?${params.toString()}`)
                 }}
               >

@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 const STALE_LEAD_DAYS = 3;
+// Delai de grace apres l'horaire prevu avant de considerer une seance comme
+// "a surveiller" : laisse le temps normal au prof de pointer/rediger sans
+// remonter du bruit pour des seances tout juste terminees.
+const ATTENDANCE_ALERT_GRACE_HOURS = 2;
 
 @Injectable()
 export class DashboardService {
@@ -73,6 +77,90 @@ export class DashboardService {
     ]);
 
     return { students, teachers };
+  }
+
+  // Vue de suivi pour l'admin : trois familles de séances qui indiquent un
+  // pointage QR/compte-rendu qui a mal tourné ou n'a jamais eu lieu — aucune
+  // de ces situations n'était visible auparavant en dehors de la fiche élève
+  // consultée une par une.
+  async getAttendanceAlerts() {
+    const now = new Date();
+    const graceThreshold = new Date(now.getTime() - ATTENDANCE_ALERT_GRACE_HOURS * 3_600_000);
+
+    const [openLogs, pastSessions] = await Promise.all([
+      // Check-in scanné mais jamais de check-out : séance restée "en cours".
+      this.prisma.attendanceLog.findMany({
+        where: { checkoutAt: null, sessionId: { not: null }, checkinAt: { not: null } },
+        include: {
+          student: { select: { id: true, name: true } },
+          teacher: { select: { id: true, name: true } },
+          session: { select: { date: true, durationMinutes: true, subject: true } },
+        },
+        orderBy: { checkinAt: 'asc' },
+      }),
+      // Toutes les séances passées non annulées : on classe en mémoire car le
+      // critère "jamais pointée" / "compte-rendu manquant" combine plusieurs
+      // colonnes (statut, notes, présence d'un pointage clôturé, date).
+      this.prisma.session.findMany({
+        where: { status: { not: 'annulee' }, date: { lt: now } },
+        select: {
+          id: true,
+          date: true,
+          durationMinutes: true,
+          subject: true,
+          status: true,
+          notes: true,
+          student: { select: { id: true, name: true } },
+          teacher: { select: { id: true, name: true } },
+          // Le pointage (QR/manuel) ne clôture plus automatiquement la séance
+          // (voir AttendanceService) : on a donc besoin de savoir si un
+          // pointage a bien eu lieu ET s'il est clôturé, pour distinguer
+          // "jamais pointée" de "pointée mais jamais rapportée".
+          attendanceLogs: {
+            select: { checkoutAt: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      }),
+    ]);
+
+    const staleOpenSessions = openLogs
+      .filter((log) => log.session && log.session.date < graceThreshold)
+      .map((log) => ({
+        attendanceLogId: log.id,
+        student: log.student,
+        teacher: log.teacher,
+        subject: log.session?.subject ?? null,
+        scheduledDate: log.session?.date ?? null,
+        checkinAt: log.checkinAt,
+      }));
+
+    const neverPointedSessions = pastSessions
+      .filter(
+        (session) =>
+          session.status !== 'realisee' &&
+          session.attendanceLogs.length === 0 &&
+          session.date < graceThreshold,
+      )
+      .map(({ attendanceLogs, ...session }) => session);
+
+    const missingReports = pastSessions
+      .filter((session) => {
+        const lastLog = session.attendanceLogs[0];
+        const hasOpenAttendance = lastLog && !lastLog.checkoutAt;
+        if (hasOpenAttendance) return false; // déjà couvert par staleOpenSessions
+
+        const realiseeSansNotes = session.status === 'realisee' && !session.notes?.trim();
+        const pointeeSansRapport =
+          session.status !== 'realisee' &&
+          Boolean(lastLog?.checkoutAt) &&
+          session.date < graceThreshold;
+        return realiseeSansNotes || pointeeSansRapport;
+      })
+      .map(({ attendanceLogs, ...session }) => session);
+
+    return { staleOpenSessions, neverPointedSessions, missingReports };
   }
 
   async getNotifications() {

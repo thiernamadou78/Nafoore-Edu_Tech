@@ -90,6 +90,12 @@ export const ATTENDANCE_METHOD_LABELS = {
   manuel: 'Manuel',
 }
 
+export const MANUAL_REASON_LABELS = {
+  qr_oublie: 'Pass QR oublié',
+  probleme_technique: 'Problème technique',
+  autre: 'Autre',
+}
+
 export const FUNDING_SOURCE_LABELS = {
   family: 'Famille',
   enterprise: 'Entreprise',

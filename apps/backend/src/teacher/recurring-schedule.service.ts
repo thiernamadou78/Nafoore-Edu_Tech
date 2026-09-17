@@ -49,7 +49,11 @@ export class RecurringScheduleService {
       throw new BadRequestException("Tu n'enseignes pas cette matière à cet élève");
     }
 
-    await this.assertNoScheduleConflict(teacherId, studentId, dto);
+    const existingSchedule = await this.prisma.recurringSchedule.findUnique({
+      where: { studentId_teacherId_subject: { studentId, teacherId, subject: dto.subject } },
+    });
+
+    await this.assertNoScheduleConflict(teacherId, studentId, dto, existingSchedule?.id);
 
     const slots = dto.slots.map((s) => ({
       dayOfWeek: s.dayOfWeek,
@@ -123,6 +127,7 @@ export class RecurringScheduleService {
     teacherId: string,
     studentId: string,
     dto: UpsertRecurringScheduleDto,
+    existingScheduleId?: string,
   ) {
     const otherSchedules = await this.prisma.recurringSchedule.findMany({
       where: {
@@ -143,6 +148,41 @@ export class RecurringScheduleService {
               `Créneau déjà pris par le planning de ${other.student.name} (${other.subject})`,
             );
           }
+        }
+      }
+    }
+
+    // Les plannings recurrents d'AUTRES eleves ne couvrent pas les seances
+    // ponctuelles ("Planifier" depuis le Planning) : sans ce controle, un
+    // nouveau planning recurrent pouvait chevaucher une seance ponctuelle
+    // deja posee, alors que l'inverse (poser une seance ponctuelle sur un
+    // creneau recurrent existant) est deja bloque par assertNoConflict.
+    const now = new Date();
+    const lookupEnd = new Date(now.getTime() + WEEKS_AHEAD * 7 * 24 * 3_600_000);
+    const upcomingSessions = await this.prisma.session.findMany({
+      where: {
+        teacherId,
+        status: { not: 'annulee' },
+        date: { gte: now, lte: lookupEnd },
+        // Les seances deja generees par CE planning seront de toute facon
+        // supprimees puis regenerees sur le nouveau rythme : pas de conflit
+        // a chercher contre elles-memes.
+        scheduleId: existingScheduleId ? { not: existingScheduleId } : undefined,
+      },
+      include: { student: { select: { name: true } } },
+    });
+
+    for (const slot of dto.slots) {
+      for (const occurrence of nextOccurrences(slot, WEEKS_AHEAD, now)) {
+        const occurrenceEnd = new Date(occurrence.getTime() + newDuration * 60_000);
+        const conflict = upcomingSessions.find((session) => {
+          const sessionEnd = new Date(session.date.getTime() + session.durationMinutes * 60_000);
+          return occurrence < sessionEnd && session.date < occurrenceEnd;
+        });
+        if (conflict) {
+          throw new ConflictException(
+            `Créneau déjà pris le ${occurrence.toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })} par une séance avec ${conflict.student.name}`,
+          );
         }
       }
     }

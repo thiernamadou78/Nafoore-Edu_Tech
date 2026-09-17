@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarClock, FileWarning, GraduationCap, Sparkles, Users } from 'lucide-react'
+import { CalendarClock, FileWarning, GraduationCap, Users } from 'lucide-react'
 import { api } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { Badge } from '../components/ui/Badge'
-import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from './labels'
@@ -30,8 +29,6 @@ export function Dashboard() {
   const { teacherAccount } = useAuth()
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
-  const [simulating, setSimulating] = useState(false)
-  const [simResult, setSimResult] = useState(null)
 
   useEffect(() => {
     api
@@ -39,16 +36,6 @@ export function Dashboard() {
       .then(setData)
       .catch((err) => setError(err.message))
   }, [])
-
-  const handleSimulate = () => {
-    setSimulating(true)
-    setSimResult(null)
-    api
-      .post('/teacher/reminders/simulate')
-      .then(setSimResult)
-      .catch((err) => setError(err.message))
-      .finally(() => setSimulating(false))
-  }
 
   if (error) return <p className="text-red-600">{error}</p>
   if (!data) return <Spinner />
@@ -98,27 +85,6 @@ export function Dashboard() {
               </div>
             ))}
           </div>
-        )}
-      </Card>
-
-      <Card className="p-5">
-        <h2 className="mb-2 flex items-center gap-2 font-semibold text-gray-900">
-          <Sparkles size={16} className="text-gold-500" />
-          Outils de démonstration
-        </h2>
-        <p className="mb-3 text-sm text-gray-500">
-          En conditions réelles, un rappel serait envoyé automatiquement 24h après une séance
-          sans compte-rendu. Ce bouton simule ce déclenchement immédiatement, pour test.
-        </p>
-        <Button disabled={simulating} onClick={handleSimulate}>
-          Simuler l'envoi des rappels
-        </Button>
-        {simResult && (
-          <p className="mt-3 text-sm text-gray-700">
-            {simResult.candidates === 0
-              ? "Aucune séance en attente de compte-rendu depuis plus de 24h."
-              : `${simResult.sent} email(s) de rappel envoyé(s) sur ${simResult.candidates} séance(s) concernée(s).`}
-          </p>
         )}
       </Card>
     </div>
