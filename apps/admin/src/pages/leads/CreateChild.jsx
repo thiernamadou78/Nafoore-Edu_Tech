@@ -17,6 +17,7 @@ const DEFAULT_FORM = {
   classe: '',
   school: '',
   address: '',
+  postalCode: '',
   dateNaissance: '',
 }
 
@@ -29,10 +30,15 @@ export function CreateChild() {
   // contact : l'enfant vit generalement au meme endroit, et c'est ce champ
   // qui sert a proposer un enseignant proche geographiquement.
   const leadAddress = searchParams.get('address') ?? ''
+  const leadPostalCode = searchParams.get('postalCode') ?? ''
 
   const formRef = useRef(null)
   const photoInputRef = useRef(null)
-  const [form, setForm] = useState({ ...DEFAULT_FORM, address: leadAddress })
+  const [form, setForm] = useState({
+    ...DEFAULT_FORM,
+    address: leadAddress,
+    postalCode: leadPostalCode,
+  })
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -76,6 +82,7 @@ export function CreateChild() {
         classe: form.classe,
         school: form.school,
         address: form.address || undefined,
+        postalCode: form.postalCode || undefined,
         dateNaissance: form.dateNaissance || undefined,
         parentLeadId: leadId,
       })
@@ -108,7 +115,7 @@ export function CreateChild() {
     const ok = await submitChild()
     if (ok) {
       setAddedCount((count) => count + 1)
-      setForm({ ...DEFAULT_FORM, address: leadAddress })
+      setForm({ ...DEFAULT_FORM, address: leadAddress, postalCode: leadPostalCode })
       resetPhoto()
     }
   }
@@ -229,16 +236,32 @@ export function CreateChild() {
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Adresse (optionnel)
-            </label>
-            <input
-              type="text"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              className={inputClass}
-            />
+          <div className="grid grid-cols-[1fr_130px] gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Adresse (optionnel)
+              </label>
+              <input
+                type="text"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Code postal
+              </label>
+              <input
+                type="text"
+                pattern="\d{5}"
+                maxLength={5}
+                value={form.postalCode}
+                onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
+                placeholder="75015"
+                className={inputClass}
+              />
+            </div>
           </div>
 
           <div className="flex gap-2 pt-2">

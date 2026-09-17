@@ -3,6 +3,7 @@ import {
   IsArray,
   IsEmail,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -25,4 +26,9 @@ export class CreateTeacherApplicationDto {
   @MinLength(2)
   @MaxLength(100)
   zone: string;
+
+  // Ameliore la precision du geocodage (voir GeocodingService.geocode).
+  @IsString()
+  @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
+  postalCode: string;
 }

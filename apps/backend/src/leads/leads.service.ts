@@ -25,11 +25,14 @@ export class LeadsService {
     const lead = await this.prisma.lead.create({
       data: {
         profile: 'famille',
+        gender: dto.gender,
         name: dto.name,
         email: dto.email,
         phone: dto.phone,
+        message: dto.message,
+        services: dto.services,
         address: dto.address ?? null,
-        message: 'Famille créée directement depuis l’espace admin.',
+        postalCode: dto.postalCode ?? null,
         status: 'valide',
       },
     });
@@ -38,7 +41,7 @@ export class LeadsService {
 
     if (dto.address) {
       this.geocoding
-        .geocode(dto.address)
+        .geocode(dto.address, dto.postalCode)
         .then((coords) => {
           if (!coords) return;
           return this.prisma.lead.update({ where: { id: lead.id }, data: coords });
@@ -117,13 +120,13 @@ export class LeadsService {
     // d'afficher un pin a l'ancienne position si l'adresse a change.
     const lead = await this.prisma.lead.update({
       where: { id },
-      data: { address: dto.address, latitude: null, longitude: null },
+      data: { address: dto.address, postalCode: dto.postalCode, latitude: null, longitude: null },
     });
 
     await this.activityLog.log(actorId, 'update_lead_address', 'leads', id);
 
     this.geocoding
-      .geocode(dto.address)
+      .geocode(dto.address, dto.postalCode)
       .then((coords) => {
         if (!coords) return;
         return this.prisma.lead.update({ where: { id }, data: coords });

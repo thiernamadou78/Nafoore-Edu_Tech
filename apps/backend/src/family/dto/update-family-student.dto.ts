@@ -4,6 +4,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -35,6 +36,12 @@ export class UpdateFamilyStudentDto {
   @IsString()
   @MaxLength(300)
   address?: string;
+
+  // Ameliore la precision du geocodage (voir GeocodingService.geocode).
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
+  postalCode?: string;
 
   @IsOptional()
   @IsDateString()

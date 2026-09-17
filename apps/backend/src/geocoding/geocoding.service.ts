@@ -18,8 +18,10 @@ export class GeocodingService {
   // Best-effort : ne lève jamais — un échec de géocodage ne doit jamais
   // bloquer la création/mise à jour d'une famille ou d'un enseignant, le pin
   // sur la carte admin sera juste absent tant que l'adresse n'est pas géocodée.
-  async geocode(address: string): Promise<Coordinates | null> {
-    const query = address?.trim();
+  // Le code postal, quand il est fourni, desambiguise nettement le resultat
+  // (ex: rues homonymes dans plusieurs communes).
+  async geocode(address: string, postalCode?: string | null): Promise<Coordinates | null> {
+    const query = [address?.trim(), postalCode?.trim()].filter(Boolean).join(', ');
     if (!query) return null;
 
     await this.throttle();
@@ -29,7 +31,7 @@ export class GeocodingService {
       url.searchParams.set('q', query);
       url.searchParams.set('format', 'json');
       url.searchParams.set('limit', '1');
-      url.searchParams.set('countrycodes', 'gn');
+      url.searchParams.set('countrycodes', 'fr');
 
       const response = await fetch(url, {
         headers: { 'User-Agent': 'NafooreEducation/1.0 (contact@nafoore.fr)' },

@@ -1,6 +1,14 @@
-import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { ArrayMinSize, IsArray, IsEmail, IsIn, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { CONTACT_SERVICES } from '../../contacts/dto/create-contact.dto';
 
+// Meme exigences que le formulaire de contact public (CreateContactDto) pour
+// le profil famille : une famille créée manuellement par l'admin doit avoir
+// exactement les memes informations qu'une famille auto-inscrite, pas un
+// dossier incomplet.
 export class CreateFamilyLeadDto {
+  @IsIn(['homme', 'femme'], { message: 'genre doit être homme ou femme' })
+  gender: string;
+
   @IsString()
   @MinLength(2, { message: 'Le nom doit faire au moins 2 caractères' })
   @MaxLength(100)
@@ -9,13 +17,28 @@ export class CreateFamilyLeadDto {
   @IsEmail({}, { message: 'Email invalide' })
   email: string;
 
-  @IsOptional()
   @IsString()
+  @MinLength(1, { message: 'Le téléphone est obligatoire' })
   @MaxLength(20)
-  phone?: string;
+  phone: string;
+
+  @IsString()
+  @MinLength(10, { message: 'Le message doit faire au moins 10 caractères' })
+  @MaxLength(2000)
+  message: string;
+
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Choisissez au moins un service' })
+  @IsIn(CONTACT_SERVICES, { each: true, message: 'Service invalide' })
+  services: string[];
 
   @IsString()
   @MinLength(1, { message: "L'adresse est obligatoire" })
   @MaxLength(300)
   address: string;
+
+  // Ameliore la precision du geocodage (voir GeocodingService.geocode).
+  @IsString()
+  @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
+  postalCode: string;
 }

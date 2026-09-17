@@ -82,27 +82,28 @@ export class TeachersService {
         subjects: dto.subjects ?? [],
         bio: dto.bio,
         address: dto.address,
+        postalCode: dto.postalCode,
         email: dto.email,
         phone: dto.phone,
         verified: true,
       },
     });
-    if (dto.address) this.geocodeAndSave(teacher.id, dto.address);
+    if (dto.address) this.geocodeAndSave(teacher.id, dto.address, dto.postalCode);
     return teacher;
   }
 
   async update(id: string, dto: UpdateTeacherDto) {
     await this.findOneRaw(id);
     const teacher = await this.prisma.teacher.update({ where: { id }, data: dto });
-    if (dto.address) this.geocodeAndSave(id, dto.address);
+    if (dto.address) this.geocodeAndSave(id, dto.address, dto.postalCode);
     return teacher;
   }
 
   // Best-effort, en tâche de fond : ne doit jamais retarder ni faire échouer
   // la création/mise à jour de l'enseignant.
-  private geocodeAndSave(teacherId: string, address: string) {
+  private geocodeAndSave(teacherId: string, address: string, postalCode?: string) {
     this.geocoding
-      .geocode(address)
+      .geocode(address, postalCode)
       .then((coords) => {
         if (!coords) return;
         return this.prisma.teacher.update({ where: { id: teacherId }, data: coords });

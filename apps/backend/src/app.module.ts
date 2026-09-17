@@ -25,6 +25,8 @@ import { RhAccountsModule } from './rh-accounts/rh-accounts.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { PushModule } from './push/push.module';
 import { GeocodingModule } from './geocoding/geocoding.module';
+import { SettingsModule } from './settings/settings.module';
+import { TestimonialsModule } from './testimonials/testimonials.module';
 
 @Module({
   imports: [
@@ -54,6 +56,8 @@ import { GeocodingModule } from './geocoding/geocoding.module';
     AttendanceModule,
     PushModule,
     GeocodingModule,
+    SettingsModule,
+    TestimonialsModule,
   ],
 })
 export class AppModule {}

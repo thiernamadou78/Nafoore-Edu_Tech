@@ -7,6 +7,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   MinLength,
@@ -32,6 +33,9 @@ export class CreateContactDto {
   })
   profile: string;
 
+  @IsIn(['homme', 'femme'], { message: 'genre doit être homme ou femme' })
+  gender: string;
+
   @IsString()
   @MinLength(2, { message: 'Le nom doit faire au moins 2 caractères' })
   @MaxLength(100)
@@ -40,10 +44,10 @@ export class CreateContactDto {
   @IsEmail({}, { message: 'Email invalide' })
   email: string;
 
-  @IsOptional()
   @IsString()
+  @MinLength(1, { message: 'Le téléphone est obligatoire' })
   @MaxLength(20)
-  phone?: string;
+  phone: string;
 
   @IsString()
   @MinLength(10, { message: 'Le message doit faire au moins 10 caractères' })
@@ -65,6 +69,12 @@ export class CreateContactDto {
   @MinLength(1, { message: "L'adresse est obligatoire" })
   @MaxLength(300)
   address?: string;
+
+  // Ameliore la precision du geocodage (voir GeocodingService.geocode).
+  @ValidateIf((dto) => dto.profile === 'famille')
+  @IsString()
+  @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
+  postalCode?: string;
 
   @IsOptional()
   @IsDateString()

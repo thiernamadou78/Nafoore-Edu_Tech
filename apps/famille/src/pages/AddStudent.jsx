@@ -18,6 +18,7 @@ const DEFAULT_FORM = {
   classe: '',
   school: '',
   address: '',
+  postalCode: '',
   dateNaissance: '',
   subjects: [],
 }
@@ -74,6 +75,7 @@ export function AddStudent() {
         classe: form.classe,
         school: form.school,
         address: form.address || undefined,
+        postalCode: form.postalCode || undefined,
         dateNaissance: form.dateNaissance || undefined,
         subjects: form.subjects,
       })
@@ -209,14 +211,30 @@ export function AddStudent() {
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Adresse (optionnel)</label>
-            <input
-              type="text"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              className={inputClass}
-            />
+          <div className="grid grid-cols-[1fr_130px] gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Adresse (optionnel)
+              </label>
+              <input
+                type="text"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Code postal</label>
+              <input
+                type="text"
+                pattern="\d{5}"
+                maxLength={5}
+                placeholder="75015"
+                value={form.postalCode}
+                onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
+                className={inputClass}
+              />
+            </div>
           </div>
 
           <div>

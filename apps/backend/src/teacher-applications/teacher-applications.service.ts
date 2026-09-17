@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { PhotosService } from '../photos/photos.service';
 import { EmailService } from '../email/email.service';
+import { GeocodingService } from '../geocoding/geocoding.service';
 import { resolvePortalUrl } from '../email/portal-url.util';
 import { renderDocumentsRequiredEmail } from '../email/templates/documents-required.template';
 import { generateCompletionToken } from './completion-token.util';
@@ -20,6 +21,7 @@ export class TeacherApplicationsService {
     private readonly activityLog: ActivityLogService,
     private readonly photos: PhotosService,
     private readonly emailService: EmailService,
+    private readonly geocoding: GeocodingService,
   ) {}
 
   list(query: ListTeacherApplicationsQueryDto) {
@@ -162,10 +164,25 @@ export class TeacherApplicationsService {
             subjects: existing.subjects,
             bio: existing.bio,
             photoPath: existing.photoPath,
+            email: existing.candidateEmail,
+            phone: existing.phone,
+            address: existing.zone,
+            postalCode: existing.postalCode,
             verified: true,
           },
         });
         createdTeacherId = teacher.id;
+        if (existing.zone) {
+          this.geocoding
+            .geocode(existing.zone, existing.postalCode)
+            .then((coords) => {
+              if (!coords) return;
+              return this.prisma.teacher.update({ where: { id: teacher.id }, data: coords });
+            })
+            .catch((error) =>
+              this.logger.warn(`Géocodage de l'enseignant ${teacher.id} échoué: ${error}`),
+            );
+        }
       } else if (status === 'valide' && createdTeacherId) {
         await tx.teacher.update({
           where: { id: createdTeacherId },

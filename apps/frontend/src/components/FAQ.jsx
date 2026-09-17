@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 const ITEMS = [
   {
@@ -15,7 +17,7 @@ const ITEMS = [
   },
   {
     q: 'Quels sont les tarifs ?',
-    a: 'À partir de 25 €/h pour les cours particuliers. Des formules mensuelles offrent des tarifs réduits. Des tarifs solidaires sont disponibles pour les familles éligibles aux aides sociales. Contactez-nous pour un devis personnalisé gratuit.',
+    a: 'À partir de {RATE} €/h pour les cours particuliers. Des formules mensuelles offrent des tarifs réduits. Des tarifs solidaires sont disponibles pour les familles éligibles aux aides sociales. Contactez-nous pour un devis personnalisé gratuit.',
   },
   {
     q: 'Y a-t-il un engagement de durée ?',
@@ -68,6 +70,19 @@ function Item({ q, a, index }) {
 }
 
 export default function FAQ() {
+  const [hourlyRate, setHourlyRate] = useState('25')
+
+  useEffect(() => {
+    fetch(`${API_URL}/settings/public`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.hourlyRateFrom) setHourlyRate(data.hourlyRateFrom)
+      })
+      .catch(() => {})
+  }, [])
+
+  const items = ITEMS.map((item) => ({ ...item, a: item.a.replace('{RATE}', hourlyRate) }))
+
   return (
     <section className="py-24 bg-white">
       <div className="max-w-3xl mx-auto px-4">
@@ -89,7 +104,7 @@ export default function FAQ() {
         </div>
 
         <div className="space-y-2.5">
-          {ITEMS.map((item, i) => (
+          {items.map((item, i) => (
             <Item key={item.q} {...item} index={i} />
           ))}
         </div>

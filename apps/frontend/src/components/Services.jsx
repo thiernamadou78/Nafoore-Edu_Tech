@@ -5,6 +5,7 @@ const SERVICES = [
     desc: 'Accompagnement quotidien du soir, du CP à la Terminale.',
     accent: 'from-blue-500/10 to-navy/5',
     dot: 'bg-blue-500',
+    service: 'aide_devoirs',
   },
   {
     icon: '🎯',
@@ -12,6 +13,7 @@ const SERVICES = [
     desc: 'Cours particuliers adaptés au niveau et au rythme de chaque élève.',
     accent: 'from-violet-500/10 to-violet-500/5',
     dot: 'bg-violet-500',
+    service: 'soutien_scolaire',
   },
   {
     icon: '📝',
@@ -19,6 +21,7 @@ const SERVICES = [
     desc: 'Programme intensif ciblé pour maximiser les résultats au Brevet.',
     accent: 'from-emerald-500/10 to-emerald-500/5',
     dot: 'bg-emerald-500',
+    service: 'preparation_brevet',
   },
   {
     icon: '🏆',
@@ -26,6 +29,7 @@ const SERVICES = [
     desc: 'Coaching par matière pour aborder le Baccalauréat sereinement.',
     accent: 'from-gold-500/15 to-gold-500/5',
     dot: 'bg-gold-500',
+    service: 'preparation_bac',
   },
   {
     icon: '🧠',
@@ -33,6 +37,7 @@ const SERVICES = [
     desc: "Techniques de travail durables : organisation, mémorisation, concentration.",
     accent: 'from-pink-500/10 to-pink-500/5',
     dot: 'bg-pink-500',
+    service: 'coaching_methodologique',
   },
   {
     icon: '🌅',
@@ -40,6 +45,7 @@ const SERVICES = [
     desc: 'Remise à niveau ou avance sur programme pendant toutes les vacances.',
     accent: 'from-orange-500/10 to-orange-500/5',
     dot: 'bg-orange-500',
+    service: 'stages_vacances',
   },
   {
     icon: '🌍',
@@ -47,6 +53,7 @@ const SERVICES = [
     desc: 'Soutien en anglais, espagnol, arabe — tous niveaux.',
     accent: 'from-cyan-500/10 to-cyan-500/5',
     dot: 'bg-cyan-500',
+    service: 'accompagnement_bilingue',
   },
   {
     icon: '🏛️',
@@ -54,6 +61,7 @@ const SERVICES = [
     desc: 'Dispositifs de réussite éducative pour les quartiers prioritaires (QPV).',
     accent: 'from-navy/8 to-navy/4',
     dot: 'bg-navy',
+    profile: 'mairie',
   },
   {
     icon: '🏢',
@@ -61,6 +69,7 @@ const SERVICES = [
     desc: "Chèques éducatifs et avantages salariés pour les comités d'entreprise.",
     accent: 'from-slate-500/10 to-slate-500/5',
     dot: 'bg-slate-500',
+    profile: 'entreprise',
   },
   {
     icon: '🎓',
@@ -68,8 +77,14 @@ const SERVICES = [
     desc: 'Modules de remise à niveau et accompagnement personnalisé pour vos apprenants.',
     accent: 'from-indigo-500/10 to-indigo-500/5',
     dot: 'bg-indigo-500',
+    profile: 'centre_formation_ecole_pro',
   },
 ]
+
+function handleServiceClick(service, profile) {
+  window.dispatchEvent(new CustomEvent('nafoore-select-service', { detail: { service, profile } }))
+  document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })
+}
 
 export default function Services() {
   return (
@@ -93,10 +108,12 @@ export default function Services() {
 
         {/* Grille */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {SERVICES.map(({ icon, title, desc, accent, dot }, i) => (
-            <div
+          {SERVICES.map(({ icon, title, desc, accent, dot, service, profile }, i) => (
+            <button
               key={title}
-              className={`relative group bg-gradient-to-br ${accent} border border-gray-100 rounded-2xl p-6 hover:border-gold-400/40 hover:shadow-lg hover:shadow-navy/5 hover:-translate-y-1 transition-all duration-200`}
+              type="button"
+              onClick={() => handleServiceClick(service, profile)}
+              className={`relative group w-full text-left bg-gradient-to-br ${accent} border border-gray-100 rounded-2xl p-6 hover:border-gold-400/40 hover:shadow-lg hover:shadow-navy/5 hover:-translate-y-1 transition-all duration-200 cursor-pointer`}
             >
               {/* Numéro discret */}
               <span className="absolute top-4 right-5 font-serif text-4xl font-bold text-gray-100 select-none leading-none">
@@ -113,7 +130,7 @@ export default function Services() {
                 {title}
               </h3>
               <p className="font-sans text-gray-500 text-sm leading-relaxed">{desc}</p>
-            </div>
+            </button>
           ))}
         </div>
       </div>

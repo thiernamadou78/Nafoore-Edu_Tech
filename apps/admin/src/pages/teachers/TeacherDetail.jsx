@@ -13,6 +13,7 @@ import { PaginationControls } from '../../components/ui/PaginationControls'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { usePagination } from '../../lib/usePagination'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from '../students/labels'
+import { SubjectPicker } from './SubjectPicker'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -28,9 +29,10 @@ export function TeacherDetail() {
   const [teacher, setTeacher] = useState(null)
   const [form, setForm] = useState({
     name: '',
-    subjects: '',
+    subjects: [],
     bio: '',
     address: '',
+    postalCode: '',
     email: '',
     phone: '',
   })
@@ -43,9 +45,10 @@ export function TeacherDetail() {
       setTeacher(data)
       setForm({
         name: data.name,
-        subjects: data.subjects.join(', '),
+        subjects: data.subjects,
         bio: data.bio ?? '',
         address: data.address ?? '',
+        postalCode: data.postalCode ?? '',
         email: data.email ?? '',
         phone: data.phone ?? '',
       })
@@ -108,6 +111,7 @@ export function TeacherDetail() {
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
             <input
+              required
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               className={inputClass}
@@ -116,9 +120,22 @@ export function TeacherDetail() {
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
             <input
+              required
               value={form.address}
               onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-              placeholder="Ex : Conakry, Kaloum"
+              placeholder="Ex : Paris 15e"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Code postal</label>
+            <input
+              required
+              value={form.postalCode}
+              onChange={(e) => setForm((f) => ({ ...f, postalCode: e.target.value }))}
+              pattern="\d{5}"
+              maxLength={5}
+              placeholder="75015"
               className={inputClass}
             />
           </div>
@@ -126,6 +143,7 @@ export function TeacherDetail() {
             <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
             <input
               type="email"
+              required
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
               className={inputClass}
@@ -134,19 +152,17 @@ export function TeacherDetail() {
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Téléphone</label>
             <input
+              required
               value={form.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
               className={inputClass}
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Matières (séparées par des virgules)
-            </label>
-            <input
-              value={form.subjects}
-              onChange={(e) => setForm((f) => ({ ...f, subjects: e.target.value }))}
-              className={inputClass}
+            <label className="mb-1 block text-sm font-medium text-gray-700">Matières</label>
+            <SubjectPicker
+              selected={form.subjects}
+              onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
             />
           </div>
           <div className="sm:col-span-2">
@@ -163,21 +179,30 @@ export function TeacherDetail() {
           <Button
             icon={Save}
             loading={savingAction === 'info'}
-            onClick={() =>
+            onClick={() => {
+              if (
+                !form.name.trim() ||
+                !form.address.trim() ||
+                !form.postalCode.trim() ||
+                !form.email.trim() ||
+                !form.phone.trim() ||
+                form.subjects.length === 0
+              ) {
+                setError('Nom, adresse, code postal, email, téléphone et au moins une matière sont obligatoires.')
+                return
+              }
               run('info', () =>
                 api.patch(`/teachers/${id}`, {
                   name: form.name,
-                  subjects: form.subjects
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean),
+                  subjects: form.subjects,
                   bio: form.bio || undefined,
-                  address: form.address || undefined,
-                  email: form.email || undefined,
-                  phone: form.phone || undefined,
+                  address: form.address,
+                  postalCode: form.postalCode,
+                  email: form.email,
+                  phone: form.phone,
                 }),
               )
-            }
+            }}
           >
             Enregistrer
           </Button>

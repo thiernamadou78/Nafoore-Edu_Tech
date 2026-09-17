@@ -59,13 +59,14 @@ export class FamilyService {
         classe: dto.classe,
         school: dto.school,
         address: dto.address,
+        postalCode: dto.postalCode,
         dateNaissance: dto.dateNaissance ? new Date(dto.dateNaissance) : undefined,
         subjects: dto.subjects ?? [],
         parentLeadId: portalAccount.leadId,
         qrToken: generateQrToken(),
       },
     });
-    if (dto.address) this.geocodeAndSave(student.id, dto.address);
+    if (dto.address) this.geocodeAndSave(student.id, dto.address, dto.postalCode);
     return student;
   }
 
@@ -83,19 +84,20 @@ export class FamilyService {
         classe: dto.classe,
         school: dto.school,
         address: dto.address,
+        postalCode: dto.postalCode,
         dateNaissance: dto.dateNaissance ? new Date(dto.dateNaissance) : undefined,
         subjects: dto.subjects,
       },
     });
-    if (dto.address) this.geocodeAndSave(studentId, dto.address);
+    if (dto.address) this.geocodeAndSave(studentId, dto.address, dto.postalCode);
     return student;
   }
 
   // Best-effort, en tâche de fond : ne doit jamais retarder ni faire échouer
   // la création/mise à jour de l'élève.
-  private geocodeAndSave(studentId: string, address: string) {
+  private geocodeAndSave(studentId: string, address: string, postalCode?: string) {
     this.geocoding
-      .geocode(address)
+      .geocode(address, postalCode)
       .then((coords) => {
         if (!coords) return;
         return this.prisma.student.update({ where: { id: studentId }, data: coords });

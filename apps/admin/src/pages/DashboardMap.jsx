@@ -7,10 +7,10 @@ import { MapPin } from 'lucide-react'
 import { api } from '../lib/api'
 import { Card } from '../components/ui/Card'
 
-// Centre par défaut sur Conakry — la quasi-totalité des élèves/enseignants
-// sont dans l'agglomération, pas besoin de recentrer dynamiquement.
-const DEFAULT_CENTER = [9.6412, -13.5784]
-const DEFAULT_ZOOM = 12
+// Centre par défaut sur Paris/Île-de-France — la quasi-totalité des
+// élèves/enseignants y sont, pas besoin de recentrer dynamiquement.
+const DEFAULT_CENTER = [48.8566, 2.3522]
+const DEFAULT_ZOOM = 10
 
 // Silhouette "mannequin" pour les deux types de pin — seule la couleur
 // distingue élève (navy) et enseignant (or).

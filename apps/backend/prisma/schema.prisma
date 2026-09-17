@@ -14,6 +14,7 @@ model Lead {
   id               String        @id @default(cuid())
   createdAt        DateTime      @default(now()) @map("created_at")
   profile          String        // famille | mairie | entreprise | centre_formation_ecole_pro
+  gender           String?       // homme | femme
   name             String
   email            String
   phone            String?
@@ -24,6 +25,8 @@ model Lead {
   // besoins differents.
   services         String[]      @default([])
   address          String?
+  // Ameliore la precision du geocodage (voir GeocodingService.geocode).
+  postalCode       String?       @map("postal_code")
   // Geocodees automatiquement (best-effort) a partir de `address` — servent
   // au pin "famille" sur la carte du tableau de bord admin.
   latitude         Float?
@@ -87,6 +90,8 @@ model Student {
   sequenceNumber Int               @unique @default(autoincrement()) @map("sequence_number")
   school         String?
   address        String?
+  // Ameliore la precision du geocodage (voir GeocodingService.geocode).
+  postalCode     String?           @map("postal_code")
   // Geocodees automatiquement (best-effort) a partir de `address` — servent
   // au pin "élève" sur la carte du tableau de bord admin.
   latitude       Float?
@@ -124,6 +129,8 @@ model Teacher {
   // Adresse (ex-"zone") : le prof se déplace pour un cours en présentiel, ce
   // champ sert surtout de repère géographique général, pas un point exact.
   address     String?
+  // Ameliore la precision du geocodage (voir GeocodingService.geocode).
+  postalCode  String?                @map("postal_code")
   // Geocodees automatiquement (best-effort) a partir de `address` — servent
   // au pin "enseignant" sur la carte du tableau de bord admin.
   latitude    Float?
@@ -146,6 +153,7 @@ model Teacher {
   recurringSchedules RecurringSchedule[]
   documents   TeacherDocument[]
   pushSubscriptions PushSubscription[]
+  requestInterests TeacherRequestInterest[]
 
   @@map("teachers")
 }
@@ -232,13 +240,27 @@ model SupportMessage {
 }
 
 model Testimonial {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   author    String
   role      String
   quote     String
-  published Boolean @default(false)
+  rating    Int      @default(5)
+  // Ordre d'affichage sur la vitrine (croissant) — independant de la date de creation.
+  order     Int      @default(0)
+  published Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("testimonials")
+}
+
+// Contenu editable de la vitrine par l'admin (tarif affiche, etc.) — cle/valeur
+// pour rester extensible sans nouvelle migration a chaque ajout.
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
 }
 
 model FaqItem {
@@ -339,7 +361,10 @@ model TeacherApplication {
   subjects          String[]
   levels            String[]      @default([])
   // primaire | college | lycee
+  classes           String[]      @default([])
+  // classes precises enseignees, ex: cm2, 6e, 1re — voir CLASSE_LABELS
   zone              String
+  postalCode        String        @map("postal_code")
   availability      String?
   status            String        @default("preselection")
   // preselection | entretien_planifie | entretien_realise | valide | refuse | documents_requis
@@ -458,6 +483,13 @@ model Session {
   // debut / a la fin de la seance (cron qui tourne toutes les minutes).
   checkinReminderSentAt  DateTime? @map("checkin_reminder_sent_at")
   checkoutReminderSentAt DateTime? @map("checkout_reminder_sent_at")
+  // Evite de renvoyer plusieurs fois l'email "compte-rendu manquant" pour la
+  // meme seance (cron horaire, cf. TeacherService.remindMissingReports).
+  reportReminderSentAt   DateTime? @map("report_reminder_sent_at")
+  // Rappel par email (prof + famille) ~5h avant le debut de la seance —
+  // distinct des rappels push de pointage (10 min avant), cf.
+  // SessionReminderService.sendUpcomingSessionEmails.
+  emailReminderSentAt    DateTime? @map("email_reminder_sent_at")
 
   @@map("sessions")
 }
@@ -601,9 +633,26 @@ model TeacherRequest {
   status       String     @default("en_attente")
   // en_attente | proposition_envoyee | acceptee | annulee
   matchings    Matching[]
+  interests    TeacherRequestInterest[]
 
   @@index([studentId])
   @@map("teacher_requests")
+}
+
+// Un prof se déclare "intéressé" par une demande qui correspond à ses
+// matières, sans que ce soit encore une proposition admin (Matching) : ça
+// aide l'admin à repérer rapidement qui proposer, sans lui imposer un choix.
+model TeacherRequestInterest {
+  id               String         @id @default(cuid())
+  createdAt        DateTime       @default(now()) @map("created_at")
+  teacherRequestId String         @map("teacher_request_id")
+  teacherRequest   TeacherRequest @relation(fields: [teacherRequestId], references: [id], onDelete: Cascade)
+  teacherId        String         @map("teacher_id")
+  teacher          Teacher        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherRequestId, teacherId])
+  @@index([teacherId])
+  @@map("teacher_request_interests")
 }
 
 model Matching {

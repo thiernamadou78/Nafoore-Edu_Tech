@@ -1,32 +1,19 @@
-const TESTIMONIALS = [
-  {
-    quote:
-      'Grâce à Nafoore Education, ma fille a gagné en confiance et décroché son Brevet avec mention. Le suivi après chaque séance change tout — on se sent vraiment accompagnés.',
-    author: 'Sophie M.',
-    role: 'Mère d\'élève · Paris 13ème',
-    initials: 'SM',
-    color: 'bg-blue-500',
-    rating: 5,
-  },
-  {
-    quote:
-      'Nafoore Education accompagne trois de nos écoles dans le cadre du dispositif de réussite éducative. Les résultats sont mesurables et le partenariat est exemplaire.',
-    author: 'Direction éducative',
-    role: 'Mairie de Clichy-la-Garenne',
-    initials: 'MC',
-    color: 'bg-gold-500',
-    rating: 5,
-  },
-  {
-    quote:
-      'En tant qu\'enseignant, Nafoore Education m\'offre une flexibilité réelle et les outils pour suivre mes élèves sérieusement. Une plateforme qui respecte autant les profs que les familles.',
-    author: 'Thomas L.',
-    role: 'Professeur de mathématiques · Paris',
-    initials: 'TL',
-    color: 'bg-violet-500',
-    rating: 5,
-  },
-]
+import { useEffect, useState } from 'react'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
+// Rotation de couleurs pour l'avatar (initiales) — le témoignage en base n'a
+// pas besoin de stocker une couleur, juste de quoi rendre la grille vivante.
+const AVATAR_COLORS = ['bg-blue-500', 'bg-gold-500', 'bg-violet-500', 'bg-emerald-500', 'bg-pink-500', 'bg-cyan-500']
+
+function getInitials(name) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('')
+}
 
 function Stars({ count }) {
   return (
@@ -41,6 +28,17 @@ function Stars({ count }) {
 }
 
 export default function Testimonials() {
+  const [testimonials, setTestimonials] = useState([])
+
+  useEffect(() => {
+    fetch(`${API_URL}/testimonials/public`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setTestimonials)
+      .catch(() => setTestimonials([]))
+  }, [])
+
+  if (testimonials.length === 0) return null
+
   return (
     <section className="py-24 bg-cream">
       <div className="max-w-6xl mx-auto px-4">
@@ -59,9 +57,9 @@ export default function Testimonials() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-5">
-          {TESTIMONIALS.map(({ quote, author, role, initials, color, rating }) => (
+          {testimonials.map(({ id, quote, author, role, rating }, i) => (
             <div
-              key={author}
+              key={id}
               className="bg-white border border-gray-100 rounded-2xl p-7 flex flex-col shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
             >
               {/* Stars */}
@@ -74,8 +72,10 @@ export default function Testimonials() {
 
               {/* Auteur */}
               <div className="flex items-center gap-3 pt-5 border-t border-gray-100">
-                <div className={`w-10 h-10 ${color} rounded-full flex items-center justify-center flex-shrink-0`}>
-                  <span className="font-sans text-white text-xs font-bold">{initials}</span>
+                <div
+                  className={`w-10 h-10 ${AVATAR_COLORS[i % AVATAR_COLORS.length]} rounded-full flex items-center justify-center flex-shrink-0`}
+                >
+                  <span className="font-sans text-white text-xs font-bold">{getInitials(author)}</span>
                 </div>
                 <div>
                   <div className="font-sans font-bold text-navy text-sm">{author}</div>

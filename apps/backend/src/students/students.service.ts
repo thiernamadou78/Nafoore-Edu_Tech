@@ -127,6 +127,7 @@ export class StudentsService {
         classe: dto.classe,
         school: dto.school,
         address: dto.address,
+        postalCode: dto.postalCode,
         dateNaissance: dto.dateNaissance ? new Date(dto.dateNaissance) : undefined,
         subjects: dto.subjects ?? [],
         objectives: dto.objectives,
@@ -134,15 +135,15 @@ export class StudentsService {
         qrToken: generateQrToken(),
       },
     });
-    if (dto.address) this.geocodeAndSave(student.id, dto.address);
+    if (dto.address) this.geocodeAndSave(student.id, dto.address, dto.postalCode);
     return student;
   }
 
   // Best-effort, en tâche de fond : ne doit jamais retarder ni faire échouer
   // la création/mise à jour de l'élève.
-  private geocodeAndSave(studentId: string, address: string) {
+  private geocodeAndSave(studentId: string, address: string, postalCode?: string) {
     this.geocoding
-      .geocode(address)
+      .geocode(address, postalCode)
       .then((coords) => {
         if (!coords) return;
         return this.prisma.student.update({ where: { id: studentId }, data: coords });
@@ -166,7 +167,7 @@ export class StudentsService {
   async update(id: string, dto: UpdateStudentDto) {
     await this.findOneRaw(id);
     const student = await this.prisma.student.update({ where: { id }, data: dto });
-    if (dto.address) this.geocodeAndSave(id, dto.address);
+    if (dto.address) this.geocodeAndSave(id, dto.address, dto.postalCode);
     return student;
   }
 

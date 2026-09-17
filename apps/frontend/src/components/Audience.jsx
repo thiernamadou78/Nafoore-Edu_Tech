@@ -66,7 +66,7 @@ const AUDIENCES = [
     bg: 'bg-indigo-50',
     textColor: 'text-navy',
     subColor: 'text-gray-500',
-    badgeBg: 'bg-indigo-600 text-white',
+    badgeBg: 'bg-[#2e4d70] text-white',
     borderColor: 'border-indigo-100',
     listColor: 'text-gray-600',
     checkColor: 'text-gold-500',

@@ -11,6 +11,14 @@ import { UpdateCompletionProfileDto } from './dto/update-completion-profile.dto'
 
 const BUCKET = 'teacher-application-documents';
 
+// Classes valides par niveau — sert a verifier qu'un niveau coche a bien au
+// moins une classe precisee (voir create()).
+const CLASSES_BY_LEVEL: Record<string, string[]> = {
+  primaire: ['cp', 'ce1', 'ce2', 'cm1', 'cm2'],
+  college: ['6e', '5e', '4e', '3e'],
+  lycee: ['2nde', '1re', 'terminale'],
+};
+
 export interface TeacherApplicationUploadedFiles {
   diplomas?: Express.Multer.File[];
   criminalRecord?: Express.Multer.File[];
@@ -121,6 +129,15 @@ export class TeacherApplicationsPublicService {
   }
 
   async create(dto: CreatePublicTeacherApplicationDto, files: TeacherApplicationUploadedFiles) {
+    for (const level of dto.levels) {
+      const validClasses = CLASSES_BY_LEVEL[level] ?? [];
+      if (!dto.classes.some((classe) => validClasses.includes(classe))) {
+        throw new BadRequestException(
+          `Précisez au moins une classe pour le niveau "${level}"`,
+        );
+      }
+    }
+
     const application = await this.prisma.teacherApplication.create({
       data: {
         candidateName: dto.candidateName,
@@ -128,7 +145,9 @@ export class TeacherApplicationsPublicService {
         phone: dto.phone,
         subjects: dto.subjects,
         levels: dto.levels,
+        classes: dto.classes,
         zone: dto.zone,
+        postalCode: dto.postalCode,
         availability: dto.availability,
         completionToken: generateCompletionToken(),
       },

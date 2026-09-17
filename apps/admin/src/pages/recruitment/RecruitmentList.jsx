@@ -76,7 +76,7 @@ export function RecruitmentList() {
           ))}
         </select>
         <input
-          placeholder="Zone"
+          placeholder="Adresse"
           value={filters.zone}
           onChange={(e) => setFilters((f) => ({ ...f, zone: e.target.value }))}
           className={inputClass}
@@ -106,7 +106,7 @@ export function RecruitmentList() {
               <tr>
                 <th className="px-4 py-3 font-medium">Candidat</th>
                 <th className="px-4 py-3 font-medium">Matières</th>
-                <th className="px-4 py-3 font-medium">Zone</th>
+                <th className="px-4 py-3 font-medium">Adresse</th>
                 <th className="px-4 py-3 font-medium">Statut</th>
                 <th className="px-4 py-3 font-medium">Entretien</th>
                 <th className="px-4 py-3" />

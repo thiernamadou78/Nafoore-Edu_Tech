@@ -16,12 +16,14 @@ export class ContactsService {
     const lead = await this.prisma.lead.create({
       data: {
         profile: dto.profile,
+        gender: dto.gender,
         name: dto.name,
         email: dto.email,
-        phone: dto.phone ?? null,
+        phone: dto.phone,
         message: dto.message,
         services: dto.services,
         address: dto.address ?? null,
+        postalCode: dto.postalCode ?? null,
         desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : null,
         childrenCount: dto.childrenCount ?? null,
       },
@@ -31,7 +33,7 @@ export class ContactsService {
     // formulaire de contact ni faire échouer la création du lead.
     if (dto.address) {
       this.geocoding
-        .geocode(dto.address)
+        .geocode(dto.address, dto.postalCode)
         .then((coords) => {
           if (!coords) return;
           return this.prisma.lead.update({ where: { id: lead.id }, data: coords });

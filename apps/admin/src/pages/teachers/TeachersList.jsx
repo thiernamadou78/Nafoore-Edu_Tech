@@ -10,11 +10,20 @@ import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Modal } from '../../components/ui/Modal'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
+import { SubjectPicker } from './SubjectPicker'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
-const EMPTY_FORM = { name: '', subjects: '', address: '', email: '', phone: '', bio: '' }
+const EMPTY_FORM = {
+  name: '',
+  subjects: [],
+  address: '',
+  postalCode: '',
+  email: '',
+  phone: '',
+  bio: '',
+}
 
 export function TeachersList() {
   const navigate = useNavigate()
@@ -101,18 +110,20 @@ export function TeachersList() {
 
   const handleCreate = async (event) => {
     event.preventDefault()
+    if (form.subjects.length === 0) {
+      setError('Choisissez au moins une matière.')
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
       const teacher = await api.post('/teachers', {
         name: form.name,
-        subjects: form.subjects
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        address: form.address || undefined,
-        email: form.email || undefined,
-        phone: form.phone || undefined,
+        subjects: form.subjects,
+        address: form.address,
+        postalCode: form.postalCode,
+        email: form.email,
+        phone: form.phone,
         bio: form.bio || undefined,
       })
       await Promise.all([
@@ -259,27 +270,42 @@ export function TeachersList() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Matières (séparées par des virgules)
-              </label>
-              <input
-                value={form.subjects}
-                onChange={(e) => setForm((f) => ({ ...f, subjects: e.target.value }))}
-                className={inputClass}
+              <label className="mb-1 block text-sm font-medium text-gray-700">Matières</label>
+              <SubjectPicker
+                selected={form.subjects}
+                onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
-              <input
-                value={form.address}
-                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                className={inputClass}
-              />
+            <div className="grid grid-cols-[1fr_130px] gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
+                <input
+                  required
+                  value={form.address}
+                  onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Code postal
+                </label>
+                <input
+                  required
+                  value={form.postalCode}
+                  onChange={(e) => setForm((f) => ({ ...f, postalCode: e.target.value }))}
+                  pattern="\d{5}"
+                  maxLength={5}
+                  placeholder="75015"
+                  className={inputClass}
+                />
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
               <input
                 type="email"
+                required
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 className={inputClass}
@@ -288,6 +314,7 @@ export function TeachersList() {
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Téléphone</label>
               <input
+                required
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 className={inputClass}

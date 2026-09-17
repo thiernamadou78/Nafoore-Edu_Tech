@@ -22,6 +22,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { STATUS_LABELS, STATUS_TONES } from './statusLabels'
+import { CLASSE_LABELS, LEVEL_LABELS } from '../students/labels'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -118,9 +119,29 @@ export function RecruitmentDetail() {
             </div>
             <div className="mt-4 space-y-0.5 border-t border-gray-100 pt-4 text-sm text-gray-600">
               <p>{application.candidateEmail}</p>
+              {application.phone && <p>{application.phone}</p>}
               <p>{application.zone}</p>
               <p>{application.subjects.join(', ')}</p>
             </div>
+            {(application.levels?.length > 0 || application.classes?.length > 0) && (
+              <div className="mt-3 border-t border-gray-100 pt-3">
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Niveaux enseignés
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {application.levels?.map((level) => (
+                    <Badge key={level} tone="gray">
+                      {LEVEL_LABELS[level] ?? level}
+                    </Badge>
+                  ))}
+                  {application.classes?.map((classe) => (
+                    <Badge key={classe} tone="indigo">
+                      {CLASSE_LABELS[classe] ?? classe}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
 
           <Card className="p-6">
