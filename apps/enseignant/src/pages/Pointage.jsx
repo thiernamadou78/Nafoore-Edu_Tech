@@ -6,7 +6,9 @@ import {
   CalendarClock,
   CheckCircle2,
   Info,
+  RotateCcw,
   ScanLine,
+  X,
   XCircle,
 } from 'lucide-react'
 import { api } from '../lib/api'
@@ -126,6 +128,7 @@ export function Pointage() {
   const scannerRef = useRef(null)
   const scanningRef = useRef(true)
   const [cameraError, setCameraError] = useState(null)
+  const [cameraStopped, setCameraStopped] = useState(false)
   const [result, setResult] = useState(null)
   const [starting, setStarting] = useState(true)
   const [paused, setPaused] = useState(false)
@@ -136,8 +139,10 @@ export function Pointage() {
   const [reportNotes, setReportNotes] = useState('')
   const [savingReport, setSavingReport] = useState(false)
 
-  useEffect(() => {
-    const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID)
+  const startCamera = () => {
+    setStarting(true)
+    setCameraError(null)
+    const scanner = scannerRef.current ?? new Html5Qrcode(SCANNER_ELEMENT_ID)
     scannerRef.current = scanner
 
     scanner
@@ -157,12 +162,32 @@ export function Pointage() {
         console.error(err)
       })
       .finally(() => setStarting(false))
+  }
 
+  useEffect(() => {
+    startCamera()
     return () => {
-      scanner.stop().catch(() => {})
+      scannerRef.current?.stop().catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Un scan ne coupe pas la camera : elle reste allumee (juste assourdie
+  // visuellement) tant qu'on n'a pas explicitement clique sur Annuler —
+  // sinon elle continuerait de tourner en arriere-plan indefiniment.
+  const stopCamera = () => {
+    scannerRef.current?.stop().catch(() => {})
+    scanningRef.current = false
+    setCameraStopped(true)
+    setPaused(false)
+    setResult(null)
+  }
+
+  const restartCamera = () => {
+    setCameraStopped(false)
+    scanningRef.current = true
+    startCamera()
+  }
 
   const handleDecoded = async (qrToken) => {
     // Tant qu'un résultat est affiché, on ignore les nouvelles détections :
@@ -380,43 +405,67 @@ export function Pointage() {
       )}
 
       <Card className="overflow-hidden p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm text-gray-600">
-          <ScanLine size={16} className="text-navy" />
-          {starting
-            ? 'Démarrage de la caméra…'
-            : paused
-              ? 'En pause — confirmez ci-dessus pour scanner le pass suivant.'
-              : 'Présentez le Pass QR de l’élève devant la caméra.'}
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <ScanLine size={16} className="text-navy" />
+            {cameraStopped
+              ? 'Caméra arrêtée.'
+              : starting
+                ? 'Démarrage de la caméra…'
+                : paused
+                  ? 'En pause — confirmez ci-dessus pour scanner le pass suivant.'
+                  : 'Présentez le Pass QR de l’élève devant la caméra.'}
+          </div>
+          {!cameraStopped && !starting && (
+            <button
+              type="button"
+              onClick={stopCamera}
+              className="inline-flex items-center gap-1 rounded-full border border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              <X size={12} />
+              Annuler
+            </button>
+          )}
         </div>
 
-        <div
-          className={`relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-2xl bg-navy transition-opacity ${paused ? 'opacity-30' : ''}`}
-        >
-          <div id={SCANNER_ELEMENT_ID} className="h-full w-full [&_video]:object-cover" />
+        {cameraStopped ? (
+          <div className="mx-auto flex aspect-square w-full max-w-sm flex-col items-center justify-center gap-3 rounded-2xl bg-gray-100 text-gray-500">
+            <ScanLine size={32} className="text-gray-400" />
+            <p className="text-sm">La caméra est arrêtée.</p>
+            <Button icon={RotateCcw} onClick={restartCamera}>
+              Relancer le scan
+            </Button>
+          </div>
+        ) : (
+          <div
+            className={`relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-2xl bg-navy transition-opacity ${paused ? 'opacity-30' : ''}`}
+          >
+            <div id={SCANNER_ELEMENT_ID} className="h-full w-full [&_video]:object-cover" />
 
-          {starting && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-            </div>
-          )}
-
-          {!starting && !paused && (
-            <div className="pointer-events-none absolute inset-0">
-              {/* Cadre de visée façon scanner : 4 coins + ligne de scan animée */}
-              <div className="absolute inset-8 sm:inset-10">
-                {['top-0 left-0 border-t-4 border-l-4 rounded-tl-xl', 'top-0 right-0 border-t-4 border-r-4 rounded-tr-xl', 'bottom-0 left-0 border-b-4 border-l-4 rounded-bl-xl', 'bottom-0 right-0 border-b-4 border-r-4 rounded-br-xl'].map(
-                  (corner) => (
-                    <span
-                      key={corner}
-                      className={`absolute h-8 w-8 border-gold-400 ${corner}`}
-                    />
-                  ),
-                )}
-                <div className="absolute inset-x-0 top-0 h-0.5 animate-scanline bg-gold-400 shadow-[0_0_8px_2px_rgba(234,179,8,0.7)]" />
+            {starting && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white" />
               </div>
-            </div>
-          )}
-        </div>
+            )}
+
+            {!starting && !paused && (
+              <div className="pointer-events-none absolute inset-0">
+                {/* Cadre de visée façon scanner : 4 coins + ligne de scan animée */}
+                <div className="absolute inset-8 sm:inset-10">
+                  {['top-0 left-0 border-t-4 border-l-4 rounded-tl-xl', 'top-0 right-0 border-t-4 border-r-4 rounded-tr-xl', 'bottom-0 left-0 border-b-4 border-l-4 rounded-bl-xl', 'bottom-0 right-0 border-b-4 border-r-4 rounded-br-xl'].map(
+                    (corner) => (
+                      <span
+                        key={corner}
+                        className={`absolute h-8 w-8 border-gold-400 ${corner}`}
+                      />
+                    ),
+                  )}
+                  <div className="absolute inset-x-0 top-0 h-0.5 animate-scanline bg-gold-400 shadow-[0_0_8px_2px_rgba(234,179,8,0.7)]" />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
     </div>
   )
