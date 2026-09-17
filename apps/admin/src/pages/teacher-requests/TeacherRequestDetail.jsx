@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Send } from 'lucide-react'
+import { ArrowLeft, Send, Sparkles } from 'lucide-react'
 import { api } from '../../lib/api'
 import { formatDate } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { Modal } from '../../components/ui/Modal'
 import {
   FORMAT_LABELS,
   MATCHING_STATUS_LABELS,
@@ -16,19 +15,14 @@ import {
   TEACHER_REQUEST_STATUS_TONES,
 } from './labels'
 
-const inputClass =
-  'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
-
 const CLOSED_STATUSES = ['acceptee', 'annulee']
 
 export function TeacherRequestDetail() {
   const { id } = useParams()
   const [request, setRequest] = useState(null)
   const [teachers, setTeachers] = useState([])
-  const [selectedTeacherId, setSelectedTeacherId] = useState('')
   const [error, setError] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
+  const [proposingId, setProposingId] = useState(null)
 
   const load = () => api.get(`/teacher-requests/${id}`).then(setRequest)
 
@@ -41,23 +35,16 @@ export function TeacherRequestDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  const openProposeModal = (teacherId = '') => {
-    setSelectedTeacherId(teacherId)
-    setModalOpen(true)
-  }
-
-  const proposeMatching = async () => {
-    setSaving(true)
+  const proposeMatching = async (teacherId) => {
+    setProposingId(teacherId)
     setError(null)
     try {
-      await api.post(`/teacher-requests/${id}/matchings`, { teacherId: selectedTeacherId })
+      await api.post(`/teacher-requests/${id}/matchings`, { teacherId })
       await load()
-      setModalOpen(false)
-      setSelectedTeacherId('')
     } catch (err) {
       setError(err.message)
     } finally {
-      setSaving(false)
+      setProposingId(null)
     }
   }
 
@@ -68,7 +55,14 @@ export function TeacherRequestDetail() {
   const canPropose = !CLOSED_STATUSES.includes(request.status)
   // Un prof ne peut être proposé qu'une seule fois pour une même demande.
   const alreadyProposedIds = new Set(request.matchings.map((m) => m.teacher.id))
-  const availableTeachers = teachers.filter((t) => !alreadyProposedIds.has(t.id))
+  const interestedIds = new Set((request.interests ?? []).map((i) => i.teacher.id))
+  // Une seule liste, filtree sur la matiere demandee : proposer un prof de
+  // maths pour une demande de francais n'a pas de sens. Les interesses
+  // remontent en tete plutot que d'avoir une liste separee.
+  const matchingTeachers = teachers
+    .filter((t) => t.subjects.includes(request.subject))
+    .map((t) => ({ ...t, interested: interestedIds.has(t.id) }))
+    .sort((a, b) => Number(b.interested) - Number(a.interested) || a.name.localeCompare(b.name))
 
   return (
     <div className="max-w-3xl">
@@ -123,48 +117,43 @@ export function TeacherRequestDetail() {
       </Card>
 
       <Card className="mb-6 p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Proposer un enseignant</h2>
-          <Button icon={Send} disabled={!canPropose} onClick={() => openProposeModal()}>
-            Proposer
-          </Button>
-        </div>
+        <h2 className="mb-1 font-semibold text-gray-900">Proposer un enseignant</h2>
+        <p className="mb-3 text-sm text-gray-500">
+          Enseignants vérifiés qui donnent des cours de {request.subject}
+          {matchingTeachers.some((t) => t.interested) && ' — les intéressés remontent en tête.'}
+        </p>
         {!canPropose && <p className="text-sm text-gray-500">Cette demande est clôturée.</p>}
-        {canPropose && request.matchings.length > 0 && (
+        {canPropose && matchingTeachers.length === 0 ? (
           <p className="text-sm text-gray-500">
-            {request.matchings.length} prof{request.matchings.length > 1 ? 's' : ''} déjà
-            proposé{request.matchings.length > 1 ? 's' : ''} — tu peux en proposer d'autres.
+            Aucun enseignant vérifié ne donne cette matière pour l'instant.
           </p>
-        )}
-      </Card>
-
-      {request.interests?.length > 0 && (
-        <Card className="mb-6 p-6">
-          <h2 className="mb-3 font-semibold text-gray-900">Enseignants intéressés</h2>
-          <p className="mb-3 text-sm text-gray-500">
-            Ces profs enseignent {request.subject} et se sont signalés comme disponibles pour
-            cette demande.
-          </p>
+        ) : (
           <ul className="divide-y divide-gray-100">
-            {request.interests.map((interest) => {
-              const alreadyProposedToThisTeacher = alreadyProposedIds.has(interest.teacher.id)
+            {matchingTeachers.map((teacher) => {
+              const alreadyProposed = alreadyProposedIds.has(teacher.id)
               return (
-                <li key={interest.id} className="flex items-center justify-between py-3 text-sm">
-                  <div>
-                    <p className="font-medium text-gray-800">{interest.teacher.name}</p>
-                    <p className="text-xs text-gray-400">
-                      Intéressé le {formatDate(interest.createdAt)}
+                <li key={teacher.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 font-medium text-gray-800">
+                      {teacher.name}
+                      {teacher.interested && (
+                        <Badge tone="gold" icon={Sparkles}>
+                          Intéressé
+                        </Badge>
+                      )}
                     </p>
+                    <p className="truncate text-xs text-gray-400">{teacher.subjects.join(', ')}</p>
                   </div>
-                  {alreadyProposedToThisTeacher ? (
+                  {alreadyProposed ? (
                     <Badge tone="gray">Déjà proposé</Badge>
                   ) : (
                     <Button
                       variant="secondary"
                       icon={Send}
-                      disabled={!canPropose}
-                      onClick={() => openProposeModal(interest.teacher.id)}
-                      className="px-3 py-1.5 text-xs"
+                      loading={proposingId === teacher.id}
+                      disabled={!canPropose || proposingId !== null}
+                      onClick={() => proposeMatching(teacher.id)}
+                      className="shrink-0 px-3 py-1.5 text-xs"
                     >
                       Proposer
                     </Button>
@@ -173,36 +162,8 @@ export function TeacherRequestDetail() {
               )
             })}
           </ul>
-        </Card>
-      )}
-
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Proposer un enseignant">
-        <select
-          value={selectedTeacherId}
-          onChange={(e) => setSelectedTeacherId(e.target.value)}
-          className={`${inputClass} mb-5`}
-        >
-          <option value="">Choisir un enseignant vérifié</option>
-          {availableTeachers.map((teacher) => (
-            <option key={teacher.id} value={teacher.id}>
-              {teacher.name} — {teacher.subjects.join(', ')}
-            </option>
-          ))}
-        </select>
-        {availableTeachers.length === 0 && (
-          <p className="-mt-3 mb-3 text-xs text-gray-500">
-            Tous les enseignants vérifiés ont déjà été proposés pour cette demande.
-          </p>
         )}
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setModalOpen(false)}>
-            Annuler
-          </Button>
-          <Button icon={Send} disabled={!selectedTeacherId || saving} onClick={proposeMatching}>
-            Confirmer
-          </Button>
-        </div>
-      </Modal>
+      </Card>
 
       <Card className="p-6">
         <h2 className="mb-3 font-semibold text-gray-900">Historique des propositions</h2>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Save, X } from 'lucide-react'
+import { Plus, Save, Upload, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
@@ -9,6 +9,15 @@ import { SUBJECT_OPTIONS } from './subjects'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
+
+function getInitials(name) {
+  return (name || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('')
+}
 
 // Pastilles + recherche-au-clic (meme pattern que le selecteur de matieres
 // cote famille) : les matieres actuelles restent visibles, "+ Ajouter"
@@ -111,10 +120,12 @@ function SubjectQuickAdd({ selected, onChange }) {
 }
 
 export function Profil() {
+  const photoInputRef = useRef(null)
   const [form, setForm] = useState(null)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   useEffect(() => {
     api
@@ -128,10 +139,29 @@ export function Profil() {
           phone: data.phone ?? '',
           bio: data.bio ?? '',
           subjects: data.subjects ?? [],
+          photoUrl: data.photoUrl ?? null,
         }),
       )
       .catch((err) => setError(err.message))
   }, [])
+
+  const handlePickPhoto = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setUploadingPhoto(true)
+    setError(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const { photoUrl } = await api.upload('/teacher/me/photo', formData)
+      setForm((f) => ({ ...f, photoUrl }))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
 
   const handleSave = async (event) => {
     event.preventDefault()
@@ -174,6 +204,35 @@ export function Profil() {
       <form onSubmit={handleSave}>
         <Card className="mb-6 p-6">
           {error && <Alert className="mb-4">{error}</Alert>}
+
+          <div className="mb-5 flex items-center gap-4 rounded-xl border border-dashed border-gray-200 p-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy font-medium text-gold-400">
+              {form.photoUrl ? (
+                <img src={form.photoUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                getInitials(form.name)
+              )}
+            </div>
+            <div>
+              <Button
+                type="button"
+                variant="secondary"
+                icon={Upload}
+                loading={uploadingPhoto}
+                onClick={() => photoInputRef.current?.click()}
+                className="px-3 py-1.5"
+              >
+                {form.photoUrl ? 'Changer la photo' : 'Ajouter une photo'}
+              </Button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePickPhoto}
+                className="hidden"
+              />
+            </div>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -224,7 +283,11 @@ export function Profil() {
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Téléphone</label>
               <input
+                type="tel"
                 required
+                pattern="^(\+33 ?|0)[1-9]([ .-]?\d{2}){4}$"
+                title="Numéro de téléphone français (ex : 06 12 34 56 78)"
+                placeholder="06 12 34 56 78"
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 className={inputClass}

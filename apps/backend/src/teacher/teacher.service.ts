@@ -58,7 +58,7 @@ export class TeacherService {
 
   async getMyProfile(teacherAccount: AuthenticatedTeacherAccount) {
     if (!teacherAccount.teacherId) return null;
-    return this.prisma.teacher.findUnique({
+    const teacher = await this.prisma.teacher.findUnique({
       where: { id: teacherAccount.teacherId },
       select: {
         name: true,
@@ -68,15 +68,19 @@ export class TeacherService {
         phone: true,
         bio: true,
         subjects: true,
+        photoPath: true,
       },
     });
+    if (!teacher) return null;
+    const { photoPath, ...rest } = teacher;
+    return { ...rest, photoUrl: await this.photos.signUrl(photoPath) };
   }
 
   async updateMyProfile(teacherAccount: AuthenticatedTeacherAccount, dto: UpdateTeacherDto) {
     if (!teacherAccount.teacherId) {
       throw new NotFoundException('Profil enseignant introuvable');
     }
-    const teacher = await this.prisma.teacher.update({
+    const updated = await this.prisma.teacher.update({
       where: { id: teacherAccount.teacherId },
       data: dto,
       select: {
@@ -87,8 +91,10 @@ export class TeacherService {
         phone: true,
         bio: true,
         subjects: true,
+        photoPath: true,
       },
     });
+    const { photoPath, ...teacher } = updated;
     if (dto.address) {
       this.geocoding
         .geocode(dto.address, dto.postalCode)
@@ -100,7 +106,40 @@ export class TeacherService {
           this.logger.warn(`Géocodage de l'enseignant ${teacherAccount.teacherId} échoué: ${error}`),
         );
     }
-    return teacher;
+    return { ...teacher, photoUrl: await this.photos.signUrl(photoPath) };
+  }
+
+  async uploadMyPhoto(teacherAccount: AuthenticatedTeacherAccount, file: Express.Multer.File) {
+    if (!teacherAccount.teacherId) {
+      throw new NotFoundException('Profil enseignant introuvable');
+    }
+    const teacherId = teacherAccount.teacherId;
+    const existing = await this.prisma.teacher.findUnique({
+      where: { id: teacherId },
+      select: { photoPath: true },
+    });
+    if (existing?.photoPath) {
+      await this.photos.remove(existing.photoPath);
+    }
+    const path = this.photos.buildPath('teachers', teacherId, file.originalname);
+    await this.photos.upload(path, file);
+    await this.prisma.teacher.update({ where: { id: teacherId }, data: { photoPath: path } });
+    return { photoUrl: await this.photos.signUrl(path) };
+  }
+
+  async removeMyPhoto(teacherAccount: AuthenticatedTeacherAccount) {
+    if (!teacherAccount.teacherId) {
+      throw new NotFoundException('Profil enseignant introuvable');
+    }
+    const teacherId = teacherAccount.teacherId;
+    const existing = await this.prisma.teacher.findUnique({
+      where: { id: teacherId },
+      select: { photoPath: true },
+    });
+    if (existing?.photoPath) {
+      await this.photos.remove(existing.photoPath);
+      await this.prisma.teacher.update({ where: { id: teacherId }, data: { photoPath: null } });
+    }
   }
 
   async listMyStudents(teacherAccount: AuthenticatedTeacherAccount) {

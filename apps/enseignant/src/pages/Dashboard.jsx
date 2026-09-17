@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarClock, FileWarning, GraduationCap, Users } from 'lucide-react'
+import { CalendarClock, FileWarning, Users } from 'lucide-react'
 import { api } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
@@ -47,9 +47,8 @@ export function Dashboard() {
       </h1>
       <p className="mb-6 text-sm text-gray-500">Voici un résumé de ton activité.</p>
 
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard icon={Users} label="Élèves" value={data.studentsCount} />
-        <StatCard icon={GraduationCap} label="Familles" value={data.familiesCount} />
         <StatCard icon={CalendarClock} label="Séances à venir" value={data.upcomingSessions.length} />
         <StatCard icon={FileWarning} label="Comptes-rendus en attente" value={data.pendingReportsCount} />
       </div>

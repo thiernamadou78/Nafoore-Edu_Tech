@@ -1,4 +1,21 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { CurrentTeacherAccount } from '../auth/current-teacher-account.decorator';
 import { AuthenticatedTeacherAccount, TeacherAuthGuard } from '../auth/teacher-auth.guard';
 import { TeacherService } from './teacher.service';
@@ -45,6 +62,21 @@ export class TeacherController {
     @Body() dto: UpdateTeacherDto,
   ) {
     return this.teacherService.updateMyProfile(teacherAccount, dto);
+  }
+
+  @Post('me/photo')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  uploadMyPhoto(
+    @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.teacherService.uploadMyPhoto(teacherAccount, file);
+  }
+
+  @Delete('me/photo')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeMyPhoto(@CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount) {
+    return this.teacherService.removeMyPhoto(teacherAccount);
   }
 
   @Get('students')
