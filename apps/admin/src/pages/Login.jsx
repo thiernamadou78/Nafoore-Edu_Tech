@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { Mail } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Button } from '../components/ui/Button'
@@ -86,6 +86,12 @@ export function Login() {
             {submitting ? 'Connexion…' : 'Se connecter'}
           </Button>
         </form>
+        <Link
+          to="/mot-de-passe-oublie"
+          className="mt-4 block text-center text-sm text-navy hover:underline"
+        >
+          Mot de passe oublié ?
+        </Link>
       </Card>
     </div>
   )
