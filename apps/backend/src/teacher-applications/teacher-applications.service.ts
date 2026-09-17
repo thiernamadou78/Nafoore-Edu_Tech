@@ -1,12 +1,20 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { PhotosService } from '../photos/photos.service';
 import { EmailService } from '../email/email.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
+import { TeacherOnboardingService } from '../onboarding/teacher-onboarding.service';
 import { resolvePortalUrl } from '../email/portal-url.util';
 import { renderDocumentsRequiredEmail } from '../email/templates/documents-required.template';
+import { renderInterviewScheduledEmail } from '../email/templates/interview-scheduled.template';
 import { generateCompletionToken } from './completion-token.util';
 import { CreateTeacherApplicationDto } from './dto/create-teacher-application.dto';
 import { ListTeacherApplicationsQueryDto } from './dto/list-teacher-applications-query.dto';
@@ -22,6 +30,7 @@ export class TeacherApplicationsService {
     private readonly photos: PhotosService,
     private readonly emailService: EmailService,
     private readonly geocoding: GeocodingService,
+    private readonly teacherOnboarding: TeacherOnboardingService,
   ) {}
 
   list(query: ListTeacherApplicationsQueryDto) {
@@ -79,6 +88,22 @@ export class TeacherApplicationsService {
       'teacher_applications',
       id,
     );
+
+    this.emailService
+      .send({
+        to: application.candidateEmail,
+        subject: 'Nafoore Education — Votre entretien est planifié',
+        html: renderInterviewScheduledEmail({
+          fullName: application.candidateName,
+          interviewDate: application.interviewDate as Date,
+        }),
+      })
+      .catch((error) => {
+        this.logger.error(
+          `Échec d'envoi de l'email de planification d'entretien pour la candidature ${id}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      });
 
     return application;
   }
@@ -225,6 +250,22 @@ export class TeacherApplicationsService {
             error instanceof Error ? error.stack : undefined,
           );
         });
+    }
+
+    if (status === 'valide') {
+      // Cree le compte (Supabase Auth + TeacherAccount) et envoie l'email de
+      // bienvenue avec le mot de passe temporaire — auparavant seulement
+      // declenchable manuellement via "Creer le compte", ce qui faisait que
+      // la validation ne notifiait jamais le prof. Best-effort : si un
+      // compte existe deja (ex: validation directe sans passer par
+      // documents_requis, ou double-clic), on l'ignore silencieusement.
+      this.teacherOnboarding.createAccount(id, actorId).catch((error) => {
+        if (error instanceof ConflictException) return;
+        this.logger.error(
+          `Échec de la création automatique du compte enseignant pour la candidature ${id}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      });
     }
 
     return application;

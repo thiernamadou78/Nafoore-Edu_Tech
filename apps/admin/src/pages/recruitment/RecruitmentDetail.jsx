@@ -48,7 +48,7 @@ const TABS = [
 export function RecruitmentDetail() {
   const { id } = useParams()
   const { hasRole } = useAuth()
-  const canAccessDocuments = hasRole('super_admin', 'recruiter')
+  const canAccessDocuments = hasRole('super_admin', 'admin', 'recruiter')
   const [application, setApplication] = useState(null)
   const [tab, setTab] = useState('documents')
   const [interviewDate, setInterviewDate] = useState('')
@@ -117,12 +117,39 @@ export function RecruitmentDetail() {
                 {STATUS_LABELS[application.status] ?? application.status}
               </Badge>
             </div>
-            <div className="mt-4 space-y-0.5 border-t border-gray-100 pt-4 text-sm text-gray-600">
-              <p>{application.candidateEmail}</p>
-              {application.phone && <p>{application.phone}</p>}
-              <p>{application.zone}</p>
-              <p>{application.subjects.join(', ')}</p>
+            <div className="mt-4 space-y-1 border-t border-gray-100 pt-4 text-sm text-gray-600">
+              <p>
+                <span className="font-medium text-gray-500">Mail :</span> {application.candidateEmail}
+              </p>
+              {application.phone && (
+                <p>
+                  <span className="font-medium text-gray-500">Téléphone :</span> {application.phone}
+                </p>
+              )}
+              <p>
+                <span className="font-medium text-gray-500">Adresse :</span> {application.zone}
+              </p>
             </div>
+            <div className="mt-3 border-t border-gray-100 pt-3">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Matières
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {application.subjects.map((subject) => (
+                  <Badge key={subject} tone="gold">
+                    {subject}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            {application.bio && (
+              <div className="mt-3 border-t border-gray-100 pt-3">
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Bio
+                </p>
+                <p className="text-sm text-gray-600">{application.bio}</p>
+              </div>
+            )}
             {(application.levels?.length > 0 || application.classes?.length > 0) && (
               <div className="mt-3 border-t border-gray-100 pt-3">
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">

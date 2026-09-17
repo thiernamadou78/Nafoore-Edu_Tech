@@ -114,9 +114,7 @@ export class TeacherApplicationsController {
     return this.teacherApplicationsService.decide(id, dto.status, admin.id);
   }
 
-  // Restriction volontaire : super_admin/recruiter uniquement, PAS 'admin'
-  // générique — documents sensibles (diplômes, casier judiciaire).
-  @Roles('super_admin', 'recruiter')
+  @Roles('super_admin', 'admin', 'recruiter')
   @Get(':id/documents/:documentId/download')
   downloadDocument(
     @Param('id') id: string,

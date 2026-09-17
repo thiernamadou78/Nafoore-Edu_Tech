@@ -12,6 +12,12 @@ const STATUS_LABELS = {
   refuse: 'Refusée',
 }
 
+const DOCUMENT_TYPE_LABELS = {
+  diplome: 'Diplôme',
+  casier_judiciaire: 'Casier judiciaire',
+  autre: 'Document',
+}
+
 const isProfileComplete = (application) =>
   Boolean(application?.bio && application.bio.trim().length >= 20) &&
   Boolean(application?.photoUrl) &&
@@ -119,14 +125,18 @@ export default function ApplicationCompletion() {
 
     const results = await Promise.allSettled(jobs.map((job) => job.promise))
     const failures = []
+    const succeededTypes = []
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
         failures.push(result.reason.message)
-      } else if (jobs[index].type === 'photo') {
-        setPhoto(null)
-      } else if (jobs[index].type === 'documents') {
-        setDiplomas([])
-        setCriminalRecord(null)
+      } else {
+        succeededTypes.push(jobs[index].type)
+        if (jobs[index].type === 'photo') {
+          setPhoto(null)
+        } else if (jobs[index].type === 'documents') {
+          setDiplomas([])
+          setCriminalRecord(null)
+        }
       }
     })
 
@@ -139,6 +149,8 @@ export default function ApplicationCompletion() {
       } else if (isProfileComplete(data)) {
         setMessage('')
         setShowCompletePopup(true)
+      } else if (succeededTypes.includes('documents')) {
+        setMessage('Documents ajoutés.')
       } else if (jobs.length > 0) {
         setMessage('Profil mis à jour.')
       } else {
@@ -241,9 +253,12 @@ export default function ApplicationCompletion() {
             Documents
           </label>
           {application.documents?.length > 0 && (
-            <ul className="mb-4 font-sans text-sm text-gray-600 space-y-1">
+            <ul className="mb-4 font-sans text-sm text-gray-700 space-y-1.5">
               {application.documents.map((doc) => (
-                <li key={doc.id}>· {doc.fileName}</li>
+                <li key={doc.id} className="flex items-center gap-1.5">
+                  <span className="text-green-600">✓</span>
+                  {DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type} ajouté — {doc.fileName}
+                </li>
               ))}
             </ul>
           )}
