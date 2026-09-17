@@ -9,6 +9,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { PhotosService } from '../photos/photos.service';
 import { EmailService } from '../email/email.service';
+import { GeocodingService } from '../geocoding/geocoding.service';
+import { UpdateTeacherDto } from '../teachers/dto/update-teacher.dto';
 import { resolvePortalUrl } from '../email/portal-url.util';
 import { renderSessionReportReminderEmail } from '../email/templates/session-report-reminder.template';
 import { renderSessionCancelledEmail } from '../email/templates/session-cancelled.template';
@@ -34,6 +36,7 @@ export class TeacherService {
     private readonly prisma: PrismaService,
     private readonly photos: PhotosService,
     private readonly emailService: EmailService,
+    private readonly geocoding: GeocodingService,
   ) {}
 
   me(teacherAccount: AuthenticatedTeacherAccount) {
@@ -53,24 +56,51 @@ export class TeacherService {
     });
   }
 
-  async getMySubjects(teacherAccount: AuthenticatedTeacherAccount) {
-    if (!teacherAccount.teacherId) return { subjects: [] };
-    const teacher = await this.prisma.teacher.findUnique({
+  async getMyProfile(teacherAccount: AuthenticatedTeacherAccount) {
+    if (!teacherAccount.teacherId) return null;
+    return this.prisma.teacher.findUnique({
       where: { id: teacherAccount.teacherId },
-      select: { subjects: true },
+      select: {
+        name: true,
+        address: true,
+        postalCode: true,
+        email: true,
+        phone: true,
+        bio: true,
+        subjects: true,
+      },
     });
-    return { subjects: teacher?.subjects ?? [] };
   }
 
-  async updateMySubjects(teacherAccount: AuthenticatedTeacherAccount, subjects: string[]) {
+  async updateMyProfile(teacherAccount: AuthenticatedTeacherAccount, dto: UpdateTeacherDto) {
     if (!teacherAccount.teacherId) {
       throw new NotFoundException('Profil enseignant introuvable');
     }
-    return this.prisma.teacher.update({
+    const teacher = await this.prisma.teacher.update({
       where: { id: teacherAccount.teacherId },
-      data: { subjects },
-      select: { subjects: true },
+      data: dto,
+      select: {
+        name: true,
+        address: true,
+        postalCode: true,
+        email: true,
+        phone: true,
+        bio: true,
+        subjects: true,
+      },
     });
+    if (dto.address) {
+      this.geocoding
+        .geocode(dto.address, dto.postalCode)
+        .then((coords) => {
+          if (!coords) return;
+          return this.prisma.teacher.update({ where: { id: teacherAccount.teacherId as string }, data: coords });
+        })
+        .catch((error) =>
+          this.logger.warn(`Géocodage de l'enseignant ${teacherAccount.teacherId} échoué: ${error}`),
+        );
+    }
+    return teacher;
   }
 
   async listMyStudents(teacherAccount: AuthenticatedTeacherAccount) {

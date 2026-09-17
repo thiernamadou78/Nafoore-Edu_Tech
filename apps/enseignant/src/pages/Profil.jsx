@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Save } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Plus, Save, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
@@ -7,31 +7,151 @@ import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
 import { SUBJECT_OPTIONS } from './subjects'
 
+const inputClass =
+  'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
+
+// Pastilles + recherche-au-clic (meme pattern que le selecteur de matieres
+// cote famille) : les matieres actuelles restent visibles, "+ Ajouter"
+// declenche un champ de recherche qui filtre la liste fermee au fur et a
+// mesure de la saisie (ex: "Ma" -> Mathematiques).
+function SubjectQuickAdd({ selected, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus()
+  }, [open])
+
+  const normalizedQuery = query.trim().toLowerCase()
+  const filtered = SUBJECT_OPTIONS.filter(
+    (subject) => !selected.includes(subject) && subject.toLowerCase().startsWith(normalizedQuery),
+  )
+
+  const addSubject = (subject) => {
+    onChange([...selected, subject])
+    setQuery('')
+    setOpen(false)
+  }
+
+  const removeSubject = (subject) => onChange(selected.filter((s) => s !== subject))
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {selected.map((subject) => (
+          <span
+            key={subject}
+            className="inline-flex items-center gap-1 rounded-full bg-navy/10 px-2.5 py-1 text-xs font-medium text-navy"
+          >
+            {subject}
+            <button
+              type="button"
+              onClick={() => removeSubject(subject)}
+              className="rounded-full hover:opacity-70"
+              aria-label={`Retirer ${subject}`}
+            >
+              <X size={12} />
+            </button>
+          </span>
+        ))}
+        {!open && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-navy/40 px-2.5 py-1 text-xs font-medium text-navy hover:bg-navy/5"
+          >
+            <Plus size={12} />
+            Ajouter
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="relative mt-2 max-w-xs">
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                if (filtered.length > 0) addSubject(filtered[0])
+              }
+              if (e.key === 'Escape') setOpen(false)
+            }}
+            placeholder="Rechercher (ex : Ma pour Mathématiques)…"
+            className={inputClass}
+          />
+          <div
+            onMouseDown={(e) => e.preventDefault()}
+            className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+          >
+            {filtered.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-gray-400">Aucune matière trouvée.</p>
+            ) : (
+              filtered.map((subject) => (
+                <button
+                  key={subject}
+                  type="button"
+                  onClick={() => addSubject(subject)}
+                  className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  {subject}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function Profil() {
-  const [subjects, setSubjects] = useState(null)
+  const [form, setForm] = useState(null)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     api
-      .get('/teacher/me/subjects')
-      .then((data) => setSubjects(data.subjects))
+      .get('/teacher/me/profile')
+      .then((data) =>
+        setForm({
+          name: data.name ?? '',
+          address: data.address ?? '',
+          postalCode: data.postalCode ?? '',
+          email: data.email ?? '',
+          phone: data.phone ?? '',
+          bio: data.bio ?? '',
+          subjects: data.subjects ?? [],
+        }),
+      )
       .catch((err) => setError(err.message))
   }, [])
 
-  const toggle = (subject) => {
+  const handleSave = async (event) => {
+    event.preventDefault()
     setSaved(false)
-    setSubjects((prev) =>
-      prev.includes(subject) ? prev.filter((s) => s !== subject) : [...prev, subject],
-    )
-  }
-
-  const handleSave = async () => {
+    if (
+      !form.name.trim() ||
+      !form.address.trim() ||
+      !form.postalCode.trim() ||
+      !form.email.trim() ||
+      !form.phone.trim() ||
+      form.subjects.length === 0
+    ) {
+      setError('Nom, adresse, code postal, email, téléphone et au moins une matière sont obligatoires.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
-      await api.patch('/teacher/me/subjects', { subjects })
+      const updated = await api.patch('/teacher/me/profile', form)
+      setForm((f) => ({ ...f, ...updated }))
       setSaved(true)
     } catch (err) {
       setError(err.message)
@@ -40,45 +160,105 @@ export function Profil() {
     }
   }
 
-  if (error && !subjects) return <Alert>{error}</Alert>
-  if (!subjects) return <Spinner />
+  if (error && !form) return <Alert>{error}</Alert>
+  if (!form) return <Spinner />
 
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-1 font-serif text-2xl font-bold text-navy">Mon profil</h1>
       <p className="mb-6 text-sm text-gray-500">
-        Choisis les matières que tu enseignes. Seules les demandes des familles correspondant à
-        ces matières te seront montrées dans l'onglet Demandes, et l'admin ne pourra te proposer
-        que sur ces matières.
+        Tes informations et tes matières enseignées — visibles par l'équipe Nafoore pour te
+        proposer des familles, et utilisées pour filtrer les demandes dans l'onglet Demandes.
       </p>
 
-      <Card className="p-6">
-        {error && <Alert className="mb-4">{error}</Alert>}
-        <p className="mb-3 text-sm font-medium text-gray-700">Matières enseignées</p>
-        <div className="flex flex-wrap gap-1.5">
-          {SUBJECT_OPTIONS.map((subject) => (
-            <button
-              key={subject}
-              type="button"
-              onClick={() => toggle(subject)}
-              className={`rounded-lg border-2 px-2.5 py-1 text-xs font-medium transition-colors ${
-                subjects.includes(subject)
-                  ? 'border-navy bg-navy text-white'
-                  : 'border-gray-200 bg-white text-gray-600 hover:border-navy/30'
-              }`}
-            >
-              {subject}
-            </button>
-          ))}
-        </div>
+      <form onSubmit={handleSave}>
+        <Card className="mb-6 p-6">
+          {error && <Alert className="mb-4">{error}</Alert>}
 
-        <div className="mt-5 flex items-center gap-3">
-          <Button icon={Save} loading={saving} disabled={subjects.length === 0} onClick={handleSave}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Nom complet</label>
+              <input
+                required
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="grid grid-cols-[1fr_130px] gap-3 sm:col-span-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
+                <input
+                  required
+                  value={form.address}
+                  onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                  placeholder="Ex : Paris 15e"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Code postal</label>
+                <input
+                  required
+                  pattern="\d{5}"
+                  maxLength={5}
+                  value={form.postalCode}
+                  onChange={(e) => setForm((f) => ({ ...f, postalCode: e.target.value }))}
+                  placeholder="75015"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+              <input
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Téléphone</label>
+              <input
+                required
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Bio</label>
+              <textarea
+                rows={3}
+                value={form.bio}
+                onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+                placeholder="Présentation courte, expérience, spécialités…"
+                className={`${inputClass} resize-none`}
+              />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="mb-6 p-6">
+          <p className="mb-3 text-sm font-medium text-gray-700">Matières enseignées</p>
+          <SubjectQuickAdd
+            selected={form.subjects}
+            onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
+          />
+        </Card>
+
+        <div className="flex items-center gap-3">
+          <Button type="submit" icon={Save} loading={saving}>
             Enregistrer
           </Button>
           {saved && <span className="text-sm text-leaf-700">Enregistré.</span>}
         </div>
-      </Card>
+      </form>
     </div>
   )
 }

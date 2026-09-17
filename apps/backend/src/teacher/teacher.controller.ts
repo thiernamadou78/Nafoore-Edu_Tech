@@ -11,7 +11,7 @@ import { StartThreadDto } from './dto/start-thread.dto';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
 import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
-import { UpdateMySubjectsDto } from './dto/update-my-subjects.dto';
+import { UpdateTeacherDto } from '../teachers/dto/update-teacher.dto';
 
 @UseGuards(TeacherAuthGuard)
 @Controller('teacher')
@@ -34,17 +34,17 @@ export class TeacherController {
     return { mustChangePassword: false };
   }
 
-  @Get('me/subjects')
-  getMySubjects(@CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount) {
-    return this.teacherService.getMySubjects(teacherAccount);
+  @Get('me/profile')
+  getMyProfile(@CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount) {
+    return this.teacherService.getMyProfile(teacherAccount);
   }
 
-  @Patch('me/subjects')
-  updateMySubjects(
+  @Patch('me/profile')
+  updateMyProfile(
     @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
-    @Body() dto: UpdateMySubjectsDto,
+    @Body() dto: UpdateTeacherDto,
   ) {
-    return this.teacherService.updateMySubjects(teacherAccount, dto.subjects);
+    return this.teacherService.updateMyProfile(teacherAccount, dto);
   }
 
   @Get('students')
