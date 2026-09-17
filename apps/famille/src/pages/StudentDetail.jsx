@@ -415,7 +415,17 @@ const DEFAULT_REQUEST_FORM = {
   durationMinutes: '',
   format: 'presentiel',
   availabilityDays: [],
+  timeSlots: [],
 }
+
+// Liste fermee (pas de saisie libre) : des horaires en texte libre seraient
+// impossibles a exploiter de facon fiable pour un futur filtrage/matching.
+const TIME_SLOTS = [
+  'Matin (8h-12h)',
+  'Après-midi (12h-16h)',
+  "Sortie d'école (16h-18h)",
+  'Soirée (18h-20h)',
+]
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120]
 
@@ -536,6 +546,15 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
     }))
   }
 
+  const toggleTimeSlot = (slot) => {
+    setForm((f) => ({
+      ...f,
+      timeSlots: f.timeSlots.includes(slot)
+        ? f.timeSlots.filter((s) => s !== slot)
+        : [...f.timeSlots, slot],
+    }))
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (form.subjects.length === 0) {
@@ -545,16 +564,19 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
     setSubmitting(true)
     setError(null)
     try {
-      const { subjects: chosenSubjects, availabilityDays, durationMinutes, ...rest } = form
+      const { subjects: chosenSubjects, availabilityDays, timeSlots, durationMinutes, ...rest } = form
       // Une demande par matière : chacune suit ensuite son propre statut et
       // matching (un prof peut être proposé pour Maths sans l'être pour Anglais).
+      const availability = [availabilityDays.join(', '), timeSlots.join(', ')]
+        .filter(Boolean)
+        .join(' · ')
       await Promise.all(
         chosenSubjects.map((subject) =>
           api.post(`/family/students/${studentId}/teacher-requests`, {
             ...rest,
             subject,
             durationMinutes: durationMinutes || undefined,
-            availability: availabilityDays.join(', '),
+            availability,
           }),
         ),
       )
@@ -650,6 +672,30 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
                 }`}
               >
                 {day}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div>
+        <p className="mb-1.5 text-sm font-medium text-gray-700">
+          Créneau horaire souhaité (optionnel)
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {TIME_SLOTS.map((slot) => {
+            const active = form.timeSlots.includes(slot)
+            return (
+              <button
+                key={slot}
+                type="button"
+                onClick={() => toggleTimeSlot(slot)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  active
+                    ? 'border-navy bg-navy text-white'
+                    : 'border-gray-300 text-gray-600 hover:border-navy/40'
+                }`}
+              >
+                {slot}
               </button>
             )
           })}

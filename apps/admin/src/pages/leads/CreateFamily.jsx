@@ -146,6 +146,9 @@ export function CreateFamily() {
             <input
               type="tel"
               required
+              pattern="^(\+33 ?|0)[1-9]([ .-]?\d{2}){4}$"
+              title="Numéro de téléphone français (ex : 06 12 34 56 78)"
+              placeholder="06 12 34 56 78"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               className={inputClass}

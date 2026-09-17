@@ -13,6 +13,19 @@ import { CLASSE_OPTIONS_BY_LEVEL, SUBJECTS_BY_LEVEL } from './curriculum'
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
+const GENDERS = [
+  { value: 'homme', label: 'Homme' },
+  { value: 'femme', label: 'Femme' },
+]
+
+function isoDateYearsAgo(years) {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - years)
+  return d.toISOString().slice(0, 10)
+}
+const MIN_BIRTHDATE = isoDateYearsAgo(20)
+const MAX_BIRTHDATE = isoDateYearsAgo(5)
+
 const PILL_TONES = ['blue', 'indigo', 'green', 'amber', 'sky', 'leaf', 'clay', 'amberStrong']
 
 function getInitials(name) {
@@ -41,6 +54,7 @@ export function EditStudent() {
       .then((student) => {
         setForm({
           name: student.name,
+          gender: student.gender ?? '',
           level: student.level,
           classe: student.classe ?? '',
           school: student.school ?? '',
@@ -89,11 +103,12 @@ export function EditStudent() {
     try {
       await api.patch(`/family/students/${id}`, {
         name: form.name,
+        gender: form.gender || undefined,
         level: form.level,
         classe: form.classe,
         school: form.school,
-        address: form.address || undefined,
-        postalCode: form.postalCode || undefined,
+        address: form.address,
+        postalCode: form.postalCode,
         dateNaissance: form.dateNaissance || undefined,
         subjects: form.subjects,
       })
@@ -165,12 +180,34 @@ export function EditStudent() {
           </div>
 
           <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Genre</label>
+            <div className="grid grid-cols-2 gap-2">
+              {GENDERS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setForm({ ...form, gender: value })}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    form.gender === value
+                      ? 'border-navy bg-navy text-white'
+                      : 'border-gray-300 text-gray-600 hover:border-navy/40'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Date de naissance
             </label>
             <input
               type="date"
               required
+              min={MIN_BIRTHDATE}
+              max={MAX_BIRTHDATE}
               value={form.dateNaissance}
               onChange={(e) => setForm({ ...form, dateNaissance: e.target.value })}
               className={inputClass}
@@ -230,11 +267,10 @@ export function EditStudent() {
 
           <div className="grid grid-cols-[1fr_130px] gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Adresse (optionnel)
-              </label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
               <input
                 type="text"
+                required
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
                 className={inputClass}
@@ -244,6 +280,7 @@ export function EditStudent() {
               <label className="mb-1 block text-sm font-medium text-gray-700">Code postal</label>
               <input
                 type="text"
+                required
                 pattern="\d{5}"
                 maxLength={5}
                 placeholder="75015"

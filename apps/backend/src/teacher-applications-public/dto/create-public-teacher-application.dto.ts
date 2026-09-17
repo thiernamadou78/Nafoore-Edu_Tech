@@ -11,6 +11,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { SUBJECT_OPTIONS } from '../../common/subjects';
+import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
 function toArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String);
@@ -33,8 +34,7 @@ export class CreatePublicTeacherApplicationDto {
   candidateEmail: string;
 
   @IsString()
-  @MinLength(1, { message: 'Le téléphone est obligatoire' })
-  @MaxLength(20)
+  @Matches(PHONE_REGEX, { message: PHONE_ERROR_MESSAGE })
   phone: string;
 
   @Transform(({ value }) => toArray(value))

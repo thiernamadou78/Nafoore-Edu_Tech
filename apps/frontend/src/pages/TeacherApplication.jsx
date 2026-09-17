@@ -276,10 +276,13 @@ export default function TeacherApplication() {
                       Téléphone <span className="text-red-400">*</span>
                     </label>
                     <input
+                      type="tel"
                       name="phone"
                       value={form.phone}
                       onChange={handleChange}
                       required
+                      pattern="^(\+33 ?|0)[1-9]([ .-]?\d{2}){4}$"
+                      title="Numéro de téléphone français (ex : 06 12 34 56 78)"
                       placeholder="06 12 34 56 78"
                       className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                     />

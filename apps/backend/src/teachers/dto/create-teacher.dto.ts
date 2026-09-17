@@ -10,6 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { SUBJECT_OPTIONS } from '../../common/subjects';
+import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
 // Un enseignant créé directement par l'admin doit avoir un dossier aussi
 // complet qu'un candidat auto-inscrit via la vitrine (cf.
@@ -44,7 +45,6 @@ export class CreateTeacherDto {
   email: string;
 
   @IsString()
-  @MinLength(1, { message: 'Le téléphone est obligatoire' })
-  @MaxLength(20)
+  @Matches(PHONE_REGEX, { message: PHONE_ERROR_MESSAGE })
   phone: string;
 }

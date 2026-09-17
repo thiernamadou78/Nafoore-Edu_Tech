@@ -8,6 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { IsPlausibleBirthDate } from '../../common/is-plausible-birthdate.validator';
 
 export class UpdateFamilyStudentDto {
   @IsOptional()
@@ -15,6 +16,10 @@ export class UpdateFamilyStudentDto {
   @MinLength(2, { message: 'Le nom doit faire au moins 2 caractères' })
   @MaxLength(100)
   name?: string;
+
+  @IsOptional()
+  @IsIn(['homme', 'femme'], { message: 'genre doit être homme ou femme' })
+  gender?: string;
 
   @IsOptional()
   @IsIn(['primaire', 'college', 'lycee'], { message: 'level doit être primaire, college ou lycee' })
@@ -34,6 +39,7 @@ export class UpdateFamilyStudentDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(1, { message: "L'adresse est obligatoire" })
   @MaxLength(300)
   address?: string;
 
@@ -45,6 +51,7 @@ export class UpdateFamilyStudentDto {
 
   @IsOptional()
   @IsDateString()
+  @IsPlausibleBirthDate()
   dateNaissance?: string;
 
   @IsOptional()

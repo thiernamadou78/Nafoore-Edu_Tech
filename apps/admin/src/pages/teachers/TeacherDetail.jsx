@@ -18,6 +18,8 @@ import { SubjectPicker } from './SubjectPicker'
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
+const PHONE_PATTERN = /^(\+33 ?|0)[1-9]([ .-]?\d{2}){4}$/
+
 const TEACHER_DOCUMENT_TYPE_LABELS = {
   diplome: 'Diplôme',
   casier_judiciaire: 'Casier judiciaire',
@@ -152,7 +154,11 @@ export function TeacherDetail() {
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Téléphone</label>
             <input
+              type="tel"
               required
+              pattern="^(\+33 ?|0)[1-9]([ .-]?\d{2}){4}$"
+              title="Numéro de téléphone français (ex : 06 12 34 56 78)"
+              placeholder="06 12 34 56 78"
               value={form.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
               className={inputClass}
@@ -189,6 +195,10 @@ export function TeacherDetail() {
                 form.subjects.length === 0
               ) {
                 setError('Nom, adresse, code postal, email, téléphone et au moins une matière sont obligatoires.')
+                return
+              }
+              if (!PHONE_PATTERN.test(form.phone.trim())) {
+                setError('Numéro de téléphone invalide (ex : 06 12 34 56 78).')
                 return
               }
               run('info', () =>

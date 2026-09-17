@@ -25,7 +25,14 @@ export class FamilyService {
     private readonly geocoding: GeocodingService,
   ) {}
 
-  me(portalAccount: AuthenticatedPortalAccount) {
+  async me(portalAccount: AuthenticatedPortalAccount) {
+    // Adresse/code postal du lead, exposes pour prefiller le formulaire de
+    // creation d'un enfant (memes coordonnees par defaut que la famille,
+    // modifiables si l'enfant vit ailleurs).
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: portalAccount.leadId },
+      select: { address: true, postalCode: true },
+    });
     return {
       id: portalAccount.id,
       email: portalAccount.email,
@@ -34,6 +41,8 @@ export class FamilyService {
       role: portalAccount.role,
       mustChangePassword: portalAccount.mustChangePassword,
       status: portalAccount.status,
+      address: lead?.address ?? null,
+      postalCode: lead?.postalCode ?? null,
     };
   }
 
@@ -55,6 +64,7 @@ export class FamilyService {
     const student = await this.prisma.student.create({
       data: {
         name: dto.name,
+        gender: dto.gender,
         level: dto.level,
         classe: dto.classe,
         school: dto.school,
@@ -80,6 +90,7 @@ export class FamilyService {
       where: { id: studentId },
       data: {
         name: dto.name,
+        gender: dto.gender,
         level: dto.level,
         classe: dto.classe,
         school: dto.school,
@@ -198,10 +209,14 @@ export class FamilyService {
       select: {
         id: true,
         name: true,
+        gender: true,
         level: true,
         classe: true,
         school: true,
         address: true,
+        postalCode: true,
+        dateNaissance: true,
+        subjects: true,
         photoPath: true,
         parentLeadId: true,
         createdAt: true,

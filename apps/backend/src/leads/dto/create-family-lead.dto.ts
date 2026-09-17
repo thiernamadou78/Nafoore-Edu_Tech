@@ -1,5 +1,6 @@
 import { ArrayMinSize, IsArray, IsEmail, IsIn, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { CONTACT_SERVICES } from '../../contacts/dto/create-contact.dto';
+import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
 // Meme exigences que le formulaire de contact public (CreateContactDto) pour
 // le profil famille : une famille créée manuellement par l'admin doit avoir
@@ -18,8 +19,7 @@ export class CreateFamilyLeadDto {
   email: string;
 
   @IsString()
-  @MinLength(1, { message: 'Le téléphone est obligatoire' })
-  @MaxLength(20)
+  @Matches(PHONE_REGEX, { message: PHONE_ERROR_MESSAGE })
   phone: string;
 
   @IsString()

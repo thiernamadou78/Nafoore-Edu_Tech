@@ -314,7 +314,11 @@ export function TeachersList() {
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Téléphone</label>
               <input
+                type="tel"
                 required
+                pattern="^(\+33 ?|0)[1-9]([ .-]?\d{2}){4}$"
+                title="Numéro de téléphone français (ex : 06 12 34 56 78)"
+                placeholder="06 12 34 56 78"
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 className={inputClass}

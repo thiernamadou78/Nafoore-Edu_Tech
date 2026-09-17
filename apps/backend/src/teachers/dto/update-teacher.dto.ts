@@ -10,6 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { SUBJECT_OPTIONS } from '../../common/subjects';
+import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
 // PATCH generique (partiel) : @IsOptional() partout pour permettre de ne
 // modifier qu'un champ, mais quand un champ est envoye, il doit respecter
@@ -52,7 +53,6 @@ export class UpdateTeacherDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(1, { message: 'Le téléphone est obligatoire' })
-  @MaxLength(20)
+  @Matches(PHONE_REGEX, { message: PHONE_ERROR_MESSAGE })
   phone?: string;
 }

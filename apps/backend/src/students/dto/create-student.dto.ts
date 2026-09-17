@@ -9,6 +9,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { IsPlausibleBirthDate } from '../../common/is-plausible-birthdate.validator';
 
 export class CreateStudentDto {
   @IsString()
@@ -43,6 +44,7 @@ export class CreateStudentDto {
 
   @IsOptional()
   @IsDateString()
+  @IsPlausibleBirthDate()
   dateNaissance?: string;
 
   @IsOptional()

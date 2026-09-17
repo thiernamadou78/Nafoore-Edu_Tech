@@ -15,6 +15,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
 export const CONTACT_SERVICES = [
   'aide_devoirs',
@@ -45,8 +46,7 @@ export class CreateContactDto {
   email: string;
 
   @IsString()
-  @MinLength(1, { message: 'Le téléphone est obligatoire' })
-  @MaxLength(20)
+  @Matches(PHONE_REGEX, { message: PHONE_ERROR_MESSAGE })
   phone: string;
 
   @IsString()
