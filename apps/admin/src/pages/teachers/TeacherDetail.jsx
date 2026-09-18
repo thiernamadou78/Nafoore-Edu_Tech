@@ -172,9 +172,11 @@ export function TeacherDetail() {
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">Bio</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Bio *</label>
             <textarea
               rows={3}
+              required
+              minLength={20}
               value={form.bio}
               onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
               className={inputClass}
@@ -205,7 +207,7 @@ export function TeacherDetail() {
                 api.patch(`/teachers/${id}`, {
                   name: form.name,
                   subjects: form.subjects,
-                  bio: form.bio || undefined,
+                  bio: form.bio.trim(),
                   address: form.address,
                   postalCode: form.postalCode,
                   email: form.email,

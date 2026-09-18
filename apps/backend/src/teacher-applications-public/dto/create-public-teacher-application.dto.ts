@@ -6,6 +6,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  Length,
   Matches,
   MaxLength,
   MinLength,
@@ -66,9 +67,9 @@ export class CreatePublicTeacherApplicationDto {
   @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
   postalCode: string;
 
-  @IsString()
-  @MinLength(20, { message: 'La présentation doit faire au moins 20 caractères' })
-  @MaxLength(2000)
+  @Length(20, 2000, {
+    message: 'La présentation (bio) est obligatoire : entre 20 et 2000 caractères',
+  })
   bio: string;
 
   @IsOptional()

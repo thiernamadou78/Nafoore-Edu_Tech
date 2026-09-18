@@ -5,6 +5,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  Length,
   Matches,
   MaxLength,
   MinLength,
@@ -29,8 +30,9 @@ export class UpdateTeacherDto {
   subjects?: string[];
 
   @IsOptional()
-  @IsString()
-  @MaxLength(2000)
+  @Length(20, 2000, {
+    message: 'La présentation (bio) est obligatoire : entre 20 et 2000 caractères',
+  })
   bio?: string;
 
   // Repere geographique general du prof (ex-"zone") — le prof se deplace

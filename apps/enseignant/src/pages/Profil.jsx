@@ -185,9 +185,12 @@ export function Profil() {
       !form.postalCode.trim() ||
       !form.email.trim() ||
       !form.phone.trim() ||
-      form.subjects.length === 0
+      form.subjects.length === 0 ||
+      form.bio.trim().length < 20
     ) {
-      setError('Nom, adresse, code postal, email, téléphone et au moins une matière sont obligatoires.')
+      setError(
+        'Nom, adresse, code postal, email, téléphone, au moins une matière et une présentation (20 caractères minimum) sont obligatoires.',
+      )
       return
     }
     setSaving(true)
@@ -308,9 +311,11 @@ export function Profil() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Bio</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Bio *</label>
               <textarea
                 rows={3}
+                required
+                minLength={20}
                 value={form.bio}
                 onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
                 placeholder="Présentation courte, expérience, spécialités…"

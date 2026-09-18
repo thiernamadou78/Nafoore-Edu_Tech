@@ -5,6 +5,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  Length,
   Matches,
   MaxLength,
   MinLength,
@@ -26,10 +27,10 @@ export class CreateTeacherDto {
   @IsIn(SUBJECT_OPTIONS, { each: true, message: 'Matière inconnue' })
   subjects: string[];
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000)
-  bio?: string;
+  @Length(20, 2000, {
+    message: 'La présentation (bio) est obligatoire : entre 20 et 2000 caractères',
+  })
+  bio: string;
 
   @IsString()
   @MinLength(2, { message: "L'adresse est obligatoire" })

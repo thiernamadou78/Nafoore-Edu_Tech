@@ -124,7 +124,7 @@ export function TeachersList() {
         postalCode: form.postalCode,
         email: form.email,
         phone: form.phone,
-        bio: form.bio || undefined,
+        bio: form.bio.trim(),
       })
       await Promise.all([
         ...diplomaFiles.map((file) => uploadDocument(teacher.id, file, 'diplome')),
@@ -327,9 +327,11 @@ export function TeachersList() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Bio</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Bio *</label>
             <textarea
               rows={3}
+              required
+              minLength={20}
               value={form.bio}
               onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
               placeholder="Présentation courte, expérience, spécialités…"
