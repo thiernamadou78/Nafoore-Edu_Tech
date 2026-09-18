@@ -37,7 +37,6 @@ export default function ApplicationCompletion() {
   const [criminalRecord, setCriminalRecord] = useState(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const [showCompletePopup, setShowCompletePopup] = useState(false)
   const [fileErrors, setFileErrors] = useState({})
 
   const pickFiles = (field, kind, event, apply) => {
@@ -145,7 +144,6 @@ export default function ApplicationCompletion() {
         setMessage(failures.join(' '))
       } else if (isProfileComplete(data)) {
         setMessage('')
-        setShowCompletePopup(true)
       } else if (succeededTypes.includes('documents')) {
         setMessage('Documents ajoutés.')
       } else if (jobs.length > 0) {
@@ -172,6 +170,39 @@ export default function ApplicationCompletion() {
     return (
       <section className="py-24 bg-navy min-h-[60vh] flex items-center justify-center">
         <p className="text-white/70 font-sans text-sm">Chargement…</p>
+      </section>
+    )
+  }
+
+  if (isProfileComplete(application)) {
+    const quit = () => {
+      window.close()
+      // window.close() est ignore par le navigateur si l'onglet n'a pas ete
+      // ouvert par un script (cas d'un lien recu par email) : on retombe alors
+      // sur l'accueil du site.
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 300)
+    }
+    return (
+      <section className="py-24 bg-navy min-h-[70vh] flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+          <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+            ✓
+          </div>
+          <h1 className="font-serif text-xl font-bold text-gray-900 mb-2">Dossier complet !</h1>
+          <p className="font-sans text-sm text-gray-500 mb-6">
+            Merci {application.candidateName}, ta présentation et tes documents ont bien été
+            envoyés. Notre équipe va les examiner et reviendra vers toi.
+          </p>
+          <button
+            type="button"
+            onClick={quit}
+            className="bg-navy text-white font-sans font-bold text-sm py-2.5 px-6 rounded-full hover:bg-navy/90 transition-all"
+          >
+            Quitter
+          </button>
+        </div>
       </section>
     )
   }
@@ -301,27 +332,6 @@ export default function ApplicationCompletion() {
         </button>
       </div>
 
-      {showCompletePopup && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-              ✓
-            </div>
-            <h2 className="font-serif text-xl font-bold text-gray-900 mb-2">Profil complet !</h2>
-            <p className="font-sans text-sm text-gray-500 mb-6">
-              Ta présentation et tes documents ont bien été envoyés. Notre équipe va
-              les examiner.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowCompletePopup(false)}
-              className="bg-navy text-white font-sans font-bold text-sm py-2.5 px-6 rounded-full hover:bg-navy/90 transition-all"
-            >
-              Parfait
-            </button>
-          </div>
-        </div>
-      )}
     </section>
   )
 }

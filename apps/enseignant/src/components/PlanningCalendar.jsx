@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button } from './ui/Button'
 import { Card } from './ui/Card'
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
@@ -18,10 +19,11 @@ function dotColor(session) {
 
 // Grille du mois façon agenda de téléphone : pastilles colorées sous les
 // jours qui ont des séances, et un clic sur un jour affiche l'agenda du jour.
-export function PlanningCalendar({ sessions, renderSession }) {
+export function PlanningCalendar({ sessions, renderSession, renderCreateForm }) {
   const today = new Date()
   const [month, setMonth] = useState(startOfMonth(today))
   const [selected, setSelected] = useState(today)
+  const [creating, setCreating] = useState(false)
 
   const byDay = useMemo(() => {
     const map = new Map()
@@ -112,6 +114,7 @@ export function PlanningCalendar({ sessions, renderSession }) {
                 type="button"
                 onClick={() => {
                   setSelected(date)
+                  setCreating(false)
                   if (!inMonth) setMonth(startOfMonth(date))
                 }}
                 className="flex flex-col items-center gap-0.5 py-1"
@@ -156,14 +159,23 @@ export function PlanningCalendar({ sessions, renderSession }) {
       </Card>
 
       <div>
-        <h3 className="mb-3 text-sm font-semibold capitalize text-gray-700">
-          {selectedLabel}
-          <span className="ml-2 font-normal text-gray-400">
-            {selectedSessions.length === 0
-              ? ''
-              : `${selectedSessions.length} séance${selectedSessions.length > 1 ? 's' : ''}`}
-          </span>
-        </h3>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold capitalize text-gray-700">
+            {selectedLabel}
+            <span className="ml-2 font-normal text-gray-400">
+              {selectedSessions.length === 0
+                ? ''
+                : `${selectedSessions.length} séance${selectedSessions.length > 1 ? 's' : ''}`}
+            </span>
+          </h3>
+          {renderCreateForm && !creating && (
+            <Button variant="secondary" icon={CalendarPlus} onClick={() => setCreating(true)}>
+              Planifier
+            </Button>
+          )}
+        </div>
+        {creating &&
+          renderCreateForm({ day: dayKey(selected), onClose: () => setCreating(false) })}
         {selectedSessions.length === 0 ? (
           <Card className="p-6 text-center text-sm text-gray-400">Aucune séance ce jour.</Card>
         ) : (

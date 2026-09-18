@@ -303,6 +303,86 @@ function SessionRow({
   )
 }
 
+function CalendarCreateForm({ students, day, saving, onSubmit, onClose }) {
+  const [studentId, setStudentId] = useState(students[0]?.id ?? '')
+  const [subject, setSubject] = useState('')
+  const [time, setTime] = useState('17:00')
+  const [durationMinutes, setDurationMinutes] = useState(60)
+  const [localError, setLocalError] = useState(null)
+
+  const student = students.find((s) => s.id === studentId)
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    setLocalError(null)
+    onSubmit(studentId, { subject, date: `${day}T${time}`, durationMinutes })
+      .then(onClose)
+      .catch((err) => setLocalError(err.message))
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mb-4 space-y-2 rounded-lg bg-gray-50 p-3">
+      <select
+        required
+        value={studentId}
+        onChange={(e) => {
+          setStudentId(e.target.value)
+          setSubject('')
+        }}
+        className={inputClass}
+      >
+        {students.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </select>
+      <select
+        required
+        value={subject}
+        onChange={(e) => setSubject(e.target.value)}
+        className={inputClass}
+      >
+        <option value="">Matière…</option>
+        {(student?.subjects ?? []).map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          required
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          className={inputClass}
+        />
+        <select
+          value={durationMinutes}
+          onChange={(e) => setDurationMinutes(Number(e.target.value))}
+          className={inputClass}
+        >
+          {DURATION_OPTIONS.map(({ value, label }) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {localError && <p className="text-sm text-red-600">{localError}</p>}
+      <div className="flex gap-2">
+        <Button type="submit" loading={saving}>
+          Confirmer
+        </Button>
+        <Button type="button" variant="secondary" onClick={onClose}>
+          Annuler
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 function StudentPlanningCard({
   student,
   sessions,
@@ -576,6 +656,15 @@ export function Planning() {
       ) : view === 'calendrier' ? (
         <PlanningCalendar
           sessions={sessions}
+          renderCreateForm={({ day, onClose }) => (
+            <CalendarCreateForm
+              students={students}
+              day={day}
+              saving={savingId === 'create'}
+              onSubmit={handleCreateForStudent}
+              onClose={onClose}
+            />
+          )}
           renderSession={(session) => (
             <SessionRow
               session={session}
