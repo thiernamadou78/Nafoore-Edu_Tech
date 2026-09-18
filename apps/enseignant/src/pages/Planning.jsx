@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { PaginationControls } from '../components/ui/PaginationControls'
+import { PlanningCalendar } from '../components/PlanningCalendar'
 import { Spinner } from '../components/ui/Spinner'
 import { usePagination } from '../lib/usePagination'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from './labels'
@@ -472,6 +473,7 @@ export function Planning() {
   const [savingId, setSavingId] = useState(null)
   const [creatingForStudentId, setCreatingForStudentId] = useState(null)
   const [autoReportIds, setAutoReportIds] = useState(() => new Set())
+  const [view, setView] = useState('calendrier')
 
   const load = () =>
     Promise.all([api.get('/teacher/sessions'), api.get('/teacher/students')])
@@ -546,12 +548,45 @@ export function Planning() {
 
   return (
     <div>
-      <h1 className="mb-6 font-serif text-2xl font-bold text-navy">Planning</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-serif text-2xl font-bold text-navy">Planning</h1>
+        <div className="inline-flex rounded-full bg-gray-100 p-1 text-sm">
+          {[
+            ['calendrier', 'Calendrier'],
+            ['eleves', 'Par élève'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setView(key)}
+              className={`rounded-full px-4 py-1.5 font-medium transition-colors ${
+                view === key ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {error && <p className="mb-4 text-red-600">{error}</p>}
 
       {students.length === 0 ? (
         <p className="text-sm text-gray-500">Aucun élève assigné pour l'instant.</p>
+      ) : view === 'calendrier' ? (
+        <PlanningCalendar
+          sessions={sessions}
+          renderSession={(session) => (
+            <SessionRow
+              session={session}
+              savingId={savingId}
+              onCancelSession={handleCancelSession}
+              onSaveReport={handleSaveReport}
+              onManualAttendance={handleManualAttendance}
+              autoOpenReport={autoReportIds.has(session.id)}
+            />
+          )}
+        />
       ) : (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(380px,1fr))] gap-4">
           {students.map((student) => (
