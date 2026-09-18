@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import {
+  DOCUMENT_FORMATS_HINT,
+  uploadErrorMessage,
+  validateUploads,
+} from '../lib/fileValidation'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -20,7 +25,6 @@ const DOCUMENT_TYPE_LABELS = {
 
 const isProfileComplete = (application) =>
   Boolean(application?.bio && application.bio.trim().length >= 20) &&
-  Boolean(application?.photoUrl) &&
   (application?.documents ?? []).some((doc) => doc.type === 'diplome') &&
   (application?.documents ?? []).some((doc) => doc.type === 'casier_judiciaire')
 
@@ -29,12 +33,24 @@ export default function ApplicationCompletion() {
   const [application, setApplication] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [bio, setBio] = useState('')
-  const [photo, setPhoto] = useState(null)
   const [diplomas, setDiplomas] = useState([])
   const [criminalRecord, setCriminalRecord] = useState(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [showCompletePopup, setShowCompletePopup] = useState(false)
+  const [fileErrors, setFileErrors] = useState({})
+
+  const pickFiles = (field, kind, event, apply) => {
+    const files = Array.from(event.target.files ?? [])
+    const error = validateUploads(files, kind)
+    setFileErrors((prev) => ({ ...prev, [field]: error }))
+    if (error) {
+      event.target.value = ''
+      apply(null)
+      return
+    }
+    apply(files)
+  }
 
   const fetchApplication = async () => {
     const res = await fetch(`${API_URL}/teacher-applications/public/${token}`)
@@ -88,23 +104,6 @@ export default function ApplicationCompletion() {
       })
     }
 
-    if (photo) {
-      const formData = new FormData()
-      formData.append('file', photo)
-      jobs.push({
-        type: 'photo',
-        promise: fetch(`${API_URL}/teacher-applications/public/${token}/photo`, {
-          method: 'POST',
-          body: formData,
-        }).then(async (res) => {
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}))
-            throw new Error(data.message || "Échec de l'envoi de la photo.")
-          }
-        }),
-      })
-    }
-
     if (diplomas.length > 0 || criminalRecord) {
       const formData = new FormData()
       diplomas.forEach((file) => formData.append('diplomas', file))
@@ -117,7 +116,7 @@ export default function ApplicationCompletion() {
         }).then(async (res) => {
           if (!res.ok) {
             const data = await res.json().catch(() => ({}))
-            throw new Error(data.message || "Échec de l'envoi des documents.")
+            throw new Error(uploadErrorMessage(res, data, "Échec de l'envoi des documents."))
           }
         }),
       })
@@ -131,9 +130,7 @@ export default function ApplicationCompletion() {
         failures.push(result.reason.message)
       } else {
         succeededTypes.push(jobs[index].type)
-        if (jobs[index].type === 'photo') {
-          setPhoto(null)
-        } else if (jobs[index].type === 'documents') {
+        if (jobs[index].type === 'documents') {
           setDiplomas([])
           setCriminalRecord(null)
         }
@@ -154,7 +151,7 @@ export default function ApplicationCompletion() {
       } else if (jobs.length > 0) {
         setMessage('Profil mis à jour.')
       } else {
-        setMessage('Ton profil n\'est pas encore complet : ajoute ta présentation, ta photo et tes documents.')
+        setMessage('Ton profil n\'est pas encore complet : ajoute ta présentation et tes documents.')
       }
     } catch (err) {
       setMessage(err.message)
@@ -197,8 +194,8 @@ export default function ApplicationCompletion() {
           Complète ton dossier, {application.candidateName}
         </h1>
         <p className="font-sans text-white/60 text-sm mb-8">
-          Renseigne ta présentation, ta photo et tes documents, puis valide ton profil en une
-          seule fois.
+          Complète les éléments manquants de ton dossier, puis valide-le en une seule fois.
+          Tu pourras ajouter ta photo de profil à ta première connexion.
         </p>
 
         {locked && (
@@ -230,26 +227,6 @@ export default function ApplicationCompletion() {
 
         <div className="bg-white rounded-2xl p-8 shadow-2xl shadow-black/20 mb-6">
           <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-            Ta photo
-          </label>
-          {application.photoUrl && (
-            <img
-              src={application.photoUrl}
-              alt={application.candidateName}
-              className="w-20 h-20 rounded-full object-cover mb-4"
-            />
-          )}
-          <input
-            type="file"
-            accept="image/jpeg,image/png"
-            disabled={locked}
-            onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-            className="w-full font-sans text-xs text-gray-500"
-          />
-        </div>
-
-        <div className="bg-white rounded-2xl p-8 shadow-2xl shadow-black/20 mb-6">
-          <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
             Documents
           </label>
           {application.documents?.length > 0 && (
@@ -262,19 +239,37 @@ export default function ApplicationCompletion() {
               ))}
             </ul>
           )}
+          <ul className="mb-3 font-sans text-sm space-y-1.5">
+            {[
+              ['diplome', 'Diplôme'],
+              ['casier_judiciaire', 'Casier judiciaire'],
+            ].map(([type, label]) =>
+              (application.documents ?? []).some((doc) => doc.type === type) ? null : (
+                <li key={type} className="text-amber-700">
+                  • {label} : à fournir
+                </li>
+              ),
+            )}
+          </ul>
+          <p className="mb-4 font-sans text-xs text-gray-400">
+            Formats acceptés : {DOCUMENT_FORMATS_HINT}
+          </p>
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                Diplômes (PDF, JPG, PNG)
+                Diplômes
               </label>
               <input
                 type="file"
                 multiple
                 accept=".pdf,.jpg,.jpeg,.png"
                 disabled={locked}
-                onChange={(e) => setDiplomas(Array.from(e.target.files ?? []))}
+                onChange={(e) => pickFiles('diplomas', 'document', e, (files) => setDiplomas(files ?? []))}
                 className="w-full font-sans text-xs text-gray-500"
               />
+              {fileErrors.diplomas && (
+                <p className="mt-1.5 font-sans text-xs text-red-600">{fileErrors.diplomas}</p>
+              )}
             </div>
             <div>
               <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
@@ -284,9 +279,14 @@ export default function ApplicationCompletion() {
                 type="file"
                 accept=".pdf,.jpg,.jpeg,.png"
                 disabled={locked}
-                onChange={(e) => setCriminalRecord(e.target.files?.[0] ?? null)}
+                onChange={(e) =>
+                  pickFiles('criminalRecord', 'document', e, (files) => setCriminalRecord(files?.[0] ?? null))
+                }
                 className="w-full font-sans text-xs text-gray-500"
               />
+              {fileErrors.criminalRecord && (
+                <p className="mt-1.5 font-sans text-xs text-red-600">{fileErrors.criminalRecord}</p>
+              )}
             </div>
           </div>
         </div>
@@ -309,7 +309,7 @@ export default function ApplicationCompletion() {
             </div>
             <h2 className="font-serif text-xl font-bold text-gray-900 mb-2">Profil complet !</h2>
             <p className="font-sans text-sm text-gray-500 mb-6">
-              Ta présentation, ta photo et tes documents ont bien été envoyés. Notre équipe va
+              Ta présentation et tes documents ont bien été envoyés. Notre équipe va
               les examiner.
             </p>
             <button

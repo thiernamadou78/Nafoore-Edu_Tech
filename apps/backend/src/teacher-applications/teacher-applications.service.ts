@@ -160,6 +160,21 @@ export class TeacherApplicationsService {
     }
   }
 
+  private listMissingItems(application: {
+    bio: string | null;
+    documents: { type: string }[];
+  }): string[] {
+    const missing: string[] = [];
+    if (!application.bio || application.bio.trim().length < 20) {
+      missing.push('Présentation (20 caractères minimum)');
+    }
+    if (!application.documents.some((doc) => doc.type === 'diplome')) missing.push('Diplôme');
+    if (!application.documents.some((doc) => doc.type === 'casier_judiciaire')) {
+      missing.push('Casier judiciaire (bulletin n°3)');
+    }
+    return missing;
+  }
+
   async decide(
     id: string,
     status: 'valide' | 'refuse' | 'documents_requis',
@@ -167,9 +182,16 @@ export class TeacherApplicationsService {
   ) {
     const existing = await this.findOne(id);
 
-    if (status === 'valide' && (!existing.bio || !existing.photoPath)) {
+    if (status === 'valide' && !existing.bio) {
       throw new BadRequestException(
-        'Le profil du candidat (photo + bio) doit être complété avant de valider la candidature',
+        'La présentation du candidat doit être renseignée avant de valider la candidature',
+      );
+    }
+
+    const missingItems = status === 'documents_requis' ? this.listMissingItems(existing) : [];
+    if (status === 'documents_requis' && missingItems.length === 0) {
+      throw new BadRequestException(
+        'Le dossier est déjà complet : il ne manque aucun document, ni photo, ni présentation',
       );
     }
 
@@ -236,6 +258,7 @@ export class TeacherApplicationsService {
           html: renderDocumentsRequiredEmail({
             fullName: existing.candidateName,
             completionUrl,
+            missingItems,
           }),
         })
         .catch((error) => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Save, Upload, X } from 'lucide-react'
 import { api } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -120,6 +121,7 @@ function SubjectQuickAdd({ selected, onChange }) {
 }
 
 export function Profil() {
+  const { refreshAccount } = useAuth()
   const photoInputRef = useRef(null)
   const [form, setForm] = useState(null)
   const [error, setError] = useState(null)
@@ -149,6 +151,16 @@ export function Profil() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setError(
+        `Le fichier « ${file.name} » n'est pas pris en compte. Formats acceptés pour la photo : JPG ou PNG, 5 Mo maximum.`,
+      )
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError(`Le fichier « ${file.name} » est trop volumineux (JPG ou PNG, 5 Mo maximum).`)
+      return
+    }
     setUploadingPhoto(true)
     setError(null)
     try {
@@ -156,6 +168,7 @@ export function Profil() {
       formData.append('file', file)
       const { photoUrl } = await api.upload('/teacher/me/photo', formData)
       setForm((f) => ({ ...f, photoUrl }))
+      refreshAccount()
     } catch (err) {
       setError(err.message)
     } finally {

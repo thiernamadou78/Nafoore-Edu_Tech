@@ -144,6 +144,22 @@ export function TeacherLayout() {
       </header>
       <div className="h-[3px] bg-gradient-to-r from-gold-500 via-gold-400 to-gold-500" />
 
+      {teacherAccount?.hasPhoto === false && location.pathname !== '/profil' && (
+        <div className="border-b border-amber-300/50 bg-amber-50 px-6 py-2.5">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-amber-900">
+              Complète ton profil : ajoute ta photo pour que les familles te reconnaissent.
+            </span>
+            <Link
+              to="/profil"
+              className="rounded-full bg-navy px-3 py-1 text-xs font-semibold text-white hover:bg-navy/90"
+            >
+              Ajouter ma photo
+            </Link>
+          </div>
+        </div>
+      )}
+
       {showPushBanner && (
         <div className="border-b border-gold-400/30 bg-gold-400/10 px-6 py-2.5">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 text-sm">

@@ -29,8 +29,8 @@ export function ChangePassword() {
 
     setSubmitting(true)
     try {
-      await completePasswordChange(password)
-      navigate('/', { replace: true })
+      const me = await completePasswordChange(password)
+      navigate(me && !me.hasPhoto ? '/profil' : '/', { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {

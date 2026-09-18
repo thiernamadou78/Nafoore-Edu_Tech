@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { validateUploads } from '../lib/fileValidation'
 
 // Liste fermée (pas de saisie libre) : indispensable pour que les demandes
 // des familles puissent être comparées automatiquement aux matières
@@ -80,6 +81,7 @@ const DEFAULT_FORM = {
   classes: [],
   zone: '',
   postalCode: '',
+  bio: '',
   availabilityDays: [],
 }
 
@@ -89,6 +91,7 @@ export default function TeacherApplication() {
   const [criminalRecord, setCriminalRecord] = useState(null)
   const [status, setStatus] = useState('idle')
   const [errorMsg, setErrorMsg] = useState('')
+  const [fileErrors, setFileErrors] = useState({})
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -147,6 +150,11 @@ export default function TeacherApplication() {
       setErrorMsg('Choisissez au moins un niveau.')
       return
     }
+    if (form.bio.trim().length < 20) {
+      setStatus('error')
+      setErrorMsg('Ta présentation doit faire au moins 20 caractères.')
+      return
+    }
     const levelWithoutClasse = form.levels.find(
       (level) => !CLASSES_BY_LEVEL[level].some(({ value }) => form.classes.includes(value)),
     )
@@ -169,6 +177,7 @@ export default function TeacherApplication() {
       formData.append('classes', form.classes.join(','))
       formData.append('zone', form.zone)
       formData.append('postalCode', form.postalCode)
+      formData.append('bio', form.bio.trim())
       formData.append('availability', form.availabilityDays.join(', '))
       diplomas.forEach((file) => formData.append('diplomas', file))
       if (criminalRecord) formData.append('criminalRecord', criminalRecord)
@@ -433,18 +442,46 @@ export default function TeacherApplication() {
                   </div>
                 </div>
 
+                <div className="mb-5">
+                  <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Ta présentation (visible par les familles)
+                  </label>
+                  <textarea
+                    value={form.bio}
+                    onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+                    rows={5}
+                    required
+                    minLength={20}
+                    maxLength={2000}
+                    placeholder="Présente ton parcours, ta méthode pédagogique, tes points forts…"
+                    className="w-full border-2 border-gray-100 rounded-xl px-4 py-3 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
+                  />
+                </div>
+
+                <p className="font-sans text-xs text-gray-400 mb-3">
+                  Documents (facultatifs pour l'instant) — formats acceptés : PDF, JPG ou PNG, 5 Mo maximum par fichier.
+                </p>
                 <div className="grid sm:grid-cols-2 gap-4 mb-5">
                   <div>
                     <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                      Diplômes (PDF, JPG, PNG)
+                      Diplômes
                     </label>
                     <input
                       type="file"
                       multiple
                       accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => setDiplomas(Array.from(e.target.files ?? []))}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? [])
+                        const error = validateUploads(files)
+                        setFileErrors((prev) => ({ ...prev, diplomas: error }))
+                        if (error) e.target.value = ''
+                        setDiplomas(error ? [] : files)
+                      }}
                       className="w-full font-sans text-xs text-gray-500"
                     />
+                    {fileErrors.diplomas && (
+                      <p className="mt-1.5 font-sans text-xs text-red-600">{fileErrors.diplomas}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
@@ -453,9 +490,18 @@ export default function TeacherApplication() {
                     <input
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => setCriminalRecord(e.target.files?.[0] ?? null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null
+                        const error = validateUploads(file ? [file] : [])
+                        setFileErrors((prev) => ({ ...prev, criminalRecord: error }))
+                        if (error) e.target.value = ''
+                        setCriminalRecord(error ? null : file)
+                      }}
                       className="w-full font-sans text-xs text-gray-500"
                     />
+                    {fileErrors.criminalRecord && (
+                      <p className="mt-1.5 font-sans text-xs text-red-600">{fileErrors.criminalRecord}</p>
+                    )}
                   </div>
                 </div>
 

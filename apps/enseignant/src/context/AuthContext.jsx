@@ -16,10 +16,12 @@ export function AuthProvider({ children }) {
       const me = await api.get('/teacher/me')
       setTeacherAccount(me)
       setError(null)
+      return me
     } catch (err) {
       setTeacherAccount(null)
       setError(err.message)
       await supabase.auth.signOut()
+      return null
     }
   }, [])
 
@@ -70,7 +72,7 @@ export function AuthProvider({ children }) {
     const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
     if (updateError) throw updateError
     await api.patch('/teacher/me/password-changed', {})
-    await loadTeacherAccount()
+    return loadTeacherAccount()
   }
 
   return (
@@ -83,6 +85,7 @@ export function AuthProvider({ children }) {
         signIn,
         signOut,
         completePasswordChange,
+        refreshAccount: loadTeacherAccount,
       }}
     >
       {children}

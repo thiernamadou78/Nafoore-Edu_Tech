@@ -66,6 +66,11 @@ export class CreatePublicTeacherApplicationDto {
   @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
   postalCode: string;
 
+  @IsString()
+  @MinLength(20, { message: 'La présentation doit faire au moins 20 caractères' })
+  @MaxLength(2000)
+  bio: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(1000)

@@ -39,8 +39,15 @@ export class TeacherService {
     private readonly geocoding: GeocodingService,
   ) {}
 
-  me(teacherAccount: AuthenticatedTeacherAccount) {
+  async me(teacherAccount: AuthenticatedTeacherAccount) {
+    const teacher = teacherAccount.teacherId
+      ? await this.prisma.teacher.findUnique({
+          where: { id: teacherAccount.teacherId },
+          select: { photoPath: true },
+        })
+      : null;
     return {
+      hasPhoto: Boolean(teacher?.photoPath),
       id: teacherAccount.id,
       email: teacherAccount.email,
       fullName: teacherAccount.fullName,

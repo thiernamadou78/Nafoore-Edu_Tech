@@ -67,32 +67,6 @@ export class TeacherApplicationsPublicService {
     });
   }
 
-  async uploadPhoto(token: string, file: Express.Multer.File) {
-    const application = await this.findByToken(token);
-    this.assertEditable(application.status);
-    if (application.photoPath) {
-      await this.photos.remove(application.photoPath);
-    }
-    const path = this.photos.buildPath('teacher-applications', application.id, file.originalname);
-    await this.photos.upload(path, file);
-    await this.prisma.teacherApplication.update({
-      where: { id: application.id },
-      data: { photoPath: path },
-    });
-  }
-
-  async removePhoto(token: string) {
-    const application = await this.findByToken(token);
-    this.assertEditable(application.status);
-    if (application.photoPath) {
-      await this.photos.remove(application.photoPath);
-      await this.prisma.teacherApplication.update({
-        where: { id: application.id },
-        data: { photoPath: null },
-      });
-    }
-  }
-
   async addDocuments(token: string, files: TeacherApplicationUploadedFiles) {
     const application = await this.findByToken(token);
     this.assertEditable(application.status);
@@ -148,6 +122,7 @@ export class TeacherApplicationsPublicService {
         classes: dto.classes,
         zone: dto.zone,
         postalCode: dto.postalCode,
+        bio: dto.bio.trim(),
         availability: dto.availability,
         completionToken: generateCompletionToken(),
       },

@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { MAX_FILE_SIZE_BYTES, photoFileFilter } from '../teacher-applications-public/upload.constants';
 import { CurrentTeacherAccount } from '../auth/current-teacher-account.decorator';
 import { AuthenticatedTeacherAccount, TeacherAuthGuard } from '../auth/teacher-auth.guard';
 import { TeacherService } from './teacher.service';
@@ -65,7 +66,13 @@ export class TeacherController {
   }
 
   @Post('me/photo')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_FILE_SIZE_BYTES },
+      fileFilter: photoFileFilter,
+    }),
+  )
   uploadMyPhoto(
     @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
     @UploadedFile() file: Express.Multer.File,

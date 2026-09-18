@@ -173,19 +173,39 @@ export function RecruitmentDetail() {
 
           <Card className="p-6">
             <h2 className="mb-3 font-semibold text-gray-900">Décision</h2>
-            {(!application.bio || !application.photoPath) && (
+            {!application.bio && (
               <p className="mb-3 text-xs text-amber-700">
-                Complète la photo et la bio dans l'onglet "Entretien &amp; profil" avant de
-                valider.
+                Complète la bio dans l'onglet "Entretien &amp; profil" avant de valider. La photo
+                sera demandée au prof à sa première connexion.
               </p>
             )}
+            <div className="mb-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+              <p className="mb-1 font-medium text-gray-700">Éléments du dossier</p>
+              <ul className="space-y-0.5">
+                {[
+                  ['Présentation', Boolean(application.bio && application.bio.trim().length >= 20)],
+                  ['Diplôme', application.documents?.some((d) => d.type === 'diplome')],
+                  [
+                    'Casier judiciaire',
+                    application.documents?.some((d) => d.type === 'casier_judiciaire'),
+                  ],
+                ].map(([label, ok]) => (
+                  <li key={label} className={ok ? 'text-green-700' : 'text-amber-700'}>
+                    {ok ? '✓' : '•'} {label} {ok ? 'fourni' : 'manquant'}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-gray-400">
+                « Documents requis » n'enverra au candidat que les éléments manquants.
+              </p>
+            </div>
             <div className="space-y-2">
               <Button
                 variant="success"
                 icon={Check}
                 className="w-full"
                 loading={savingAction === 'valide'}
-                disabled={!application.bio || !application.photoPath}
+                disabled={!application.bio}
                 onClick={() =>
                   run('valide', () =>
                     api.patch(`/teacher-applications/${id}/decision`, { status: 'valide' }),

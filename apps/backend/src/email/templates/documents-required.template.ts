@@ -1,11 +1,13 @@
 export interface DocumentsRequiredEmailInput {
   fullName: string;
   completionUrl: string;
+  missingItems: string[];
 }
 
 export function renderDocumentsRequiredEmail({
   fullName,
   completionUrl,
+  missingItems,
 }: DocumentsRequiredEmailInput): string {
   return `<!doctype html>
 <html lang="fr">
@@ -34,7 +36,13 @@ export function renderDocumentsRequiredEmail({
                   Bonjour ${escapeHtml(fullName)},
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
-                  Votre candidature nécessite de compléter votre dossier (photo, présentation et/ou documents manquants) afin de pouvoir être validée par notre équipe.
+                  Pour pouvoir valider votre candidature, il nous manque encore les éléments suivants :
+                </p>
+                <ul style="margin:0 0 20px 0;padding-left:20px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.8;color:#374151;">
+                  ${missingItems.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+                </ul>
+                <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#6b7280;">
+                  Formats acceptés pour les documents : PDF, JPG ou PNG (5 Mo maximum par fichier).
                 </p>
               </td>
             </tr>
