@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsDateString, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { SUBJECT_OPTIONS } from '../../common/subjects';
 
 export const TEACHER_REQUEST_FORMATS = ['presentiel', 'distanciel', 'hybride'] as const;
@@ -21,6 +21,10 @@ export class CreateTeacherRequestDto {
   @IsString()
   @MaxLength(500)
   availability?: string;
+
+  @IsOptional()
+  @IsDateString({}, { message: 'Date de début invalide' })
+  desiredStartDate?: string;
 
   // Duree de seance souhaitee : sert de defaut au prof pour le planning,
   // pour eviter qu'il ait a la redefinir lui-meme.

@@ -57,6 +57,30 @@ export class GeocodingService {
     }
   }
 
+  private readonly cityCache = new Map<string, string>();
+
+  // Ville d'un code postal (API publique geo.api.gouv.fr), en cache memoire.
+  // Best-effort : renvoie null en cas d'echec, la carte affichera alors le
+  // code postal seul.
+  async cityForPostalCode(postalCode?: string | null): Promise<string | null> {
+    const code = postalCode?.trim();
+    if (!code || !/^\d{5}$/.test(code)) return null;
+    const cached = this.cityCache.get(code);
+    if (cached) return cached;
+    try {
+      const response = await fetch(
+        `https://geo.api.gouv.fr/communes?codePostal=${code}&fields=nom&format=json`,
+      );
+      if (!response.ok) return null;
+      const communes = (await response.json()) as Array<{ nom: string }>;
+      const city = communes[0]?.nom ?? null;
+      if (city) this.cityCache.set(code, city);
+      return city;
+    } catch {
+      return null;
+    }
+  }
+
   private async throttle() {
     const elapsed = Date.now() - this.lastRequestAt;
     if (elapsed < MIN_INTERVAL_MS) {

@@ -9,6 +9,8 @@ import { EmailService } from '../email/email.service';
 import { renderMatchingConfirmationEmail } from '../email/templates/matching-confirmation.template';
 import { renderMatchingProposalEmail } from '../email/templates/matching-proposal.template';
 import { renderTeacherProposedEmail } from '../email/templates/teacher-proposed.template';
+import { renderMatchingResponseEmail } from '../email/templates/matching-response.template';
+import { GeocodingService } from '../geocoding/geocoding.service';
 import { resolvePortalUrl } from '../email/portal-url.util';
 import { StudentsService } from '../students/students.service';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
@@ -28,9 +30,19 @@ const adminMatchingSelect = {
   proposedBy: { select: { id: true, name: true } },
 };
 
+const teacherContactSelect = {
+  id: true,
+  name: true,
+  gender: true,
+  account: { select: { email: true } },
+};
+
+const OTHER_TEACHER_CHOSEN_REASON = 'Un autre enseignant a été choisi par la famille';
+
 const adminInterestSelect = {
   id: true,
   createdAt: true,
+  interested: true,
   teacher: { select: { id: true, name: true } },
 };
 
@@ -42,6 +54,7 @@ export class TeacherRequestsService {
     private readonly prisma: PrismaService,
     private readonly studentsService: StudentsService,
     private readonly emailService: EmailService,
+    private readonly geocoding: GeocodingService,
   ) {}
 
   async createRequest(
@@ -59,6 +72,7 @@ export class TeacherRequestsService {
         format: dto.format,
         availability: dto.availability,
         durationMinutes: dto.durationMinutes,
+        desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : null,
       },
     });
   }
@@ -69,6 +83,15 @@ export class TeacherRequestsService {
     if (matching.status !== 'proposee') {
       throw new ConflictException('Cette proposition n\'est plus en attente');
     }
+
+    const otherPending = await this.prisma.matching.findMany({
+      where: {
+        teacherRequestId: matching.teacherRequestId,
+        status: 'proposee',
+        id: { not: matchingId },
+      },
+      include: { teacher: { select: teacherContactSelect } },
+    });
 
     await this.prisma.$transaction(async (tx) => {
       await tx.matching.update({
@@ -87,7 +110,11 @@ export class TeacherRequestsService {
           status: 'proposee',
           id: { not: matchingId },
         },
-        data: { status: 'refusee', respondedAt: new Date() },
+        data: {
+          status: 'refusee',
+          refusalReason: OTHER_TEACHER_CHOSEN_REASON,
+          respondedAt: new Date(),
+        },
       });
       await this.studentsService.addTeacherAssignment(
         matching.teacherRequest.studentId,
@@ -130,7 +157,48 @@ export class TeacherRequestsService {
         );
       });
 
+    const { student, subject } = matching.teacherRequest;
+    this.notifyTeacher(matching.teacher, student.name, subject, 'acceptee', null);
+    for (const other of otherPending) {
+      this.notifyTeacher(other.teacher, student.name, subject, 'refusee', OTHER_TEACHER_CHOSEN_REASON);
+    }
+
     return { status: 'acceptee' };
+  }
+
+  // Email best-effort au prof concerne (acceptation ou refus avec motif) :
+  // il ne doit pas decouvrir la reponse de la famille par hasard.
+  private notifyTeacher(
+    teacher: { name: string; gender: string | null; account: { email: string } | null },
+    studentName: string,
+    subject: string,
+    outcome: 'acceptee' | 'refusee',
+    reason: string | null,
+  ) {
+    if (!teacher.account?.email) return;
+    this.emailService
+      .send({
+        to: teacher.account.email,
+        subject:
+          outcome === 'acceptee'
+            ? `Nafoore Education — Votre proposition a été acceptée (${subject})`
+            : `Nafoore Education — Votre proposition n'a pas été retenue (${subject})`,
+        html: renderMatchingResponseEmail({
+          gender: teacher.gender,
+          teacherName: teacher.name,
+          studentName,
+          subject,
+          outcome,
+          reason,
+          portalUrl: resolvePortalUrl('teacher'),
+        }),
+      })
+      .catch((error) =>
+        this.logger.error(
+          `Échec d'envoi de l'email de réponse de proposition au prof ${teacher.name}`,
+          error instanceof Error ? error.stack : undefined,
+        ),
+      );
   }
 
   async refuseMatching(
@@ -144,20 +212,32 @@ export class TeacherRequestsService {
       throw new ConflictException('Cette proposition n\'est plus en attente');
     }
 
-    await this.prisma.$transaction([
-      this.prisma.matching.update({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.matching.update({
         where: { id: matchingId },
         data: {
           status: 'refusee',
-          refusalReason: dto.refusalReason,
+          refusalReason: dto.refusalReason.trim(),
           respondedAt: new Date(),
         },
-      }),
-      this.prisma.teacherRequest.update({
+      });
+      // D'autres propositions peuvent encore attendre la reponse de la famille.
+      const stillPending = await tx.matching.count({
+        where: { teacherRequestId: matching.teacherRequestId, status: 'proposee' },
+      });
+      await tx.teacherRequest.update({
         where: { id: matching.teacherRequestId },
-        data: { status: 'en_attente' },
-      }),
-    ]);
+        data: { status: stillPending > 0 ? 'proposition_envoyee' : 'en_attente' },
+      });
+    });
+
+    this.notifyTeacher(
+      matching.teacher,
+      matching.teacherRequest.student.name,
+      matching.teacherRequest.subject,
+      'refusee',
+      dto.refusalReason.trim(),
+    );
 
     return { status: 'refusee' };
   }
@@ -171,6 +251,7 @@ export class TeacherRequestsService {
             id: true,
             name: true,
             level: true,
+            classe: true,
             parentLead: {
               select: {
                 id: true,
@@ -203,6 +284,7 @@ export class TeacherRequestsService {
             id: true,
             name: true,
             level: true,
+            classe: true,
             parentLead: {
               select: {
                 id: true,
@@ -310,7 +392,7 @@ export class TeacherRequestsService {
             teacherBio: teacher.bio,
             teacherAddress: teacher.address,
             teacherVerified: teacher.verified,
-            portalUrl: resolvePortalUrl('famille'),
+            portalUrl: `${resolvePortalUrl('famille')}/eleves/${request.studentId}`,
           }),
         })
         .then((result) => {
@@ -372,20 +454,40 @@ export class TeacherRequestsService {
         subject: { in: teacher.subjects },
         matchings: { none: { teacherId } },
       },
-      include: {
-        student: { select: { level: true } },
-        interests: { where: { teacherId }, select: { id: true } },
+      select: {
+        id: true,
+        createdAt: true,
+        subject: true,
+        format: true,
+        frequency: true,
+        durationMinutes: true,
+        availability: true,
+        desiredStartDate: true,
+        // Volontairement ni adresse complete ni nom de l'eleve : seulement
+        // classe, code postal et ville.
+        student: { select: { level: true, classe: true, postalCode: true } },
+        interests: { where: { teacherId }, select: { interested: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return requests.map(({ interests, ...request }) => ({
-      ...request,
-      interested: interests.length > 0,
-    }));
+    return Promise.all(
+      requests.map(async ({ interests, student, ...request }) => ({
+        ...request,
+        level: student.level,
+        classe: student.classe,
+        postalCode: student.postalCode,
+        city: await this.geocoding.cityForPostalCode(student.postalCode),
+        reaction: interests.length === 0 ? null : interests[0].interested ? 'interested' : 'declined',
+      })),
+    );
   }
 
-  async expressInterest(teacherAccount: AuthenticatedTeacherAccount, requestId: string) {
+  async reactToRequest(
+    teacherAccount: AuthenticatedTeacherAccount,
+    requestId: string,
+    interested: boolean,
+  ) {
     if (!teacherAccount.teacherId) {
       throw new NotFoundException('Profil enseignant introuvable');
     }
@@ -398,20 +500,42 @@ export class TeacherRequestsService {
       where: {
         teacherRequestId_teacherId: { teacherRequestId: requestId, teacherId: teacherAccount.teacherId },
       },
-      create: { teacherRequestId: requestId, teacherId: teacherAccount.teacherId },
-      update: {},
+      create: { teacherRequestId: requestId, teacherId: teacherAccount.teacherId, interested },
+      update: { interested },
     });
-    return { interested: true };
+    return { reaction: interested ? 'interested' : 'declined' };
   }
 
-  async withdrawInterest(teacherAccount: AuthenticatedTeacherAccount, requestId: string) {
-    if (!teacherAccount.teacherId) {
-      throw new NotFoundException('Profil enseignant introuvable');
-    }
-    await this.prisma.teacherRequestInterest.deleteMany({
-      where: { teacherRequestId: requestId, teacherId: teacherAccount.teacherId },
+  // "Mes propositions" cote prof : historique de toutes les fois ou l'equipe
+  // l'a propose (en attente de la famille, acceptee, ou refusee avec motif).
+  async listProposalsForTeacher(teacherAccount: AuthenticatedTeacherAccount) {
+    if (!teacherAccount.teacherId) return [];
+    const matchings = await this.prisma.matching.findMany({
+      where: { teacherId: teacherAccount.teacherId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        respondedAt: true,
+        refusalReason: true,
+        teacherRequest: {
+          select: {
+            subject: true,
+            format: true,
+            student: { select: { level: true, classe: true, postalCode: true } },
+          },
+        },
+      },
     });
-    return { interested: false };
+    return matchings.map(({ teacherRequest, ...matching }) => ({
+      ...matching,
+      subject: teacherRequest.subject,
+      format: teacherRequest.format,
+      level: teacherRequest.student.level,
+      classe: teacherRequest.student.classe,
+      postalCode: teacherRequest.student.postalCode,
+    }));
   }
 
   private async assertOwnedStudent(
@@ -435,7 +559,7 @@ export class TeacherRequestsService {
     const matching = await this.prisma.matching.findUnique({
       where: { id: matchingId },
       include: {
-        teacher: { select: { id: true, name: true } },
+        teacher: { select: teacherContactSelect },
         teacherRequest: {
           select: {
             id: true,

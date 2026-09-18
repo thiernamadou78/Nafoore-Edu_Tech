@@ -15,6 +15,8 @@ import {
   TEACHER_REQUEST_STATUS_TONES,
 } from './labels'
 
+import { CLASSE_LABELS } from '../students/labels'
+
 const CLOSED_STATUSES = ['acceptee', 'annulee']
 
 export function TeacherRequestDetail() {
@@ -55,13 +57,18 @@ export function TeacherRequestDetail() {
   const canPropose = !CLOSED_STATUSES.includes(request.status)
   // Un prof ne peut être proposé qu'une seule fois pour une même demande.
   const alreadyProposedIds = new Set(request.matchings.map((m) => m.teacher.id))
-  const interestedIds = new Set((request.interests ?? []).map((i) => i.teacher.id))
+  const interestedIds = new Set(
+    (request.interests ?? []).filter((i) => i.interested).map((i) => i.teacher.id),
+  )
+  const declinedIds = new Set(
+    (request.interests ?? []).filter((i) => !i.interested).map((i) => i.teacher.id),
+  )
   // Une seule liste, filtree sur la matiere demandee : proposer un prof de
   // maths pour une demande de francais n'a pas de sens. Les interesses
   // remontent en tete plutot que d'avoir une liste separee.
   const matchingTeachers = teachers
     .filter((t) => t.subjects.includes(request.subject))
-    .map((t) => ({ ...t, interested: interestedIds.has(t.id) }))
+    .map((t) => ({ ...t, interested: interestedIds.has(t.id), declined: declinedIds.has(t.id) }))
     .sort((a, b) => Number(b.interested) - Number(a.interested) || a.name.localeCompare(b.name))
 
   return (
@@ -107,6 +114,18 @@ export function TeacherRequestDetail() {
               <dd className="text-gray-800">{request.durationMinutes} min</dd>
             </div>
           )}
+          {request.student.classe && (
+            <div>
+              <dt className="text-gray-500">Classe</dt>
+              <dd className="text-gray-800">{CLASSE_LABELS[request.student.classe] ?? request.student.classe}</dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-gray-500">Date de début souhaitée</dt>
+            <dd className="text-gray-800">
+              {request.desiredStartDate ? formatDate(request.desiredStartDate) : 'Dès que possible'}
+            </dd>
+          </div>
           {request.availability && (
             <div className="col-span-2">
               <dt className="text-gray-500">Disponibilités</dt>
@@ -141,6 +160,7 @@ export function TeacherRequestDetail() {
                           Intéressé
                         </Badge>
                       )}
+                      {teacher.declined && <Badge tone="gray">Pas intéressé</Badge>}
                     </p>
                     <p className="truncate text-xs text-gray-400">{teacher.subjects.join(', ')}</p>
                   </div>

@@ -283,6 +283,7 @@ export class FamilyService {
             frequency: true,
             format: true,
             availability: true,
+            desiredStartDate: true,
             status: true,
             createdAt: true,
             matchings: {

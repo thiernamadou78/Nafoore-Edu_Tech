@@ -345,13 +345,22 @@ function TeacherRequestRow({ request, onChanged }) {
 function MatchingProposalCard({ matching, onChanged }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [refusing, setRefusing] = useState(false)
+  const [reason, setReason] = useState('')
   const { teacher } = matching
 
   const respond = async (action) => {
+    if (action === 'refuse' && reason.trim().length < 3) {
+      setError('Indique le motif de ton refus (3 caractères minimum).')
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
-      await api.patch(`/family/matchings/${matching.id}/${action}`, {})
+      await api.patch(
+        `/family/matchings/${matching.id}/${action}`,
+        action === 'refuse' ? { refusalReason: reason.trim() } : {},
+      )
       await onChanged()
     } catch (err) {
       setError(err.message)
@@ -387,23 +396,64 @@ function MatchingProposalCard({ matching, onChanged }) {
 
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
-      <div className="mt-3 flex gap-2">
-        <Button
-          variant="success"
-          icon={CheckCircle2}
-          loading={submitting}
-          onClick={() => respond('accept')}
-        >
-          Accepter
-        </Button>
-        <Button
-          variant="secondary"
-          icon={XCircle}
-          loading={submitting}
-          onClick={() => respond('refuse')}
-        >
-          Refuser
-        </Button>
+      {refusing && (
+        <div className="mt-3">
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            Motif du refus <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            rows={2}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            maxLength={500}
+            placeholder="Ex : trop éloigné, disponibilités qui ne correspondent pas…"
+            className={inputClass}
+          />
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {!refusing && (
+          <Button
+            variant="success"
+            icon={CheckCircle2}
+            loading={submitting}
+            onClick={() => respond('accept')}
+          >
+            Accepter
+          </Button>
+        )}
+        {refusing ? (
+          <>
+            <Button
+              variant="secondary"
+              icon={XCircle}
+              loading={submitting}
+              onClick={() => respond('refuse')}
+            >
+              Confirmer le refus
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={submitting}
+              onClick={() => {
+                setRefusing(false)
+                setError(null)
+              }}
+            >
+              Annuler
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="secondary"
+            icon={XCircle}
+            disabled={submitting}
+            onClick={() => setRefusing(true)}
+          >
+            Refuser
+          </Button>
+        )}
       </div>
     </div>
   )
@@ -413,6 +463,7 @@ const DEFAULT_REQUEST_FORM = {
   subjects: [],
   frequency: '',
   durationMinutes: '',
+  desiredStartDate: '',
   format: 'presentiel',
   availabilityDays: [],
   timeSlots: [],
@@ -564,7 +615,7 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
     setSubmitting(true)
     setError(null)
     try {
-      const { subjects: chosenSubjects, availabilityDays, timeSlots, durationMinutes, ...rest } = form
+      const { subjects: chosenSubjects, availabilityDays, timeSlots, durationMinutes, desiredStartDate, ...rest } = form
       // Une demande par matière : chacune suit ensuite son propre statut et
       // matching (un prof peut être proposé pour Maths sans l'être pour Anglais).
       const availability = [availabilityDays.join(', '), timeSlots.join(', ')]
@@ -576,6 +627,7 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
             ...rest,
             subject,
             durationMinutes: durationMinutes || undefined,
+            desiredStartDate: form.desiredStartDate || undefined,
             availability,
           }),
         ),
@@ -628,6 +680,18 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
             </option>
           ))}
         </select>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-700">
+          Date de début souhaitée (facultatif)
+        </label>
+        <input
+          type="date"
+          min={new Date().toISOString().slice(0, 10)}
+          value={form.desiredStartDate}
+          onChange={(e) => setForm({ ...form, desiredStartDate: e.target.value })}
+          className={inputClass}
+        />
       </div>
       <div className="flex gap-4 text-sm text-gray-700">
         <label className="flex items-center gap-1.5">

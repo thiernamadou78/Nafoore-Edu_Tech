@@ -633,6 +633,8 @@ model TeacherRequest {
   // Duree de seance souhaitee par la famille : sert de defaut au prof quand
   // il construira le planning, pour eviter qu'il ait a la redefinir.
   availability String?
+  // Date de debut de cours souhaitee par la famille (facultative).
+  desiredStartDate DateTime? @map("desired_start_date")
   status       String     @default("en_attente")
   // en_attente | proposition_envoyee | acceptee | annulee
   matchings    Matching[]
@@ -652,6 +654,8 @@ model TeacherRequestInterest {
   teacherRequest   TeacherRequest @relation(fields: [teacherRequestId], references: [id], onDelete: Cascade)
   teacherId        String         @map("teacher_id")
   teacher          Teacher        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  // true = "Intéressé", false = "Pas intéressé" : l'admin voit les deux.
+  interested       Boolean        @default(true)
 
   @@unique([teacherRequestId, teacherId])
   @@index([teacherId])

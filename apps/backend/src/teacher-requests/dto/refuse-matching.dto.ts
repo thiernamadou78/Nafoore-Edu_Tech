@@ -1,8 +1,8 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsString, MaxLength, MinLength } from 'class-validator';
 
 export class RefuseMatchingDto {
-  @IsOptional()
-  @IsString()
+  @IsString({ message: 'Indiquez le motif du refus' })
+  @MinLength(3, { message: 'Indiquez le motif du refus (3 caractères minimum)' })
   @MaxLength(500)
-  refusalReason?: string;
+  refusalReason: string;
 }
