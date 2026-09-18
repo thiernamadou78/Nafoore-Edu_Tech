@@ -10,6 +10,7 @@ import { Card } from '../../components/ui/Card'
 import { Collapsible } from '../../components/ui/Collapsible'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PaginationControls } from '../../components/ui/PaginationControls'
+import { PlanningCalendar } from '../../components/ui/PlanningCalendar'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { usePagination } from '../../lib/usePagination'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from '../students/labels'
@@ -77,6 +78,7 @@ export function TeacherDetail() {
   }
 
   const sessionsPage = usePagination(teacher?.sessions ?? [], 5)
+  const [sessionsView, setSessionsView] = useState('calendrier')
 
   if (!teacher) {
     return error ? <Alert>{error}</Alert> : <p className="text-gray-500">Chargement…</p>
@@ -340,11 +342,58 @@ export function TeacherDetail() {
       </Collapsible>
 
       <Card className="overflow-hidden">
-        <h2 className="flex items-center gap-2 p-6 pb-3 font-semibold text-gray-900">
-          <CalendarClock size={16} className="text-navy" />
-          Séances
-        </h2>
-        {teacher.sessions.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-6 pb-3">
+          <h2 className="flex items-center gap-2 font-semibold text-gray-900">
+            <CalendarClock size={16} className="text-navy" />
+            Séances
+          </h2>
+        <div className="inline-flex rounded-full bg-gray-100 p-1 text-sm">
+          {[
+            ['calendrier', 'Calendrier'],
+            ['tableau', 'Tableau'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSessionsView(key)}
+              className={`rounded-full px-4 py-1.5 font-medium transition-colors ${
+                sessionsView === key ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        </div>
+        {sessionsView === 'calendrier' && teacher.sessions.length > 0 ? (
+          <div className="p-6 pt-2">
+            <PlanningCalendar
+              sessions={teacher.sessions}
+              renderSession={(session) => (
+                <Card className="p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium text-gray-900">
+                      {new Date(session.date).toLocaleTimeString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                      {session.subject ? ` · ${session.subject}` : ''}
+                    </p>
+                    <Badge tone={SESSION_STATUS_TONES[session.status]}>
+                      {SESSION_STATUS_LABELS[session.status] ?? session.status}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {session.studentName} · {session.familyName}
+                  </p>
+                  {session.status === 'annulee' && session.cancellationReason && (
+                    <p className="mt-1 text-xs text-gray-600">Motif : {session.cancellationReason}</p>
+                  )}
+                </Card>
+              )}
+            />
+          </div>
+        ) : teacher.sessions.length === 0 ? (
           <EmptyState
             icon={CalendarClock}
             title="Aucune séance"
@@ -384,12 +433,12 @@ export function TeacherDetail() {
             </tbody>
           </table>
         )}
-        <PaginationControls
+        {sessionsView !== 'calendrier' && <PaginationControls
           {...sessionsPage}
           onShowMore={sessionsPage.showMore}
           onCollapse={sessionsPage.collapse}
           className="px-4 pb-4 pt-1"
-        />
+        />}
       </Card>
     </div>
   )

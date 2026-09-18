@@ -24,6 +24,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { PaginationControls } from '../../components/ui/PaginationControls'
+import { PlanningCalendar } from '../../components/ui/PlanningCalendar'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { Timeline } from '../../components/ui/Timeline'
 import { usePagination } from '../../lib/usePagination'
@@ -253,6 +254,7 @@ export function StudentDetail() {
   const [documentForm, setDocumentForm] = useState({ file: null, type: 'bulletin' })
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
+  const [sessionsView, setSessionsView] = useState('calendrier')
 
   const load = () =>
     api.get(`/students/${id}`).then((data) => {
@@ -716,13 +718,50 @@ export function StudentDetail() {
                   </span>
                 </span>
               </div>
+              <div className="mb-3">
+        <div className="inline-flex rounded-full bg-gray-100 p-1 text-sm">
+          {[
+            ['calendrier', 'Calendrier'],
+            ['statut', 'Par statut'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSessionsView(key)}
+              className={`rounded-full px-4 py-1.5 font-medium transition-colors ${
+                sessionsView === key ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+              </div>
               <div className="mb-4">
-                <SessionsByStatusBoard
-                  sessions={student.sessions}
-                  onSave={(sessionId, patch) =>
-                    run('session', () => api.patch(`/students/${id}/sessions/${sessionId}`, patch))
-                  }
-                />
+                {sessionsView === 'calendrier' ? (
+                  <PlanningCalendar
+                    sessions={student.sessions}
+                    renderSession={(session) => (
+                      <div className="rounded-xl border border-gray-100 px-4">
+                        <SessionRow
+                          session={session}
+                          onSave={(patch) =>
+                            run('session', () =>
+                              api.patch(`/students/${id}/sessions/${session.id}`, patch),
+                            )
+                          }
+                        />
+                      </div>
+                    )}
+                  />
+                ) : (
+                  <SessionsByStatusBoard
+                    sessions={student.sessions}
+                    onSave={(sessionId, patch) =>
+                      run('session', () => api.patch(`/students/${id}/sessions/${sessionId}`, patch))
+                    }
+                  />
+                )}
               </div>
               <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
                 <div>
