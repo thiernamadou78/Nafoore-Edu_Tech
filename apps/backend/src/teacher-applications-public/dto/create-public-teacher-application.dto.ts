@@ -26,6 +26,9 @@ function toArray(value: unknown): string[] {
 }
 
 export class CreatePublicTeacherApplicationDto {
+  @IsIn(['homme', 'femme'], { message: 'Le genre est obligatoire (homme ou femme)' })
+  gender: 'homme' | 'femme';
+
   @IsString()
   @MinLength(2, { message: 'Le nom doit faire au moins 2 caractères' })
   @MaxLength(100)

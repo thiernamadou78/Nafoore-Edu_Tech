@@ -22,6 +22,9 @@ export class CreateTeacherDto {
   @MaxLength(100)
   name: string;
 
+  @IsIn(['homme', 'femme'], { message: 'Le genre est obligatoire (homme ou femme)' })
+  gender: 'homme' | 'femme';
+
   @IsArray()
   @ArrayMinSize(1, { message: 'Au moins une matière est requise' })
   @IsIn(SUBJECT_OPTIONS, { each: true, message: 'Matière inconnue' })

@@ -17,6 +17,7 @@ const inputClass =
 
 const EMPTY_FORM = {
   name: '',
+  gender: '',
   subjects: [],
   address: '',
   postalCode: '',
@@ -119,6 +120,7 @@ export function TeachersList() {
     try {
       const teacher = await api.post('/teachers', {
         name: form.name,
+        gender: form.gender,
         subjects: form.subjects,
         address: form.address,
         postalCode: form.postalCode,
@@ -261,6 +263,19 @@ export function TeachersList() {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Genre *</label>
+            <select
+              required
+              value={form.gender}
+              onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
+              className={inputClass}
+            >
+              <option value="">Choisir…</option>
+              <option value="homme">Homme</option>
+              <option value="femme">Femme</option>
+            </select>
+          </div>
+          <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
               <input
                 required

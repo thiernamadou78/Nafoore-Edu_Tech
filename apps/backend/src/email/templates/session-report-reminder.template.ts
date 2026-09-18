@@ -1,4 +1,7 @@
+import { salutation } from '../salutation.util';
+
 export interface SessionReportReminderEmailInput {
+  gender?: string | null;
   fullName: string;
   studentName: string;
   sessionDate: string;
@@ -6,6 +9,7 @@ export interface SessionReportReminderEmailInput {
 }
 
 export function renderSessionReportReminderEmail({
+  gender,
   fullName,
   studentName,
   sessionDate,
@@ -35,7 +39,7 @@ export function renderSessionReportReminderEmail({
               <td style="padding:36px 32px 8px 32px;">
                 <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;color:#EAB308;">Compte-rendu en attente</p>
                 <h1 style="margin:0 0 16px 0;font-family:Georgia,'Playfair Display',serif;font-size:24px;line-height:1.3;color:#1E3A8A;">
-                  Bonjour ${escapeHtml(fullName)},
+                  Bonjour ${escapeHtml(salutation(fullName, gender))},
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
                   Vous n'avez pas encore rédigé le compte-rendu de la séance du <strong>${escapeHtml(sessionDate)}</strong> avec <strong>${escapeHtml(studentName)}</strong>. Prenez quelques instants pour le compléter depuis votre espace enseignant.

@@ -1,9 +1,13 @@
+import { salutation } from '../salutation.util';
+
 export interface ModerationWarningEmailInput {
+  gender?: string | null;
   fullName: string;
   reason: string;
 }
 
 export function renderModerationWarningEmail({
+  gender,
   fullName,
   reason,
 }: ModerationWarningEmailInput): string {
@@ -31,7 +35,7 @@ export function renderModerationWarningEmail({
               <td style="padding:36px 32px 8px 32px;">
                 <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;color:#EAB308;">Message retiré</p>
                 <h1 style="margin:0 0 16px 0;font-family:Georgia,'Playfair Display',serif;font-size:24px;line-height:1.3;color:#1E3A8A;">
-                  Bonjour ${escapeHtml(fullName)},
+                  Bonjour ${escapeHtml(salutation(fullName, gender))},
                 </h1>
                 <p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
                   Un message que vous avez envoyé dans la messagerie Nafoore Education a été retiré par notre équipe.

@@ -115,6 +115,7 @@ export class TeacherApplicationsPublicService {
     const application = await this.prisma.teacherApplication.create({
       data: {
         candidateName: dto.candidateName,
+        gender: dto.gender,
         candidateEmail: dto.candidateEmail,
         phone: dto.phone,
         subjects: dto.subjects,
@@ -134,7 +135,7 @@ export class TeacherApplicationsPublicService {
       const result = await this.emailService.send({
         to: dto.candidateEmail,
         subject: 'Nafoore Education — Votre candidature a bien été reçue',
-        html: renderApplicationReceivedEmail({ fullName: dto.candidateName }),
+        html: renderApplicationReceivedEmail({ fullName: dto.candidateName, gender: dto.gender }),
       });
       this.logger.log(
         `Email d'accusé de réception envoyé (${result.providerId ?? 'n/a'})`,

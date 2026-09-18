@@ -124,6 +124,7 @@ model Student {
 model Teacher {
   id          String                 @id @default(cuid())
   name        String
+  gender      String?                // homme | femme
   subjects    String[]
   verified    Boolean                @default(false)
   bio         String?
@@ -357,6 +358,7 @@ model ActivityLog {
 model TeacherApplication {
   id                String        @id @default(cuid())
   candidateName     String        @map("teacher_candidate_name")
+  gender            String?       // homme | femme
   candidateEmail    String        @map("teacher_candidate_email")
   phone             String?
   subjects          String[]

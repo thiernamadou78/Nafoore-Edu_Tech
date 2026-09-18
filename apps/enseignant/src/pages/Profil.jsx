@@ -135,6 +135,7 @@ export function Profil() {
       .then((data) =>
         setForm({
           name: data.name ?? '',
+          gender: data.gender ?? '',
           address: data.address ?? '',
           postalCode: data.postalCode ?? '',
           email: data.email ?? '',
@@ -181,6 +182,7 @@ export function Profil() {
     setSaved(false)
     if (
       !form.name.trim() ||
+      !form.gender ||
       !form.address.trim() ||
       !form.postalCode.trim() ||
       !form.email.trim() ||
@@ -189,7 +191,7 @@ export function Profil() {
       form.bio.trim().length < 20
     ) {
       setError(
-        'Nom, adresse, code postal, email, téléphone, au moins une matière et une présentation (20 caractères minimum) sont obligatoires.',
+        'Nom, genre, adresse, code postal, email, téléphone, au moins une matière et une présentation (20 caractères minimum) sont obligatoires.',
       )
       return
     }
@@ -251,6 +253,19 @@ export function Profil() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Genre *</label>
+              <select
+                required
+                value={form.gender}
+                onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
+                className={inputClass}
+              >
+                <option value="">Choisir…</option>
+                <option value="homme">Homme</option>
+                <option value="femme">Femme</option>
+              </select>
+            </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-sm font-medium text-gray-700">Nom complet</label>
               <input

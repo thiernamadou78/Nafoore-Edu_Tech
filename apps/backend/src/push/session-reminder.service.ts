@@ -144,11 +144,16 @@ export class SessionReminderService {
           select: {
             name: true,
             parentLead: {
-              select: { email: true, portalAccount: { select: { email: true } } },
+              select: {
+                name: true,
+                gender: true,
+                email: true,
+                portalAccount: { select: { email: true } },
+              },
             },
           },
         },
-        teacher: { select: { name: true, account: { select: { email: true } } } },
+        teacher: { select: { name: true, gender: true, account: { select: { email: true } } } },
       },
     });
 
@@ -166,6 +171,7 @@ export class SessionReminderService {
             to: teacherEmail,
             subject: `Nafoore Education — Séance à venir avec ${session.student.name}`,
             html: renderSessionUpcomingTeacherEmail({
+              gender: session.teacher?.gender,
               recipientName: session.teacher?.name ?? '',
               studentName: session.student.name,
               teacherName: session.teacher?.name ?? '',
@@ -190,7 +196,8 @@ export class SessionReminderService {
             to: familyEmail,
             subject: `Nafoore Education — Séance à venir pour ${session.student.name}`,
             html: renderSessionUpcomingFamilyEmail({
-              recipientName: session.student.name,
+              gender: session.student.parentLead?.gender,
+              recipientName: session.student.parentLead?.name ?? session.student.name,
               studentName: session.student.name,
               teacherName: session.teacher?.name ?? '',
               subject: session.subject,

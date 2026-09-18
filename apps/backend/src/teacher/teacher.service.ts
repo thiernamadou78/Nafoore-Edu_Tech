@@ -69,6 +69,7 @@ export class TeacherService {
       where: { id: teacherAccount.teacherId },
       select: {
         name: true,
+        gender: true,
         address: true,
         postalCode: true,
         email: true,
@@ -92,6 +93,7 @@ export class TeacherService {
       data: dto,
       select: {
         name: true,
+        gender: true,
         address: true,
         postalCode: true,
         email: true,
@@ -747,7 +749,7 @@ export class TeacherService {
       },
       include: {
         student: { select: { name: true } },
-        teacher: { select: { name: true, account: { select: { email: true } } } },
+        teacher: { select: { name: true, gender: true, account: { select: { email: true } } } },
       },
     });
 
@@ -767,6 +769,7 @@ export class TeacherService {
           to: recipient,
           subject: `Nafoore Education — Compte-rendu à rédiger pour ${session.student.name}`,
           html: renderSessionReportReminderEmail({
+            gender: session.teacher?.gender,
             fullName: session.teacher?.name ?? '',
             studentName: session.student.name,
             sessionDate: session.date.toLocaleDateString('fr-FR', { dateStyle: 'medium' }),

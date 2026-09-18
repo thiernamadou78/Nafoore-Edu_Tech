@@ -79,6 +79,7 @@ export class TeachersService {
     const teacher = await this.prisma.teacher.create({
       data: {
         name: dto.name,
+        gender: dto.gender,
         subjects: dto.subjects ?? [],
         bio: dto.bio,
         address: dto.address,

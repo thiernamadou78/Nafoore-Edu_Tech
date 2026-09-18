@@ -61,6 +61,11 @@ const CLASSES_BY_LEVEL = {
   ],
 }
 
+const GENDERS = [
+  { value: 'homme', label: 'Homme' },
+  { value: 'femme', label: 'Femme' },
+]
+
 const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
 const BENEFITS = [
@@ -73,6 +78,7 @@ const BENEFITS = [
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 const DEFAULT_FORM = {
+  gender: '',
   candidateName: '',
   candidateEmail: '',
   phone: '',
@@ -239,6 +245,11 @@ export default function TeacherApplication() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!form.gender) {
+      setStatus('error')
+      setErrorMsg('Merci de préciser votre genre.')
+      return
+    }
     if (form.subjects.length === 0) {
       setStatus('error')
       setErrorMsg('Choisissez au moins une matière.')
@@ -273,6 +284,7 @@ export default function TeacherApplication() {
     setErrorMsg('')
     try {
       const formData = new FormData()
+      formData.append('gender', form.gender)
       formData.append('candidateName', form.candidateName)
       formData.append('candidateEmail', form.candidateEmail)
       formData.append('phone', form.phone)
@@ -370,6 +382,28 @@ export default function TeacherApplication() {
                 onSubmit={handleSubmit}
                 className="bg-white rounded-2xl p-8 shadow-2xl shadow-black/20"
               >
+                <div className="mb-4">
+                  <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Genre <span className="text-red-400">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {GENDERS.map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, gender: value }))}
+                        className={`px-3 py-2.5 rounded-xl font-sans text-sm font-semibold border-2 transition-all ${
+                          form.gender === value
+                            ? 'bg-navy text-white border-navy shadow-md shadow-navy/20'
+                            : 'text-gray-500 border-gray-200 hover:border-navy/30'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid sm:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">

@@ -88,6 +88,7 @@ export class TeacherApplicationsService {
         to: application.candidateEmail,
         subject: 'Nafoore Education — Votre entretien est planifié',
         html: renderInterviewScheduledEmail({
+          gender: application.gender,
           fullName: application.candidateName,
           interviewDate: application.interviewDate as Date,
         }),
@@ -202,6 +203,7 @@ export class TeacherApplicationsService {
         const teacher = await tx.teacher.create({
           data: {
             name: existing.candidateName,
+            gender: existing.gender,
             subjects: existing.subjects,
             bio: existing.bio,
             photoPath: existing.photoPath,
@@ -256,6 +258,7 @@ export class TeacherApplicationsService {
           to: existing.candidateEmail,
           subject: 'Nafoore Education — Votre candidature nécessite des documents complémentaires',
           html: renderDocumentsRequiredEmail({
+            gender: existing.gender,
             fullName: existing.candidateName,
             completionUrl,
             missingItems,

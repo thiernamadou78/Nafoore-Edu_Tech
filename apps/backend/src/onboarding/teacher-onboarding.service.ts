@@ -138,12 +138,13 @@ export class TeacherOnboardingService {
     tempPassword,
     actorId,
   }: {
-    application: { id: string; candidateEmail: string };
+    application: { id: string; candidateEmail: string; gender?: string | null };
     teacherAccount: { id: string; fullName: string };
     tempPassword: string;
     actorId: string;
   }) {
     const html = renderWelcomeEmail({
+      gender: application.gender,
       fullName: teacherAccount.fullName,
       email: application.candidateEmail,
       tempPassword,

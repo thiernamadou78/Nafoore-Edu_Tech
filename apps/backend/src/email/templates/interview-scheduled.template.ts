@@ -1,9 +1,13 @@
+import { salutation } from '../salutation.util';
+
 export interface InterviewScheduledEmailInput {
+  gender?: string | null;
   fullName: string;
   interviewDate: Date;
 }
 
 export function renderInterviewScheduledEmail({
+  gender,
   fullName,
   interviewDate,
 }: InterviewScheduledEmailInput): string {
@@ -36,7 +40,7 @@ export function renderInterviewScheduledEmail({
               <td style="padding:36px 32px 8px 32px;">
                 <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;color:#EAB308;">Candidature</p>
                 <h1 style="margin:0 0 16px 0;font-family:Georgia,'Playfair Display',serif;font-size:24px;line-height:1.3;color:#1E3A8A;">
-                  Bonjour ${escapeHtml(fullName)},
+                  Bonjour ${escapeHtml(salutation(fullName, gender))},
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
                   Votre entretien pour rejoindre le réseau d'enseignants Nafoore Education est

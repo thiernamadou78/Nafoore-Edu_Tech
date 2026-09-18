@@ -98,6 +98,11 @@ export class TeacherRequestsService {
       );
     });
 
+    const leadGender = await this.prisma.lead.findUnique({
+      where: { id: portalAccount.leadId },
+      select: { gender: true },
+    });
+
     // Email best-effort en arrière-plan : la famille ne doit pas attendre la
     // réponse du fournisseur d'email pour voir son statut changer.
     this.emailService
@@ -105,6 +110,7 @@ export class TeacherRequestsService {
         to: portalAccount.email,
         subject: `Nafoore Education — Professeur confirmé pour ${matching.teacherRequest.student.name}`,
         html: renderMatchingConfirmationEmail({
+          gender: leadGender?.gender,
           fullName: portalAccount.fullName,
           studentName: matching.teacherRequest.student.name,
           teacherName: matching.teacher.name,
@@ -232,6 +238,7 @@ export class TeacherRequestsService {
             name: true,
             parentLead: {
               select: {
+                gender: true,
                 portalAccount: { select: { email: true, fullName: true } },
               },
             },
@@ -260,6 +267,7 @@ export class TeacherRequestsService {
       select: {
         id: true,
         name: true,
+        gender: true,
         subjects: true,
         bio: true,
         address: true,
@@ -293,6 +301,7 @@ export class TeacherRequestsService {
           to: portalAccount.email,
           subject: `Nafoore Education — Un professeur a été proposé pour ${request.student.name}`,
           html: renderMatchingProposalEmail({
+            gender: request.student.parentLead?.gender,
             fullName: portalAccount.fullName,
             studentName: request.student.name,
             subject: request.subject,
@@ -326,6 +335,7 @@ export class TeacherRequestsService {
           to: teacher.account.email,
           subject: `Nafoore Education — Vous avez été proposé pour ${request.student.name}`,
           html: renderTeacherProposedEmail({
+            gender: teacher.gender,
             teacherName: teacher.name,
             studentName: request.student.name,
             subject: request.subject,

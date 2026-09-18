@@ -24,6 +24,10 @@ export class UpdateTeacherDto {
   name?: string;
 
   @IsOptional()
+  @IsIn(['homme', 'femme'], { message: 'Le genre doit être homme ou femme' })
+  gender?: 'homme' | 'femme';
+
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(1, { message: 'Au moins une matière est requise' })
   @IsIn(SUBJECT_OPTIONS, { each: true, message: 'Matière inconnue' })

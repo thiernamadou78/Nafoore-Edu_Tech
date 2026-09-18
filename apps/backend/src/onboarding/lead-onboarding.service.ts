@@ -157,12 +157,13 @@ export class LeadOnboardingService {
     tempPassword,
     actorId,
   }: {
-    lead: { id: string; email: string; profile: string };
+    lead: { id: string; email: string; profile: string; gender?: string | null };
     portalAccount: { id: string; fullName: string };
     tempPassword: string;
     actorId: string;
   }) {
     const html = renderWelcomeEmail({
+      gender: lead.gender,
       fullName: portalAccount.fullName,
       email: lead.email,
       tempPassword,

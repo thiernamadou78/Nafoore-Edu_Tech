@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
+import { EmailService } from '../email/email.service';
+import { renderContactReceivedEmail } from '../email/templates/contact-received.template';
 import { CreateContactDto } from './dto/create-contact.dto';
 
 @Injectable()
@@ -10,6 +12,7 @@ export class ContactsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly geocoding: GeocodingService,
+    private readonly emailService: EmailService,
   ) {}
 
   async create(dto: CreateContactDto) {
@@ -28,6 +31,21 @@ export class ContactsService {
         childrenCount: dto.childrenCount ?? null,
       },
     });
+
+    // Accuse de reception best-effort : ne doit jamais retarder la reponse du
+    // formulaire ni faire echouer la creation du lead.
+    this.emailService
+      .send({
+        to: dto.email,
+        subject: 'Nafoore Education — Nous avons bien reçu votre demande',
+        html: renderContactReceivedEmail({ gender: dto.gender, fullName: dto.name }),
+      })
+      .catch((error) =>
+        this.logger.error(
+          `Échec d'envoi de l'accusé de réception pour le lead ${lead.id}`,
+          error instanceof Error ? error.stack : undefined,
+        ),
+      );
 
     // Best-effort, en tâche de fond : ne doit jamais retarder la réponse du
     // formulaire de contact ni faire échouer la création du lead.

@@ -60,8 +60,10 @@ export class AdminMessagingService {
       include: {
         thread: {
           include: {
-            teacher: { select: { name: true, email: true } },
-            lead: { select: { portalAccount: { select: { fullName: true, email: true } } } },
+            teacher: { select: { name: true, email: true, gender: true } },
+            lead: {
+              select: { gender: true, portalAccount: { select: { fullName: true, email: true } } },
+            },
           },
         },
       },
@@ -81,12 +83,17 @@ export class AdminMessagingService {
       const recipient =
         message.sender === 'teacher'
           ? message.thread.teacher.email
-            ? { email: message.thread.teacher.email, fullName: message.thread.teacher.name }
+            ? {
+                email: message.thread.teacher.email,
+                fullName: message.thread.teacher.name,
+                gender: message.thread.teacher.gender,
+              }
             : null
           : message.thread.lead?.portalAccount
             ? {
                 email: message.thread.lead.portalAccount.email,
                 fullName: message.thread.lead.portalAccount.fullName,
+                gender: message.thread.lead.gender,
               }
             : null;
 
@@ -96,6 +103,7 @@ export class AdminMessagingService {
             to: recipient.email,
             subject: 'Nafoore Education — Un de vos messages a été retiré',
             html: renderModerationWarningEmail({
+              gender: recipient.gender,
               fullName: recipient.fullName,
               reason: dto.reason,
             }),

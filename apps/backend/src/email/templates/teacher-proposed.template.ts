@@ -1,4 +1,7 @@
+import { salutation } from '../salutation.util';
+
 export interface TeacherProposedEmailInput {
+  gender?: string | null;
   teacherName: string;
   studentName: string;
   subject: string;
@@ -6,6 +9,7 @@ export interface TeacherProposedEmailInput {
 }
 
 export function renderTeacherProposedEmail({
+  gender,
   teacherName,
   studentName,
   subject,
@@ -35,7 +39,7 @@ export function renderTeacherProposedEmail({
               <td style="padding:36px 32px 8px 32px;">
                 <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;color:#EAB308;">Nouvelle mise en relation</p>
                 <h1 style="margin:0 0 16px 0;font-family:Georgia,'Playfair Display',serif;font-size:24px;line-height:1.3;color:#1E3A8A;">
-                  Bonjour ${escapeHtml(teacherName)},
+                  Bonjour ${escapeHtml(salutation(teacherName, gender))},
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
                   Vous avez été proposé pour donner des cours de <strong>${escapeHtml(subject)}</strong> à

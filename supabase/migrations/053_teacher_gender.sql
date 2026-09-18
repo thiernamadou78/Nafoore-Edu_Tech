@@ -1,0 +1,2 @@
+ALTER TABLE teachers ADD COLUMN IF NOT EXISTS gender TEXT;
+ALTER TABLE teacher_applications ADD COLUMN IF NOT EXISTS gender TEXT;

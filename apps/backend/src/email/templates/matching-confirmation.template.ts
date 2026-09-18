@@ -1,4 +1,7 @@
+import { salutation } from '../salutation.util';
+
 export interface MatchingConfirmationEmailInput {
+  gender?: string | null;
   fullName: string;
   studentName: string;
   teacherName: string;
@@ -7,6 +10,7 @@ export interface MatchingConfirmationEmailInput {
 }
 
 export function renderMatchingConfirmationEmail({
+  gender,
   fullName,
   studentName,
   teacherName,
@@ -37,7 +41,7 @@ export function renderMatchingConfirmationEmail({
               <td style="padding:36px 32px 8px 32px;">
                 <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;color:#EAB308;">Professeur confirmé</p>
                 <h1 style="margin:0 0 16px 0;font-family:Georgia,'Playfair Display',serif;font-size:24px;line-height:1.3;color:#1E3A8A;">
-                  Bonjour ${escapeHtml(fullName)},
+                  Bonjour ${escapeHtml(salutation(fullName, gender))},
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
                   Vous avez accepté <strong>${escapeHtml(teacherName)}</strong> comme professeur de ${escapeHtml(subject)} pour ${escapeHtml(studentName)}. Il/elle est désormais assigné(e) et vous pourrez suivre les séances depuis votre espace famille.

@@ -1,20 +1,20 @@
 import { salutation } from '../salutation.util';
 
-export interface ApplicationReceivedEmailInput {
+export interface ContactReceivedEmailInput {
   gender?: string | null;
   fullName: string;
 }
 
-export function renderApplicationReceivedEmail({
+export function renderContactReceivedEmail({
   gender,
   fullName,
-}: ApplicationReceivedEmailInput): string {
+}: ContactReceivedEmailInput): string {
   return `<!doctype html>
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Candidature reçue — Nafoore Education</title>
+    <title>Demande reçue — Nafoore Education</title>
   </head>
   <body style="margin:0;padding:0;background-color:#f4f3ef;font-family:Georgia,'Playfair Display',serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f3ef;padding:32px 16px;">
@@ -31,19 +31,20 @@ export function renderApplicationReceivedEmail({
             </tr>
             <tr>
               <td style="padding:36px 32px 8px 32px;">
-                <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;color:#EAB308;">Candidature reçue</p>
+                <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;color:#EAB308;">Demande reçue</p>
                 <h1 style="margin:0 0 16px 0;font-family:Georgia,'Playfair Display',serif;font-size:24px;line-height:1.3;color:#1E3A8A;">
                   Bonjour ${escapeHtml(salutation(fullName, gender))},
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
-                  Nous avons bien reçu votre candidature pour rejoindre le réseau d'enseignants Nafoore Education. Votre dossier est en cours d'examen — nous revenons vers vous très prochainement.
+                  Merci de votre confiance : nous avons bien reçu votre demande auprès de Nafoore Education.
+                  Un conseiller l'étudie et vous recontactera très prochainement pour échanger sur vos besoins.
                 </p>
               </td>
             </tr>
             <tr>
               <td style="padding:0 32px 32px 32px;">
                 <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px;">
-                  Si vous n'êtes pas à l'origine de cette candidature, vous pouvez ignorer cet email.
+                  Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.
                 </p>
               </td>
             </tr>

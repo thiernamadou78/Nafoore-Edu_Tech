@@ -31,6 +31,7 @@ export function TeacherDetail() {
   const [teacher, setTeacher] = useState(null)
   const [form, setForm] = useState({
     name: '',
+    gender: '',
     subjects: [],
     bio: '',
     address: '',
@@ -47,6 +48,7 @@ export function TeacherDetail() {
       setTeacher(data)
       setForm({
         name: data.name,
+        gender: data.gender ?? '',
         subjects: data.subjects,
         bio: data.bio ?? '',
         address: data.address ?? '',
@@ -110,6 +112,19 @@ export function TeacherDetail() {
 
       <Collapsible title="Infos" className="mb-6">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Genre *</label>
+            <select
+              required
+              value={form.gender}
+              onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
+              className={inputClass}
+            >
+              <option value="">Choisir…</option>
+              <option value="homme">Homme</option>
+              <option value="femme">Femme</option>
+            </select>
+          </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
             <input
@@ -190,13 +205,14 @@ export function TeacherDetail() {
             onClick={() => {
               if (
                 !form.name.trim() ||
+                !form.gender ||
                 !form.address.trim() ||
                 !form.postalCode.trim() ||
                 !form.email.trim() ||
                 !form.phone.trim() ||
                 form.subjects.length === 0
               ) {
-                setError('Nom, adresse, code postal, email, téléphone et au moins une matière sont obligatoires.')
+                setError('Nom, genre, adresse, code postal, email, téléphone et au moins une matière sont obligatoires.')
                 return
               }
               if (!PHONE_PATTERN.test(form.phone.trim())) {
@@ -206,6 +222,7 @@ export function TeacherDetail() {
               run('info', () =>
                 api.patch(`/teachers/${id}`, {
                   name: form.name,
+                  gender: form.gender,
                   subjects: form.subjects,
                   bio: form.bio.trim(),
                   address: form.address,

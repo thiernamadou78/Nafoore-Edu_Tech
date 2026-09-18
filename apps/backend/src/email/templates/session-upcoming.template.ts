@@ -1,4 +1,7 @@
+import { salutation } from '../salutation.util';
+
 export interface SessionUpcomingEmailInput {
+  gender?: string | null;
   recipientName: string;
   studentName: string;
   teacherName: string;
@@ -64,6 +67,7 @@ function shell(title: string, heading: string, body: string, portalUrl: string):
 }
 
 export function renderSessionUpcomingTeacherEmail({
+  gender,
   recipientName,
   studentName,
   subject,
@@ -73,7 +77,7 @@ export function renderSessionUpcomingTeacherEmail({
   const subjectLabel = subject ? ` de ${escapeHtml(subject)}` : '';
   return shell(
     'Séance à venir',
-    `Bonjour ${escapeHtml(recipientName)},`,
+    `Bonjour ${escapeHtml(salutation(recipientName, gender))},`,
     `Vous avez une séance${subjectLabel} avec <strong>${escapeHtml(studentName)}</strong> prévue le
      <strong>${escapeHtml(sessionDate)}</strong>. Pensez à scanner le Pass QR à l'arrivée.`,
     portalUrl,
@@ -81,6 +85,7 @@ export function renderSessionUpcomingTeacherEmail({
 }
 
 export function renderSessionUpcomingFamilyEmail({
+  gender,
   recipientName,
   studentName,
   teacherName,
@@ -91,7 +96,7 @@ export function renderSessionUpcomingFamilyEmail({
   const subjectLabel = subject ? ` de ${escapeHtml(subject)}` : '';
   return shell(
     'Séance à venir',
-    `Bonjour ${escapeHtml(recipientName)},`,
+    `Bonjour ${escapeHtml(salutation(recipientName, gender))},`,
     `Une séance${subjectLabel} avec <strong>${escapeHtml(teacherName)}</strong> est prévue pour
      <strong>${escapeHtml(studentName)}</strong> le <strong>${escapeHtml(sessionDate)}</strong>.`,
     portalUrl,
