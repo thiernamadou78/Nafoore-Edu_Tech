@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { validateUploads } from '../lib/fileValidation'
 
 // Liste fermée (pas de saisie libre) : indispensable pour que les demandes
@@ -88,13 +88,12 @@ const DEFAULT_FORM = {
 // Pastilles + recherche au clic (meme pattern que "Mon profil" cote enseignant) :
 // evite d'afficher les 24 matieres d'un coup et allonger le formulaire.
 function SubjectQuickAdd({ selected, onChange }) {
-  const [open, setOpen] = useState(false)
+  // Champ visible par defaut ; une fois une matiere choisie il se replie et
+  // laisse la place au bouton "+ Ajouter".
+  const [open, setOpen] = useState(true)
+  const [focused, setFocused] = useState(false)
   const [query, setQuery] = useState('')
   const inputRef = useRef(null)
-
-  useEffect(() => {
-    if (open) inputRef.current?.focus()
-  }, [open])
 
   const normalizedQuery = query.trim().toLowerCase()
   const filtered = SUBJECT_OPTIONS.filter(
@@ -104,7 +103,13 @@ function SubjectQuickAdd({ selected, onChange }) {
   const addSubject = (subject) => {
     onChange([...selected, subject])
     setQuery('')
+    setFocused(false)
     setOpen(false)
+  }
+
+  const reopen = () => {
+    setOpen(true)
+    setTimeout(() => inputRef.current?.focus(), 0)
   }
 
   return (
@@ -129,7 +134,7 @@ function SubjectQuickAdd({ selected, onChange }) {
         {!open && (
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={reopen}
             className="inline-flex items-center gap-1 rounded-full border border-dashed border-navy/40 px-2.5 py-1 font-sans text-xs font-semibold text-navy hover:bg-navy/5"
           >
             + Ajouter
@@ -144,17 +149,24 @@ function SubjectQuickAdd({ selected, onChange }) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onFocus={() => setFocused(true)}
+            onBlur={() =>
+              setTimeout(() => {
+                setFocused(false)
+                if (selected.length > 0) setOpen(false)
+              }, 150)
+            }
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
                 if (filtered.length > 0) addSubject(filtered[0])
               }
-              if (e.key === 'Escape') setOpen(false)
+              if (e.key === 'Escape') inputRef.current?.blur()
             }}
-            placeholder="Rechercher (ex : Ma pour Mathématiques)…"
+            placeholder="Rechercher une matière (ex : Ma pour Mathématiques)…"
             className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
           />
+          {focused && (
           <div
             onMouseDown={(e) => e.preventDefault()}
             className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg"
@@ -174,6 +186,7 @@ function SubjectQuickAdd({ selected, onChange }) {
               ))
             )}
           </div>
+          )}
         </div>
       )}
     </div>
