@@ -4,7 +4,7 @@ import {
   IsArray,
   IsEmail,
   IsIn,
-  IsOptional,
+  IsNotEmpty,
   IsString,
   Length,
   Matches,
@@ -72,8 +72,8 @@ export class CreatePublicTeacherApplicationDto {
   })
   bio: string;
 
-  @IsOptional()
-  @IsString()
+  @IsString({ message: 'Indiquez au moins un jour de disponibilité' })
+  @IsNotEmpty({ message: 'Indiquez au moins un jour de disponibilité' })
   @MaxLength(1000)
-  availability?: string;
+  availability: string;
 }

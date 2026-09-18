@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { validateUploads } from '../lib/fileValidation'
 
 // Liste fermée (pas de saisie libre) : indispensable pour que les demandes
@@ -85,6 +85,101 @@ const DEFAULT_FORM = {
   availabilityDays: [],
 }
 
+// Pastilles + recherche au clic (meme pattern que "Mon profil" cote enseignant) :
+// evite d'afficher les 24 matieres d'un coup et allonger le formulaire.
+function SubjectQuickAdd({ selected, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus()
+  }, [open])
+
+  const normalizedQuery = query.trim().toLowerCase()
+  const filtered = SUBJECT_OPTIONS.filter(
+    (subject) => !selected.includes(subject) && subject.toLowerCase().startsWith(normalizedQuery),
+  )
+
+  const addSubject = (subject) => {
+    onChange([...selected, subject])
+    setQuery('')
+    setOpen(false)
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {selected.map((subject) => (
+          <span
+            key={subject}
+            className="inline-flex items-center gap-1 rounded-full bg-navy/10 px-2.5 py-1 font-sans text-xs font-semibold text-navy"
+          >
+            {subject}
+            <button
+              type="button"
+              onClick={() => onChange(selected.filter((s) => s !== subject))}
+              className="leading-none hover:opacity-70"
+              aria-label={`Retirer ${subject}`}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        {!open && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-navy/40 px-2.5 py-1 font-sans text-xs font-semibold text-navy hover:bg-navy/5"
+          >
+            + Ajouter
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="relative mt-2 max-w-xs">
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                if (filtered.length > 0) addSubject(filtered[0])
+              }
+              if (e.key === 'Escape') setOpen(false)
+            }}
+            placeholder="Rechercher (ex : Ma pour Mathématiques)…"
+            className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
+          />
+          <div
+            onMouseDown={(e) => e.preventDefault()}
+            className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg"
+          >
+            {filtered.length === 0 ? (
+              <p className="px-3 py-2 font-sans text-sm text-gray-400">Aucune matière trouvée.</p>
+            ) : (
+              filtered.map((subject) => (
+                <button
+                  key={subject}
+                  type="button"
+                  onClick={() => addSubject(subject)}
+                  className="block w-full px-3 py-2 text-left font-sans text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  {subject}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function TeacherApplication() {
   const [form, setForm] = useState(DEFAULT_FORM)
   const [diplomas, setDiplomas] = useState([])
@@ -94,15 +189,6 @@ export default function TeacherApplication() {
   const [fileErrors, setFileErrors] = useState({})
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
-
-  const toggleSubject = (value) => {
-    setForm((f) => ({
-      ...f,
-      subjects: f.subjects.includes(value)
-        ? f.subjects.filter((s) => s !== value)
-        : [...f.subjects, value],
-    }))
-  }
 
   const toggleLevel = (value) => {
     setForm((f) => {
@@ -148,6 +234,11 @@ export default function TeacherApplication() {
     if (form.levels.length === 0) {
       setStatus('error')
       setErrorMsg('Choisissez au moins un niveau.')
+      return
+    }
+    if (form.availabilityDays.length === 0) {
+      setStatus('error')
+      setErrorMsg('Choisissez au moins un jour de disponibilité.')
       return
     }
     if (form.bio.trim().length < 20) {
@@ -348,27 +439,15 @@ export default function TeacherApplication() {
                   <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                     Matières enseignées <span className="text-red-400">*</span>
                   </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {SUBJECT_OPTIONS.map((subject) => (
-                      <button
-                        key={subject}
-                        type="button"
-                        onClick={() => toggleSubject(subject)}
-                        className={`px-3 py-1.5 rounded-lg font-sans text-xs font-semibold border-2 transition-all ${
-                          form.subjects.includes(subject)
-                            ? 'bg-navy text-white border-navy'
-                            : 'bg-white text-gray-500 border-gray-200 hover:border-navy/30'
-                        }`}
-                      >
-                        {subject}
-                      </button>
-                    ))}
-                  </div>
+                  <SubjectQuickAdd
+                    selected={form.subjects}
+                    onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
+                  />
                 </div>
 
                 <div className="mb-4">
                   <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                    Niveaux
+                    Niveaux <span className="text-red-400">*</span>
                   </label>
                   <div className="flex gap-2">
                     {LEVELS.map(({ value, label }) => (
@@ -422,7 +501,7 @@ export default function TeacherApplication() {
 
                 <div className="mb-4">
                   <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                    Disponibilités
+                    Disponibilités <span className="text-red-400">*</span>
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {DAYS_OF_WEEK.map((day) => (
@@ -444,7 +523,8 @@ export default function TeacherApplication() {
 
                 <div className="mb-5">
                   <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                    Ta présentation (visible par les familles)
+                    Ta présentation (visible par les familles){' '}
+                    <span className="text-red-400">*</span>
                   </label>
                   <textarea
                     value={form.bio}
