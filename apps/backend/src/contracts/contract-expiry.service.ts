@@ -5,7 +5,7 @@ import { renderContractExpiryAlertEmail } from '../email/templates/contract-expi
 import { PrismaService } from '../prisma/prisma.service';
 
 const DEFAULT_ALERT_DAYS = 30;
-const DEFAULT_NAFOORE_ALERT_EMAIL = 'contact@nafoore.fr';
+const DEFAULT_NAFOORE_ALERT_EMAIL = 'contact@nafoore.com';
 
 @Injectable()
 export class ContractExpiryService {

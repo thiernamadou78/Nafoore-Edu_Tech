@@ -34,7 +34,7 @@ export class GeocodingService {
       url.searchParams.set('countrycodes', 'fr');
 
       const response = await fetch(url, {
-        headers: { 'User-Agent': 'NafooreEducation/1.0 (contact@nafoore.fr)' },
+        headers: { 'User-Agent': 'NafooreEducation/1.0 (contact@nafoore.com)' },
       });
       if (!response.ok) {
         this.logger.warn(`Géocodage échoué (HTTP ${response.status}) pour "${query}"`);

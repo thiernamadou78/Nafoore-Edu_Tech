@@ -20,7 +20,7 @@ export class PushService {
     this.enabled = Boolean(publicKey && privateKey);
     if (this.enabled) {
       webpush.setVapidDetails(
-        process.env.VAPID_SUBJECT || 'mailto:contact@nafoore.fr',
+        process.env.VAPID_SUBJECT || 'mailto:contact@nafoore.com',
         publicKey as string,
         privateKey as string,
       );
