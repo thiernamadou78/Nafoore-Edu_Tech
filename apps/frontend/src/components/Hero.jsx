@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import eleveSrc from './IMG/eleve.jpg'
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 // Valeurs par defaut tant que l'API n'a pas repondu (ou en cas d'echec) ; les
@@ -69,11 +70,13 @@ function MockDashboard() {
         <div className="bg-navy px-5 pt-5 pb-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gold-500 flex items-center justify-center font-serif font-bold text-navy text-sm shadow-md">
-                LM
-              </div>
+              <img
+                src={eleveSrc}
+                alt="Léa M."
+                className="w-9 h-9 rounded-xl object-cover object-[50%_30%] shadow-md"
+              />
               <div>
-                <p className="font-sans font-bold text-white text-sm leading-tight">Lucas M.</p>
+                <p className="font-sans font-bold text-white text-sm leading-tight">Léa M.</p>
                 <p className="font-sans text-white/50 text-xs">3ème · Collège Jean Jaurès</p>
               </div>
             </div>
