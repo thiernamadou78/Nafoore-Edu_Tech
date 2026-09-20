@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { CalendarPlus, Check, ScanLine, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
@@ -40,11 +41,22 @@ function formatTimeRange(date, durationMinutes) {
 }
 
 function ReportForm({ session, onCancel, onSave, saving }) {
+  const blocked = session.baselineMissing
   const [attended, setAttended] = useState(session.attended ?? true)
   const [notes, setNotes] = useState(session.notes ?? '')
 
   return (
     <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+      {blocked && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Avant de clôturer cette séance, saisis les notes de départ de l'élève en{' '}
+          {session.subject} :{' '}
+          <Link to={`/eleves/${session.studentId}`} className="font-medium underline">
+            ouvrir la fiche de l'élève
+          </Link>
+          .
+        </p>
+      )}
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input
           type="checkbox"
@@ -65,7 +77,7 @@ function ReportForm({ session, onCancel, onSave, saving }) {
       <div className="flex gap-2">
         <Button
           loading={saving}
-          disabled={!notes.trim()}
+          disabled={!notes.trim() || blocked}
           onClick={() => onSave({ attended, notes, status: 'realisee' })}
         >
           Enregistrer

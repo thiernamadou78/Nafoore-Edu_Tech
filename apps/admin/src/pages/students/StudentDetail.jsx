@@ -25,6 +25,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { PaginationControls } from '../../components/ui/PaginationControls'
 import { PlanningCalendar } from '../../components/ui/PlanningCalendar'
+import { StudentProgressCard } from '../../components/StudentProgressCard'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { Timeline } from '../../components/ui/Timeline'
 import { usePagination } from '../../lib/usePagination'
@@ -827,6 +828,7 @@ export function StudentDetail() {
 
           {tab === 'bilans' && (
             <div className="space-y-6">
+              <StudentProgressCard studentId={id} />
               <Card className="p-6">
                 <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
                   <FileText size={16} className="text-navy" />

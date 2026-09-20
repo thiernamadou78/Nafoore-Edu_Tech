@@ -26,6 +26,7 @@ import { Card } from '../components/ui/Card'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
 import { SessionsBoard } from '../components/SessionsBoard'
+import { ProgressCard } from '../components/ProgressCard'
 import { PassEducatifCard } from './PassEducatifCard'
 import { DAYS_OF_WEEK, FREQUENCY_OPTIONS, SUBJECTS_BY_LEVEL } from './curriculum'
 import {
@@ -265,6 +266,8 @@ export function StudentDetail() {
           />
         )}
       </Card>
+
+      <ProgressCard studentId={student.id} />
 
       {/* Séances, regroupées par statut */}
       <Card className="p-5">

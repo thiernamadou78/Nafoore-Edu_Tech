@@ -327,11 +327,20 @@ export class TeacherService {
       orderBy: { date: 'desc' },
     });
 
+    const baselines = await this.prisma.grade.findMany({
+      where: { kind: 'depart', studentId: { in: [...new Set(sessions.map((s) => s.studentId))] } },
+      select: { studentId: true, subject: true },
+    });
+    const withBaseline = new Set(baselines.map((b) => `${b.studentId}|${b.subject}`));
+
     return sessions.map(({ student, attendanceLogs, ...session }) => ({
       ...session,
       studentId: student.id,
       studentName: student.name,
       lastAttendance: attendanceLogs[0] ?? null,
+      baselineMissing: Boolean(
+        session.subject && !withBaseline.has(`${student.id}|${session.subject}`),
+      ),
     }));
   }
 
@@ -418,6 +427,19 @@ export class TeacherService {
     // "réalisée" sans jamais avoir été documentée.
     if (dto.status === 'realisee' && !dto.notes?.trim()) {
       throw new BadRequestException('Un compte-rendu est requis pour clôturer une séance');
+    }
+
+    // Notes de depart obligatoires : sans elles, aucune progression ne pourra
+    // etre mesuree pour la famille. On bloque donc la cloture, pas la seance.
+    if (dto.status === 'realisee' && session.subject) {
+      const baseline = await this.prisma.grade.count({
+        where: { studentId: session.studentId, subject: session.subject, kind: 'depart' },
+      });
+      if (baseline === 0) {
+        throw new BadRequestException(
+          `Saisis d'abord les notes de départ de l'élève en ${session.subject} (fiche de l'élève, section Notes) avant de clôturer cette séance`,
+        );
+      }
     }
 
     if (dto.date || dto.durationMinutes) {

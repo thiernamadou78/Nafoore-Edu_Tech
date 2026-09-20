@@ -82,6 +82,7 @@ model CredentialDispatchLog {
 }
 
 model Student {
+  grades Grade[]
   id             String            @id @default(cuid())
   createdAt      DateTime          @default(now()) @map("created_at")
   name           String
@@ -122,6 +123,7 @@ model Student {
 }
 
 model Teacher {
+  grades Grade[]
   id          String                 @id @default(cuid())
   name        String
   gender      String?                // homme | femme
@@ -915,4 +917,25 @@ model PeriodRenewal {
 
   @@index([studentTeacherId])
   @@map("period_renewals")
+}
+
+// Note d'evaluation saisie par le prof (relevee sur Pronote). "depart" = notes
+// d'avant l'accompagnement (point de comparaison obligatoire), "suivi" = notes
+// obtenues pendant. Toutes ramenees sur 20 pour la progression.
+model Grade {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now()) @map("created_at")
+  studentId   String   @map("student_id")
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId   String?  @map("teacher_id")
+  teacher     Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  subject     String
+  kind        String   // depart | suivi
+  value       Float
+  scale       Float    @default(20)
+  evaluatedAt DateTime @map("evaluated_at")
+  comment     String?
+
+  @@index([studentId, subject])
+  @@map("grades")
 }

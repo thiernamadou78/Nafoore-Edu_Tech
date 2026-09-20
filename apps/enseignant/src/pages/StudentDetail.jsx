@@ -19,6 +19,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
+import { GradesCard } from '../components/GradesCard'
 import { LEVEL_LABELS, PROGRESS_ENTRY_LABELS, PROGRESS_ENTRY_TONES } from './labels'
 
 const inputClass =
@@ -335,6 +336,8 @@ export function StudentDetail() {
           </span>
         </span>
       </div>
+
+      <GradesCard studentId={id} subjects={student.subjects} />
 
       <Card className="mb-6 p-5">
         <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
