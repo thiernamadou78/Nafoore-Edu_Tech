@@ -16,6 +16,7 @@ import { StudentsService } from '../students/students.service';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
 import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { CreateTeacherRequestDto } from './dto/create-teacher-request.dto';
+import { UpdateTeacherRequestDto } from './dto/update-teacher-request.dto';
 import { ProposeMatchingDto } from './dto/propose-matching.dto';
 import { RefuseMatchingDto } from './dto/refuse-matching.dto';
 import { ListTeacherRequestsQueryDto } from './dto/list-teacher-requests-query.dto';
@@ -37,6 +38,7 @@ const teacherContactSelect = {
   account: { select: { email: true } },
 };
 
+const REQUEST_CANCELLED_REASON = 'La famille a annulé sa demande';
 const OTHER_TEACHER_CHOSEN_REASON = 'Un autre enseignant a été choisi par la famille';
 
 const adminInterestSelect = {
@@ -75,6 +77,65 @@ export class TeacherRequestsService {
         desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : null,
       },
     });
+  }
+
+  async updateRequest(
+    portalAccount: AuthenticatedPortalAccount,
+    requestId: string,
+    dto: UpdateTeacherRequestDto,
+  ) {
+    const request = await this.loadOwnedRequest(portalAccount, requestId);
+    if (request.status === 'proposition_envoyee') {
+      throw new ConflictException(
+        'Une proposition est en cours : réponds-y ou annule la demande avant de la modifier',
+      );
+    }
+    if (request.status !== 'en_attente') {
+      throw new ConflictException("Cette demande n'est plus modifiable");
+    }
+
+    return this.prisma.teacherRequest.update({
+      where: { id: requestId },
+      data: {
+        frequency: dto.frequency,
+        format: dto.format,
+        availability: dto.availability,
+        durationMinutes: dto.durationMinutes,
+        desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : undefined,
+      },
+    });
+  }
+
+  async cancelRequest(portalAccount: AuthenticatedPortalAccount, requestId: string) {
+    const request = await this.loadOwnedRequest(portalAccount, requestId);
+    if (request.status !== 'en_attente' && request.status !== 'proposition_envoyee') {
+      throw new ConflictException("Cette demande n'est plus annulable");
+    }
+
+    const pending = await this.prisma.matching.findMany({
+      where: { teacherRequestId: requestId, status: 'proposee' },
+      include: { teacher: { select: teacherContactSelect } },
+    });
+
+    await this.prisma.$transaction([
+      this.prisma.matching.updateMany({
+        where: { teacherRequestId: requestId, status: 'proposee' },
+        data: { status: 'refusee', refusalReason: REQUEST_CANCELLED_REASON, respondedAt: new Date() },
+      }),
+      this.prisma.teacherRequest.update({ where: { id: requestId }, data: { status: 'annulee' } }),
+    ]);
+
+    for (const matching of pending) {
+      this.notifyTeacher(
+        matching.teacher,
+        request.student.name,
+        request.subject,
+        'annulee',
+        REQUEST_CANCELLED_REASON,
+      );
+    }
+
+    return { status: 'annulee' };
   }
 
   async acceptMatching(portalAccount: AuthenticatedPortalAccount, matchingId: string) {
@@ -172,7 +233,7 @@ export class TeacherRequestsService {
     teacher: { name: string; gender: string | null; account: { email: string } | null },
     studentName: string,
     subject: string,
-    outcome: 'acceptee' | 'refusee',
+    outcome: 'acceptee' | 'refusee' | 'annulee',
     reason: string | null,
   ) {
     if (!teacher.account?.email) return;
@@ -182,7 +243,9 @@ export class TeacherRequestsService {
         subject:
           outcome === 'acceptee'
             ? `Nafoore Education — Votre proposition a été acceptée (${subject})`
-            : `Nafoore Education — Votre proposition n'a pas été retenue (${subject})`,
+            : outcome === 'annulee'
+              ? `Nafoore Education — Demande annulée par la famille (${subject})`
+              : `Nafoore Education — Votre proposition n'a pas été retenue (${subject})`,
         html: renderMatchingResponseEmail({
           gender: teacher.gender,
           teacherName: teacher.name,
@@ -550,6 +613,18 @@ export class TeacherRequestsService {
       throw new NotFoundException('Élève introuvable');
     }
     return student;
+  }
+
+  private async loadOwnedRequest(portalAccount: AuthenticatedPortalAccount, requestId: string) {
+    const request = await this.prisma.teacherRequest.findUnique({
+      where: { id: requestId },
+      include: { student: { select: { parentLeadId: true, name: true } } },
+    });
+    // 404 (pas 403) si la demande n'appartient pas a ce compte.
+    if (!request || request.student.parentLeadId !== portalAccount.leadId) {
+      throw new NotFoundException('Demande introuvable');
+    }
+    return request;
   }
 
   private async loadOwnedMatching(

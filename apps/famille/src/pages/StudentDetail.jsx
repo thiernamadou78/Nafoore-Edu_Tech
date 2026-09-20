@@ -291,7 +291,13 @@ function TeacherRequestsSection({ student, activeRequests, onChanged }) {
       {activeRequests.length > 0 && (
         <div className="mb-4 space-y-3">
           {activeRequests.map((request) => (
-            <TeacherRequestRow key={request.id} request={request} onChanged={onChanged} />
+            <TeacherRequestRow
+              key={request.id}
+              request={request}
+              studentId={student.id}
+              level={student.level}
+              onChanged={onChanged}
+            />
           ))}
         </div>
       )}
@@ -310,7 +316,24 @@ function TeacherRequestsSection({ student, activeRequests, onChanged }) {
   )
 }
 
-function TeacherRequestRow({ request, onChanged }) {
+function TeacherRequestRow({ request, studentId, level, onChanged }) {
+  const [editing, setEditing] = useState(false)
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [actionError, setActionError] = useState(null)
+
+  const cancelRequest = async () => {
+    setBusy(true)
+    setActionError(null)
+    try {
+      await api.patch(`/family/teacher-requests/${request.id}/cancel`, {})
+      await onChanged()
+    } catch (err) {
+      setActionError(err.message)
+      setBusy(false)
+    }
+  }
+
   // Plusieurs profs peuvent être proposés pour une même demande : on les
   // empile toutes, la famille choisit celle qui lui convient.
   const pendingProposals = request.matchings.filter((m) => m.status === 'proposee')
@@ -330,6 +353,52 @@ function TeacherRequestRow({ request, onChanged }) {
           {TEACHER_REQUEST_STATUS_LABELS[request.status] ?? request.status}
         </Badge>
       </div>
+
+      {actionError && <p className="mt-2 text-xs text-red-600">{actionError}</p>}
+
+      {editing ? (
+        <div className="mt-3">
+          <TeacherRequestForm
+            studentId={studentId}
+            level={level}
+            request={request}
+            onCancel={() => setEditing(false)}
+            onCreated={async () => {
+              await onChanged()
+              setEditing(false)
+            }}
+          />
+        </div>
+      ) : confirmingCancel ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-800">
+          <span className="mr-auto">
+            Annuler cette demande ?
+            {pendingProposals.length > 0 && ' Les professeurs proposés en seront informés.'}
+          </span>
+          <Button variant="danger" loading={busy} onClick={cancelRequest}>
+            Oui, annuler
+          </Button>
+          <Button variant="secondary" disabled={busy} onClick={() => setConfirmingCancel(false)}>
+            Non
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {request.status === 'en_attente' && (
+            <Button variant="secondary" onClick={() => setEditing(true)}>
+              Modifier
+            </Button>
+          )}
+          <Button variant="secondary" onClick={() => setConfirmingCancel(true)}>
+            Annuler la demande
+          </Button>
+          {request.status === 'proposition_envoyee' && (
+            <span className="text-xs text-gray-500">
+              Pour modifier la demande, réponds d'abord à la proposition ou annule-la.
+            </span>
+          )}
+        </div>
+      )}
 
       {pendingProposals.length > 0 && (
         <div className="mt-3 space-y-3">
@@ -582,8 +651,23 @@ function SubjectPicker({ selected, onChange, availableSubjects }) {
   )
 }
 
-function TeacherRequestForm({ studentId, level, onCreated }) {
-  const [form, setForm] = useState(DEFAULT_REQUEST_FORM)
+// availability est stocke "jours · creneaux" ; on retrouve les listes fermees
+// par appartenance plutot que par position (un des deux peut etre vide).
+function formFromRequest(request) {
+  const tokens = (request.availability ?? '').split(/ · |, /)
+  return {
+    subjects: [request.subject],
+    frequency: request.frequency ?? '',
+    durationMinutes: request.durationMinutes ?? '',
+    desiredStartDate: request.desiredStartDate ? request.desiredStartDate.slice(0, 10) : '',
+    format: request.format,
+    availabilityDays: tokens.filter((t) => DAYS_OF_WEEK.includes(t)),
+    timeSlots: tokens.filter((t) => TIME_SLOTS.includes(t)),
+  }
+}
+
+function TeacherRequestForm({ studentId, level, request, onCreated, onCancel }) {
+  const [form, setForm] = useState(() => (request ? formFromRequest(request) : DEFAULT_REQUEST_FORM))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const subjects = SUBJECTS_BY_LEVEL[level] ?? []
@@ -608,6 +692,27 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (request) {
+      setSubmitting(true)
+      setError(null)
+      try {
+        await api.patch(`/family/teacher-requests/${request.id}`, {
+          frequency: form.frequency,
+          format: form.format,
+          durationMinutes: form.durationMinutes || undefined,
+          desiredStartDate: form.desiredStartDate || undefined,
+          availability: [form.availabilityDays.join(', '), form.timeSlots.join(', ')]
+            .filter(Boolean)
+            .join(' · '),
+        })
+        await onCreated()
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
     if (form.subjects.length === 0) {
       setError('Choisis au moins une matière.')
       return
@@ -644,11 +749,15 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3 border-t border-gray-100 pt-4">
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <SubjectPicker
-        selected={form.subjects}
-        onChange={(nextSubjects) => setForm((f) => ({ ...f, subjects: nextSubjects }))}
-        availableSubjects={subjects}
-      />
+      {request ? (
+        <p className="text-sm font-medium text-gray-800">Modifier la demande : {request.subject}</p>
+      ) : (
+        <SubjectPicker
+          selected={form.subjects}
+          onChange={(nextSubjects) => setForm((f) => ({ ...f, subjects: nextSubjects }))}
+          availableSubjects={subjects}
+        />
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <select
           required
@@ -765,9 +874,16 @@ function TeacherRequestForm({ studentId, level, onCreated }) {
           })}
         </div>
       </div>
-      <Button type="submit" icon={UserPlus} loading={submitting}>
-        {submitting ? 'Envoi…' : 'Envoyer la demande'}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" icon={UserPlus} loading={submitting}>
+          {submitting ? 'Envoi…' : request ? 'Enregistrer les modifications' : 'Envoyer la demande'}
+        </Button>
+        {request && (
+          <Button type="button" variant="secondary" disabled={submitting} onClick={onCancel}>
+            Annuler
+          </Button>
+        )}
+      </div>
     </form>
   )
 }

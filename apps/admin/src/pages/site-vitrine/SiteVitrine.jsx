@@ -31,6 +31,92 @@ function toFormValues(testimonial) {
   }
 }
 
+const STAT_FIELDS = [
+  { key: 'statsStudents', label: 'Élèves accompagnés', placeholder: '500+' },
+  { key: 'statsSatisfaction', label: 'Satisfaction', placeholder: '98%' },
+  { key: 'statsTeachers', label: 'Enseignants', placeholder: '50+' },
+]
+
+function StatsCard() {
+  const [values, setValues] = useState({ statsStudents: '', statsSatisfaction: '', statsTeachers: '' })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    api
+      .get('/admin/settings')
+      .then((settings) =>
+        setValues({
+          statsStudents: settings.statsStudents ?? '',
+          statsSatisfaction: settings.statsSatisfaction ?? '',
+          statsTeachers: settings.statsTeachers ?? '',
+        }),
+      )
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    setSaved(false)
+    try {
+      await Promise.all(
+        STAT_FIELDS.map(({ key }) => api.patch(`/admin/settings/${key}`, { value: values[key] })),
+      )
+      setSaved(true)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card className="mb-6 p-6">
+      <h2 className="mb-1 font-semibold text-gray-900">Chiffres clés de la vitrine</h2>
+      <p className="mb-4 text-sm text-gray-500">
+        Affichés en page d'accueil du site. Saisis la valeur telle qu'elle doit apparaître
+        (ex : 500+, 98%, 50+).
+      </p>
+      {error && <Alert>{error}</Alert>}
+      {loading ? (
+        <p className="text-sm text-gray-500">Chargement…</p>
+      ) : (
+        <form onSubmit={handleSave}>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {STAT_FIELDS.map(({ key, label, placeholder }) => (
+              <div key={key}>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+                <input
+                  required
+                  maxLength={12}
+                  value={values[key]}
+                  placeholder={placeholder}
+                  onChange={(e) => {
+                    setValues((v) => ({ ...v, [key]: e.target.value }))
+                    setSaved(false)
+                  }}
+                  className={inputClass}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            <Button type="submit" loading={saving}>
+              Enregistrer
+            </Button>
+            {saved && <span className="text-sm text-green-600">Enregistré ✓</span>}
+          </div>
+        </form>
+      )}
+    </Card>
+  )
+}
+
 function HourlyRateCard() {
   const [value, setValue] = useState('')
   const [loading, setLoading] = useState(true)
@@ -358,6 +444,7 @@ export function SiteVitrine() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold text-gray-900">Site vitrine</h1>
+      <StatsCard />
       <HourlyRateCard />
       <TestimonialsCard />
     </div>

@@ -5,7 +5,7 @@ export interface MatchingResponseEmailInput {
   teacherName: string;
   studentName: string;
   subject: string;
-  outcome: 'acceptee' | 'refusee';
+  outcome: 'acceptee' | 'refusee' | 'annulee';
   reason?: string | null;
   portalUrl: string;
 }
@@ -20,12 +20,19 @@ export function renderMatchingResponseEmail({
   portalUrl,
 }: MatchingResponseEmailInput): string {
   const accepted = outcome === 'acceptee';
-  const label = accepted ? 'Proposition acceptée' : 'Proposition non retenue';
-  const message = accepted
+  const cancelled = outcome === 'annulee';
+  const label = accepted
+    ? 'Proposition acceptée'
+    : cancelled
+      ? 'Demande annulée'
+      : 'Proposition non retenue';
+  const message = cancelled
+    ? `La famille a annulé sa demande de cours de <strong>${escapeHtml(subject)}</strong> pour <strong>${escapeHtml(studentName)}</strong> : votre proposition est donc close.`
+    : accepted
     ? `Bonne nouvelle : la famille a choisi votre profil pour les cours de <strong>${escapeHtml(subject)}</strong> de <strong>${escapeHtml(studentName)}</strong>. L'élève est désormais dans votre espace, vous pouvez planifier les séances.`
     : `La famille n'a pas retenu votre profil pour les cours de <strong>${escapeHtml(subject)}</strong> de <strong>${escapeHtml(studentName)}</strong>.`;
   const reasonBlock =
-    !accepted && reason
+    outcome === 'refusee' && reason
       ? `<p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;"><strong>Motif :</strong> ${escapeHtml(reason)}</p>`
       : '';
 

@@ -6,6 +6,7 @@ import { PortalRolesGuard } from '../auth/portal-roles.guard';
 import { TeacherRequestsService } from './teacher-requests.service';
 import { CreateTeacherRequestDto } from './dto/create-teacher-request.dto';
 import { RefuseMatchingDto } from './dto/refuse-matching.dto';
+import { UpdateTeacherRequestDto } from './dto/update-teacher-request.dto';
 
 @PortalRoles('famille')
 @UseGuards(PortalAuthGuard, PortalRolesGuard)
@@ -20,6 +21,23 @@ export class FamilyTeacherRequestsController {
     @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
   ) {
     return this.teacherRequests.createRequest(portalAccount, studentId, dto);
+  }
+
+  @Patch('teacher-requests/:requestId')
+  updateRequest(
+    @Param('requestId') requestId: string,
+    @Body() dto: UpdateTeacherRequestDto,
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+  ) {
+    return this.teacherRequests.updateRequest(portalAccount, requestId, dto);
+  }
+
+  @Patch('teacher-requests/:requestId/cancel')
+  cancelRequest(
+    @Param('requestId') requestId: string,
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+  ) {
+    return this.teacherRequests.cancelRequest(portalAccount, requestId);
   }
 
   @Patch('matchings/:matchingId/accept')

@@ -1,7 +1,18 @@
-const STATS = [
-  { value: '500+', label: 'Élèves accompagnés' },
-  { value: '98%', label: 'Satisfaction' },
-  { value: '50+', label: 'Enseignants' },
+import { useEffect, useState } from 'react'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
+// Valeurs par defaut tant que l'API n'a pas repondu (ou en cas d'echec) ; les
+// chiffres reels sont saisis par l'admin (Site vitrine > Chiffres cles).
+const DEFAULT_STATS = {
+  statsStudents: '500+',
+  statsSatisfaction: '98%',
+  statsTeachers: '50+',
+}
+
+const STAT_LABELS = [
+  { key: 'statsStudents', label: 'Élèves accompagnés' },
+  { key: 'statsSatisfaction', label: 'Satisfaction' },
+  { key: 'statsTeachers', label: 'Enseignants' },
 ]
 
 const SUBJECTS = [
@@ -167,6 +178,22 @@ function MockDashboard() {
 }
 
 export default function Hero() {
+  const [stats, setStats] = useState(DEFAULT_STATS)
+
+  useEffect(() => {
+    fetch(`${API_URL}/settings/public`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return
+        setStats((prev) => ({
+          statsStudents: data.statsStudents || prev.statsStudents,
+          statsSatisfaction: data.statsSatisfaction || prev.statsSatisfaction,
+          statsTeachers: data.statsTeachers || prev.statsTeachers,
+        }))
+      })
+      .catch(() => {})
+  }, [])
+
   return (
     <section className="relative overflow-hidden bg-cream py-20 lg:py-28">
       <div
@@ -219,9 +246,9 @@ export default function Hero() {
             </div>
 
             <div className="flex items-center gap-0 divide-x divide-gray-200">
-              {STATS.map(({ value, label }) => (
-                <div key={label} className="px-6 first:pl-0 last:pr-0">
-                  <div className="font-sans text-3xl font-black text-navy tracking-tight">{value}</div>
+              {STAT_LABELS.map(({ key, label }) => (
+                <div key={key} className="px-6 first:pl-0 last:pr-0">
+                  <div className="font-sans text-3xl font-black text-navy tracking-tight">{stats[key]}</div>
                   <div className="font-sans text-xs text-gray-400 mt-1">{label}</div>
                 </div>
               ))}
