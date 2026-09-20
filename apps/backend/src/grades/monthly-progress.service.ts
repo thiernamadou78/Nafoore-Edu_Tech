@@ -11,6 +11,10 @@ import { GradesService } from './grades.service';
 // progression deja parlante.
 const DAYS_BEFORE_MONTH_END = 8;
 const SENT_KEY = 'monthlyProgressMailSent';
+// Les enseignants deja inscrits avant la mise en place des notes ne recoivent
+// pas le rappel mensuel : il ne concerne que les comptes crees a partir de
+// cette date.
+const TEACHER_REMINDERS_FROM = new Date('2026-09-21T00:00:00+02:00');
 
 const monthKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -61,7 +65,7 @@ export class MonthlyProgressService {
       where: {
         subject: { not: null },
         OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-        teacher: { account: { isNot: null } },
+        teacher: { account: { is: { createdAt: { gte: TEACHER_REMINDERS_FROM } } } },
       },
       include: {
         student: { select: { name: true } },
