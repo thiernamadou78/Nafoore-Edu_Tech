@@ -55,10 +55,21 @@ const SERVICES = [
     dot: 'bg-cyan-500',
     service: 'accompagnement_bilingue',
   },
+]
+
+// Offres pour les structures : plus detaillees que les services "particuliers",
+// car un decideur (mairie, CSE, centre de formation) doit comprendre ce qui
+// est concretement fourni avant de nous contacter.
+const STRUCTURE_OFFERS = [
   {
     icon: '🏛️',
     title: 'Offre Mairie',
-    desc: 'Dispositifs de réussite éducative pour les quartiers prioritaires (QPV).',
+    desc: "Votre commune finance le soutien scolaire des enfants de ses quartiers prioritaires (QPV, REP). Nous fournissons des enseignants vérifiés et gérons tout le dispositif.",
+    points: [
+      "Inscription des familles bénéficiaires et attribution d'un enseignant",
+      'Pass Éducatif (QR code) : chaque séance est pointée et tracée',
+      'Bilans réguliers de présence et de progression pour vos services',
+    ],
     accent: 'from-navy/8 to-navy/4',
     dot: 'bg-navy',
     profile: 'mairie',
@@ -66,7 +77,12 @@ const SERVICES = [
   {
     icon: '🏢',
     title: 'Offre CSE / Entreprises',
-    desc: "Chèques éducatifs et avantages salariés pour les comités d'entreprise.",
+    desc: "Votre entreprise ou votre CSE offre à ses salariés une aide à la scolarité de leurs enfants, prise en charge en totalité ou en partie.",
+    points: [
+      "Une formule sur mesure : volume d'heures, matières, durée",
+      'Vos salariés demandent leur enseignant depuis leur espace famille',
+      "Un espace de suivi et un bilan annuel d'impact RSE",
+    ],
     accent: 'from-slate-500/10 to-slate-500/5',
     dot: 'bg-slate-500',
     profile: 'entreprise',
@@ -74,7 +90,12 @@ const SERVICES = [
   {
     icon: '🎓',
     title: 'Offre Centre de Formation / École Pro',
-    desc: 'Modules de remise à niveau et accompagnement personnalisé pour vos apprenants.',
+    desc: "Vos apprenants sont remis à niveau et préparés à leurs examens par nos enseignants, en petits groupes ou en individuel.",
+    points: [
+      'Modules de remise à niveau ciblés par cohorte',
+      'Suivi individualisé de chaque apprenant',
+      'Reporting pédagogique régulier',
+    ],
     accent: 'from-indigo-500/10 to-indigo-500/5',
     dot: 'bg-indigo-500',
     profile: 'centre_formation_ecole_pro',
@@ -132,6 +153,47 @@ export default function Services() {
               <p className="font-sans text-gray-500 text-sm leading-relaxed">{desc}</p>
             </button>
           ))}
+        </div>
+
+        {/* Offres pour les structures */}
+        <div className="mt-20">
+          <h3 className="font-serif text-2xl lg:text-3xl font-bold text-navy mb-2">
+            Pour les <span className="text-gold-500">structures</span>
+          </h3>
+          <p className="font-sans text-gray-500 mb-8 max-w-2xl">
+            Mairies, entreprises, centres de formation : nous mettons en place et suivons le
+            dispositif pour vous.
+          </p>
+          <div className="grid gap-5 lg:grid-cols-3">
+            {STRUCTURE_OFFERS.map(({ icon, title, desc, points, accent, dot, profile }) => (
+              <button
+                key={title}
+                type="button"
+                onClick={() => handleServiceClick(undefined, profile)}
+                className={`group flex flex-col w-full text-left bg-gradient-to-br ${accent} border border-gray-100 rounded-2xl p-7 hover:border-gold-400/40 hover:shadow-lg hover:shadow-navy/5 hover:-translate-y-1 transition-all duration-200 cursor-pointer`}
+              >
+                <div className="relative w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-2xl mb-5">
+                  {icon}
+                  <span className={`absolute -top-1 -right-1 w-3 h-3 ${dot} rounded-full border-2 border-white`} />
+                </div>
+                <h4 className="font-sans font-bold text-navy text-base mb-2 group-hover:text-gold-600 transition-colors">
+                  {title}
+                </h4>
+                <p className="font-sans text-gray-600 text-sm leading-relaxed mb-5">{desc}</p>
+                <ul className="space-y-2 mb-6 flex-1">
+                  {points.map((point) => (
+                    <li key={point} className="flex items-start gap-2 font-sans text-sm text-gray-600">
+                      <span className="mt-0.5 text-xs text-gold-500">✓</span>
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+                <span className="font-sans text-sm font-bold text-navy group-hover:text-gold-600 transition-colors">
+                  Nous contacter →
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </section>

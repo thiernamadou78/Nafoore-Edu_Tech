@@ -31,13 +31,6 @@ const AUDIENCES = [
     listColor: 'text-gray-600',
     checkColor: 'text-gold-500',
     ctaBg: 'bg-navy text-white hover:bg-navy/90',
-    description:
-      "Votre commune finance l'accompagnement scolaire des enfants de ses habitants. Nous fournissons les enseignants vérifiés, gérons les inscriptions et vous rendons compte de l'utilisation et des résultats.",
-    steps: [
-      'Nous définissons ensemble le dispositif : public visé (QPV, REP…), volume d\'heures et période.',
-      'Les familles bénéficiaires sont inscrites : chaque enfant reçoit un enseignant et un Pass Éducatif (QR code) pour valider chaque séance.',
-      'Vos services municipaux suivent la présence et la progression grâce à des bilans réguliers.',
-    ],
     features: [
       'Dispositifs QPV & REP',
       'Ateliers collectifs d\'aide aux devoirs',
@@ -58,13 +51,6 @@ const AUDIENCES = [
     listColor: 'text-gray-600',
     checkColor: 'text-gold-500',
     ctaBg: 'bg-navy text-white hover:bg-navy/90',
-    description:
-      "Votre entreprise ou votre CSE prend en charge, en totalité ou en partie, le soutien scolaire des enfants de ses salariés : un avantage concret pour les familles, sans gestion pour vous.",
-    steps: [
-      'Vous choisissez une formule (volume d\'heures, matières, durée) adaptée à votre budget.',
-      'Vos salariés bénéficiaires sont inscrits ; ils demandent un enseignant depuis leur espace famille.',
-      'Un espace de suivi dédié vous montre l\'utilisation du dispositif, avec un bilan annuel d\'impact RSE.',
-    ],
     features: [
       'Chèques éducatifs pour salariés',
       'Avantages familiaux attractifs',
@@ -85,13 +71,6 @@ const AUDIENCES = [
     listColor: 'text-gray-600',
     checkColor: 'text-gold-500',
     ctaBg: 'bg-navy text-white hover:bg-navy/90',
-    description:
-      "Nous complétons votre pédagogie avec des enseignants qui remettent vos apprenants à niveau et les préparent à leurs examens, sur les modules et les cohortes que vous choisissez.",
-    steps: [
-      'Vous nous indiquez les modules, les cohortes et les objectifs à atteindre.',
-      'Nos enseignants interviennent en petits groupes ou en individuel.',
-      'Vous recevez un reporting pédagogique régulier sur la progression de chaque apprenant.',
-    ],
     features: [
       'Remise à niveau ciblée par module et par cohorte',
       'Suivi individualisé des apprenants',
@@ -121,8 +100,8 @@ export default function Audience() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-5">
-          {AUDIENCES.map(({ emoji, title, tagline, description, steps, bg, textColor, subColor, badgeBg, borderColor, listColor, checkColor, ctaBg, features }) => (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {AUDIENCES.map(({ emoji, title, tagline, bg, textColor, subColor, badgeBg, borderColor, listColor, checkColor, ctaBg, features }) => (
             <div
               key={title}
               className={`${bg} border ${borderColor} rounded-2xl p-7 flex flex-col shadow-sm hover:shadow-xl transition-shadow duration-300`}
@@ -139,15 +118,9 @@ export default function Audience() {
               <h3 className={`font-serif text-lg font-bold ${textColor} mb-1.5 leading-snug`}>
                 {tagline}
               </h3>
-              <p className={`font-sans text-xs ${subColor} mb-4`}>
+              <p className={`font-sans text-xs ${subColor} mb-6`}>
                 Accompagnement clé en main
               </p>
-
-              {description && (
-                <p className={`font-sans text-sm leading-relaxed ${listColor} mb-5`}>
-                  {description}
-                </p>
-              )}
 
               {/* Features */}
               <ul className="space-y-2.5 mb-7 flex-1">
@@ -158,24 +131,6 @@ export default function Audience() {
                   </li>
                 ))}
               </ul>
-
-              {steps && (
-                <div className={`mb-7 rounded-xl border ${borderColor} p-4`}>
-                  <p className={`font-sans text-xs font-bold uppercase tracking-wider ${subColor} mb-3`}>
-                    Comment ça marche
-                  </p>
-                  <ol className="space-y-2.5">
-                    {steps.map((step, index) => (
-                      <li key={step} className={`flex items-start gap-3 font-sans text-sm ${listColor}`}>
-                        <span className={`${badgeBg} flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold`}>
-                          {index + 1}
-                        </span>
-                        {step}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
 
               {/* CTA */}
               <a
