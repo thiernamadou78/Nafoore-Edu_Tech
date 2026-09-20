@@ -11,8 +11,7 @@ import {
   RadioTower,
   ShieldCheck,
   UserPlus,
-  Users,
-} from 'lucide-react'
+  Users, RefreshCw } from 'lucide-react'
 
 export const NAV_ITEMS = [
   { label: 'Tableau de bord', path: '/', roles: ['super_admin', 'admin'], icon: LayoutDashboard },
@@ -25,6 +24,7 @@ export const NAV_ITEMS = [
     roles: ['super_admin', 'admin'],
     icon: UserPlus,
   },
+  { label: 'Renouvellements', path: '/renouvellements', roles: ['super_admin', 'admin'], icon: RefreshCw },
   {
     label: 'Candidatures',
     path: '/recrutement',

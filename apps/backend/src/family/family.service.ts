@@ -12,7 +12,15 @@ import { redactRemovedMessage, countUnread } from '../common/redact-message.util
 import { generateQrToken } from '../students/qr-token.util';
 
 const teacherSelect = {
+  id: true,
+  subject: true,
+  endsAt: true,
   teacher: { select: { id: true, name: true, subjects: true } },
+  renewals: {
+    orderBy: { createdAt: 'desc' as const },
+    take: 1,
+    select: { id: true, status: true, periodMonths: true, createdAt: true },
+  },
 };
 
 @Injectable()
@@ -283,6 +291,7 @@ export class FamilyService {
             frequency: true,
             format: true,
             availability: true,
+            periodMonths: true,
             durationMinutes: true,
             desiredStartDate: true,
             status: true,

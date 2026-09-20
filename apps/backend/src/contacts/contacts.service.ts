@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
 import { EmailService } from '../email/email.service';
+import { AdminNotificationService } from '../email/admin-notification.service';
 import { renderContactReceivedEmail } from '../email/templates/contact-received.template';
 import { CreateContactDto } from './dto/create-contact.dto';
 
@@ -13,6 +14,7 @@ export class ContactsService {
     private readonly prisma: PrismaService,
     private readonly geocoding: GeocodingService,
     private readonly emailService: EmailService,
+    private readonly adminNotification: AdminNotificationService,
   ) {}
 
   async create(dto: CreateContactDto) {
@@ -30,6 +32,19 @@ export class ContactsService {
         desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : null,
         childrenCount: dto.childrenCount ?? null,
       },
+    });
+
+    this.adminNotification.notify({
+      subject: `Nouveau lead : ${dto.name}`,
+      title: 'Nouveau lead reçu',
+      lines: [
+        `Nom : ${dto.name}`,
+        `Profil : ${dto.profile}`,
+        `Email : ${dto.email}`,
+        `Téléphone : ${dto.phone}`,
+        `Services : ${dto.services.join(', ')}`,
+      ],
+      path: `/leads/${lead.id}`,
     });
 
     // Accuse de reception best-effort : ne doit jamais retarder la reponse du

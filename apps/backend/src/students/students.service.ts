@@ -259,13 +259,20 @@ export class StudentsService {
     actorId: string,
     subject: string | null = null,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
+    endsAt: Date | null = null,
   ) {
     const existing = await tx.studentTeacher.findFirst({
       where: { studentId, teacherId, subject },
     });
-    if (existing) return;
+    if (existing) {
+      // Meme prof re-choisi : la nouvelle periode remplace l'ancienne.
+      if (endsAt) {
+        await tx.studentTeacher.update({ where: { id: existing.id }, data: { endsAt } });
+      }
+      return;
+    }
 
-    await tx.studentTeacher.create({ data: { studentId, teacherId, subject } });
+    await tx.studentTeacher.create({ data: { studentId, teacherId, subject, endsAt } });
     await tx.studentTeacherHistory.create({
       data: { studentId, teacherId, action: 'assigned', adminAccountId: actorId },
     });

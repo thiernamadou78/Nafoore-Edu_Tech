@@ -11,6 +11,7 @@ import { renderMatchingProposalEmail } from '../email/templates/matching-proposa
 import { renderTeacherProposedEmail } from '../email/templates/teacher-proposed.template';
 import { renderMatchingResponseEmail } from '../email/templates/matching-response.template';
 import { GeocodingService } from '../geocoding/geocoding.service';
+import { AdminNotificationService } from '../email/admin-notification.service';
 import { resolvePortalUrl } from '../email/portal-url.util';
 import { StudentsService } from '../students/students.service';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
@@ -57,6 +58,7 @@ export class TeacherRequestsService {
     private readonly studentsService: StudentsService,
     private readonly emailService: EmailService,
     private readonly geocoding: GeocodingService,
+    private readonly adminNotification: AdminNotificationService,
   ) {}
 
   async createRequest(
@@ -64,9 +66,9 @@ export class TeacherRequestsService {
     studentId: string,
     dto: CreateTeacherRequestDto,
   ) {
-    await this.assertOwnedStudent(portalAccount, studentId);
+    const ownedStudent = await this.assertOwnedStudent(portalAccount, studentId);
 
-    return this.prisma.teacherRequest.create({
+    const created = await this.prisma.teacherRequest.create({
       data: {
         studentId,
         subject: dto.subject,
@@ -74,9 +76,26 @@ export class TeacherRequestsService {
         format: dto.format,
         availability: dto.availability,
         durationMinutes: dto.durationMinutes,
+        periodMonths: dto.periodMonths,
         desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : null,
       },
     });
+
+    this.adminNotification.notify({
+      subject: `Nouvelle demande de prof : ${dto.subject}`,
+      title: 'Nouvelle demande de professeur',
+      lines: [
+        `Famille : ${portalAccount.fullName}`,
+        `Élève : ${ownedStudent.name}`,
+        `Matière : ${dto.subject}`,
+        `Format : ${dto.format}`,
+        `Fréquence : ${dto.frequency}`,
+        `Durée souhaitée : ${dto.periodMonths} mois`,
+      ],
+      path: `/demandes-professeur/${created.id}`,
+    });
+
+    return created;
   }
 
   async updateRequest(
@@ -101,6 +120,7 @@ export class TeacherRequestsService {
         format: dto.format,
         availability: dto.availability,
         durationMinutes: dto.durationMinutes,
+        periodMonths: dto.periodMonths,
         desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : undefined,
       },
     });
@@ -124,6 +144,18 @@ export class TeacherRequestsService {
       }),
       this.prisma.teacherRequest.update({ where: { id: requestId }, data: { status: 'annulee' } }),
     ]);
+
+    this.adminNotification.notify({
+      subject: `Demande de prof annulée : ${request.subject}`,
+      title: 'Demande de professeur annulée par la famille',
+      lines: [
+        `Famille : ${portalAccount.fullName}`,
+        `Élève : ${request.student.name}`,
+        `Matière : ${request.subject}`,
+        `Propositions en cours refusées : ${pending.length}`,
+      ],
+      path: `/demandes-professeur/${requestId}`,
+    });
 
     for (const matching of pending) {
       this.notifyTeacher(
@@ -154,6 +186,16 @@ export class TeacherRequestsService {
       include: { teacher: { select: teacherContactSelect } },
     });
 
+    const requestPeriod = await this.prisma.teacherRequest.findUnique({
+      where: { id: matching.teacherRequestId },
+      select: { periodMonths: true },
+    });
+    let periodEnd: Date | null = null;
+    if (requestPeriod?.periodMonths) {
+      periodEnd = new Date();
+      periodEnd.setMonth(periodEnd.getMonth() + requestPeriod.periodMonths);
+    }
+
     await this.prisma.$transaction(async (tx) => {
       await tx.matching.update({
         where: { id: matchingId },
@@ -183,6 +225,7 @@ export class TeacherRequestsService {
         matching.proposedById,
         matching.teacherRequest.subject,
         tx,
+        periodEnd,
       );
     });
 
@@ -219,6 +262,17 @@ export class TeacherRequestsService {
       });
 
     const { student, subject } = matching.teacherRequest;
+    this.adminNotification.notify({
+      subject: `Prof accepté par la famille : ${matching.teacher.name}`,
+      title: 'Proposition acceptée par la famille',
+      lines: [
+        `Enseignant : ${matching.teacher.name}`,
+        `Élève : ${student.name}`,
+        `Matière : ${subject}`,
+        `Famille : ${portalAccount.fullName}`,
+      ],
+      path: `/demandes-professeur/${matching.teacherRequestId}`,
+    });
     this.notifyTeacher(matching.teacher, student.name, subject, 'acceptee', null);
     for (const other of otherPending) {
       this.notifyTeacher(other.teacher, student.name, subject, 'refusee', OTHER_TEACHER_CHOSEN_REASON);
@@ -292,6 +346,18 @@ export class TeacherRequestsService {
         where: { id: matching.teacherRequestId },
         data: { status: stillPending > 0 ? 'proposition_envoyee' : 'en_attente' },
       });
+    });
+
+    this.adminNotification.notify({
+      subject: `Prof refusé par la famille : ${matching.teacher.name}`,
+      title: 'Proposition refusée par la famille',
+      lines: [
+        `Enseignant : ${matching.teacher.name}`,
+        `Élève : ${matching.teacherRequest.student.name}`,
+        `Matière : ${matching.teacherRequest.subject}`,
+        `Motif : ${dto.refusalReason.trim()}`,
+      ],
+      path: `/demandes-professeur/${matching.teacherRequestId}`,
     });
 
     this.notifyTeacher(
@@ -524,6 +590,7 @@ export class TeacherRequestsService {
         format: true,
         frequency: true,
         durationMinutes: true,
+        periodMonths: true,
         availability: true,
         desiredStartDate: true,
         // Volontairement ni adresse complete ni nom de l'eleve : seulement
@@ -607,7 +674,7 @@ export class TeacherRequestsService {
   ) {
     const student = await this.prisma.student.findUnique({
       where: { id: studentId },
-      select: { id: true, parentLeadId: true },
+      select: { id: true, name: true, parentLeadId: true },
     });
     if (!student || student.parentLeadId !== portalAccount.leadId) {
       throw new NotFoundException('Élève introuvable');

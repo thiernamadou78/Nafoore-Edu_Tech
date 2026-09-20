@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
 import { EmailService } from '../email/email.service';
 import { PhotosService } from '../photos/photos.service';
+import { AdminNotificationService } from '../email/admin-notification.service';
 import { renderApplicationReceivedEmail } from '../email/templates/application-received.template';
 import { generateCompletionToken } from '../teacher-applications/completion-token.util';
 import { CreatePublicTeacherApplicationDto } from './dto/create-public-teacher-application.dto';
@@ -33,6 +34,7 @@ export class TeacherApplicationsPublicService {
     private readonly supabaseAdmin: SupabaseAdminService,
     private readonly emailService: EmailService,
     private readonly photos: PhotosService,
+    private readonly adminNotification: AdminNotificationService,
   ) {}
 
   private async findByToken(token: string) {
@@ -130,6 +132,19 @@ export class TeacherApplicationsPublicService {
     });
 
     await this.uploadDocuments(application.id, files);
+
+    this.adminNotification.notify({
+      subject: `Nouvelle candidature : ${dto.candidateName}`,
+      title: 'Nouvelle candidature enseignant',
+      lines: [
+        `Candidat : ${dto.candidateName}`,
+        `Email : ${dto.candidateEmail}`,
+        `Téléphone : ${dto.phone}`,
+        `Matières : ${dto.subjects.join(', ')}`,
+        `Zone : ${dto.zone} (${dto.postalCode})`,
+      ],
+      path: `/recrutement/${application.id}`,
+    });
 
     try {
       const result = await this.emailService.send({

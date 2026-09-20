@@ -114,6 +114,12 @@ export function TeacherRequestDetail() {
               <dd className="text-gray-800">{request.durationMinutes} min</dd>
             </div>
           )}
+          {request.periodMonths && (
+            <div>
+              <dt className="text-gray-500">Durée d'accompagnement</dt>
+              <dd className="text-gray-800">{request.periodMonths} mois</dd>
+            </div>
+          )}
           {request.student.classe && (
             <div>
               <dt className="text-gray-500">Classe</dt>

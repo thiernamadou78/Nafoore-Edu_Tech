@@ -198,6 +198,8 @@ export function StudentDetail() {
         <PassEducatifCard student={student} />
       </div>
 
+      <AssignmentsSection student={student} onChanged={load} />
+
       {/* Demande de professeur */}
       <TeacherRequestsSection
         student={student}
@@ -270,6 +272,101 @@ export function StudentDetail() {
         <SessionsBoard sessions={sessions} />
       </Card>
     </div>
+  )
+}
+
+function AssignmentsSection({ student, onChanged }) {
+  const assignments = (student.teachers ?? []).filter((row) => row.endsAt)
+  const [renewing, setRenewing] = useState(null)
+  const [months, setMonths] = useState(1)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  if (assignments.length === 0) return null
+
+  const submitRenewal = async (assignmentId) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.post(`/family/student-teachers/${assignmentId}/renewal`, { periodMonths: months })
+      setRenewing(null)
+      await onChanged()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card className="mb-6 p-5">
+      <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+        <CalendarClock size={16} className="text-gold-500" />
+        Accompagnement en cours
+      </h2>
+      {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+      <div className="space-y-3">
+        {assignments.map((row) => {
+          const endsAt = new Date(row.endsAt)
+          const daysLeft = Math.ceil((endsAt.getTime() - Date.now()) / 86_400_000)
+          const renewal = row.renewals?.[0]
+          const open = renewal && RENEWAL_OPEN_STATUSES.includes(renewal.status)
+          const canRenew = daysLeft <= RENEWAL_WINDOW_DAYS && !open
+          return (
+            <div key={row.id} className="rounded-lg border border-gray-100 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">
+                    {row.teacher.name}
+                    {row.subject ? ` · ${row.subject}` : ''}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {daysLeft >= 0
+                      ? `Fin de la période le ${endsAt.toLocaleDateString('fr-FR')} (dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''})`
+                      : `Période terminée le ${endsAt.toLocaleDateString('fr-FR')}`}
+                  </p>
+                </div>
+                {canRenew && renewing !== row.id && (
+                  <Button variant="secondary" onClick={() => setRenewing(row.id)}>
+                    Renouveler
+                  </Button>
+                )}
+              </div>
+              {renewal && (
+                <p className="mt-2 text-xs text-gray-600">
+                  {RENEWAL_STATUS_LABELS[renewal.status] ?? renewal.status}
+                  {renewal.status === 'en_attente_prof' || renewal.status === 'acceptee_prof'
+                    ? ` (${renewal.periodMonths} mois)`
+                    : ''}
+                </p>
+              )}
+              {renewing === row.id && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <select
+                    value={months}
+                    onChange={(e) => setMonths(Number(e.target.value))}
+                    className={inputClass}
+                    style={{ width: 'auto' }}
+                  >
+                    {PERIOD_OPTIONS.map((m) => (
+                      <option key={m} value={m}>
+                        Renouveler pour {m} mois
+                      </option>
+                    ))}
+                  </select>
+                  <Button loading={busy} onClick={() => submitRenewal(row.id)}>
+                    Envoyer la demande
+                  </Button>
+                  <Button variant="secondary" disabled={busy} onClick={() => setRenewing(null)}>
+                    Annuler
+                  </Button>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </Card>
   )
 }
 
@@ -532,6 +629,7 @@ const DEFAULT_REQUEST_FORM = {
   subjects: [],
   frequency: '',
   durationMinutes: '',
+  periodMonths: '',
   desiredStartDate: '',
   format: 'presentiel',
   availabilityDays: [],
@@ -548,6 +646,19 @@ const TIME_SLOTS = [
 ]
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120]
+
+// Objectif de duree (renouvelable) : 1, 2, 3 ou 6 mois.
+const PERIOD_OPTIONS = [1, 2, 3, 6]
+
+const RENEWAL_STATUS_LABELS = {
+  en_attente_prof: "En attente de la réponse de l'enseignant",
+  acceptee_prof: "Accepté par l'enseignant — confirmation par l'équipe en cours",
+  refusee_prof: "L'enseignant ne peut pas poursuivre — une nouvelle demande a été ouverte",
+  confirmee: 'Renouvelé',
+  refusee_admin: 'Renouvellement refusé',
+}
+const RENEWAL_OPEN_STATUSES = ['en_attente_prof', 'acceptee_prof']
+const RENEWAL_WINDOW_DAYS = 14
 
 // Recherche-au-clic plutôt que grille de pastilles : plus lisible dès que la
 // liste de matières s'allonge, et permet d'ajouter une matière absente de la
@@ -659,6 +770,7 @@ function formFromRequest(request) {
     subjects: [request.subject],
     frequency: request.frequency ?? '',
     durationMinutes: request.durationMinutes ?? '',
+    periodMonths: request.periodMonths ?? '',
     desiredStartDate: request.desiredStartDate ? request.desiredStartDate.slice(0, 10) : '',
     format: request.format,
     availabilityDays: tokens.filter((t) => DAYS_OF_WEEK.includes(t)),
@@ -700,6 +812,7 @@ function TeacherRequestForm({ studentId, level, request, onCreated, onCancel }) 
           frequency: form.frequency,
           format: form.format,
           durationMinutes: form.durationMinutes || undefined,
+          periodMonths: form.periodMonths || undefined,
           desiredStartDate: form.desiredStartDate || undefined,
           availability: [form.availabilityDays.join(', '), form.timeSlots.join(', ')]
             .filter(Boolean)
@@ -720,7 +833,7 @@ function TeacherRequestForm({ studentId, level, request, onCreated, onCancel }) 
     setSubmitting(true)
     setError(null)
     try {
-      const { subjects: chosenSubjects, availabilityDays, timeSlots, durationMinutes, desiredStartDate, ...rest } = form
+      const { subjects: chosenSubjects, availabilityDays, timeSlots, durationMinutes, desiredStartDate, periodMonths, ...rest } = form
       // Une demande par matière : chacune suit ensuite son propre statut et
       // matching (un prof peut être proposé pour Maths sans l'être pour Anglais).
       const availability = [availabilityDays.join(', '), timeSlots.join(', ')]
@@ -732,6 +845,7 @@ function TeacherRequestForm({ studentId, level, request, onCreated, onCancel }) 
             ...rest,
             subject,
             durationMinutes: durationMinutes || undefined,
+            periodMonths: Number(periodMonths),
             desiredStartDate: form.desiredStartDate || undefined,
             availability,
           }),
@@ -790,6 +904,21 @@ function TeacherRequestForm({ studentId, level, request, onCreated, onCancel }) 
           ))}
         </select>
       </div>
+      <select
+        required
+        value={form.periodMonths}
+        onChange={(e) => setForm({ ...form, periodMonths: Number(e.target.value) })}
+        className={inputClass}
+      >
+        <option value="" disabled>
+          Durée de l'accompagnement souhaitée
+        </option>
+        {PERIOD_OPTIONS.map((months) => (
+          <option key={months} value={months}>
+            {months} mois
+          </option>
+        ))}
+      </select>
       <div>
         <label className="mb-1 block text-xs font-medium text-gray-700">
           Date de début souhaitée (facultatif)
