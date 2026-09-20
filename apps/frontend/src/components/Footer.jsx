@@ -88,20 +88,20 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <a
-                  href="mailto:contact@nafoore.fr"
+                  href="mailto:contact@nafoore.com"
                   className="flex items-center gap-2.5 font-sans text-sm text-gray-400 hover:text-gold-400 transition-colors"
                 >
                   <span className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center text-xs">✉️</span>
-                  contact@nafoore.fr
+                  contact@nafoore.com
                 </a>
               </li>
               <li>
                 <a
-                  href="tel:+33123456789"
+                  href="tel:+33767659977"
                   className="flex items-center gap-2.5 font-sans text-sm text-gray-400 hover:text-gold-400 transition-colors"
                 >
                   <span className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center text-xs">📞</span>
-                  01 23 45 67 89
+                  07 67 65 99 77
                 </a>
               </li>
               <li className="flex items-center gap-2.5 font-sans text-sm text-gray-400">

@@ -124,7 +124,7 @@ export function renderWelcomeEmail({
               <td style="padding:32px 32px 28px 32px;">
                 <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px;">
                   Vous recevez cet email car un compte Nafoore Education vient d'être créé pour ${escapeHtml(email)}.
-                  Si vous n'êtes pas à l'origine de cette demande, contactez-nous à contact@nafoore.fr.
+                  Si vous n'êtes pas à l'origine de cette demande, contactez-nous à contact@nafoore.com.
                 </p>
               </td>
             </tr>
