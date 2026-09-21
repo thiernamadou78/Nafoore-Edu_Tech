@@ -395,10 +395,10 @@ export function Pointage() {
           ) : (
             <button
               type="button"
-              onClick={resumeScanning}
+              onClick={feedback.variant === 'success' ? stopCamera : resumeScanning}
               className="block w-full border-t border-white/20 bg-black/10 py-3 text-center text-sm font-bold tracking-wide hover:bg-black/20"
             >
-              Scanner le pass suivant
+              {feedback.variant === 'success' ? 'Terminer' : 'Réessayer'}
             </button>
           )}
         </div>
@@ -413,7 +413,7 @@ export function Pointage() {
               : starting
                 ? 'Démarrage de la caméra…'
                 : paused
-                  ? 'En pause — confirmez ci-dessus pour scanner le pass suivant.'
+                  ? 'Scan pris en compte — voir le résultat ci-dessus.'
                   : 'Présentez le Pass QR de l’élève devant la caméra.'}
           </div>
           {!cameraStopped && !starting && (

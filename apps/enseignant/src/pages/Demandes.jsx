@@ -240,7 +240,7 @@ function ProposalCard({ proposal }) {
         {place ? ` · ${place}` : ''}
       </p>
       {proposal.hourlyRate && (
-        <p className="mt-1 text-sm font-medium text-navy">Tarif proposé : {proposal.hourlyRate} €/h</p>
+        <p className="mt-1 text-sm font-medium text-navy">Tarif proposé : {proposal.hourlyRate} €/h net</p>
       )}
       <p className="mt-2 text-xs text-gray-400">
         Proposé le {formatDate(proposal.createdAt)}

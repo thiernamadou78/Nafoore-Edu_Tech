@@ -99,7 +99,7 @@ export function Remuneration() {
                   {rate.subject && <span className="text-gray-500"> · {rate.subject}</span>}
                 </span>
                 {rate.hourlyRate ? (
-                  <span className="font-medium text-navy">{formatEuros(rate.hourlyRate)}/h</span>
+                  <span className="font-medium text-navy">{formatEuros(rate.hourlyRate)}/h net</span>
                 ) : (
                   <Badge tone="amber">À définir</Badge>
                 )}

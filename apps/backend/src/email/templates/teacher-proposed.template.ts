@@ -45,7 +45,7 @@ export function renderTeacherProposedEmail({
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
                   Vous avez été proposé pour donner des cours de <strong>${escapeHtml(subject)}</strong> à
-                  <strong>${escapeHtml(studentName)}</strong>${hourlyRate ? ` au tarif de <strong>${hourlyRate} €/h</strong>` : ''}. La famille va examiner votre profil et vous
+                  <strong>${escapeHtml(studentName)}</strong>. ${hourlyRate ? `Le cours est fixé à <strong>${hourlyRate} €/h net</strong>. ` : ''}La famille va examiner votre profil et vous
                   recevrez une notification dès qu'elle aura répondu.
                 </p>
               </td>
