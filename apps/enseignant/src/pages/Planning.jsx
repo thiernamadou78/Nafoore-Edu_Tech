@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { PaginationControls } from '../components/ui/PaginationControls'
 import { PlanningCalendar } from '../components/PlanningCalendar'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { Spinner } from '../components/ui/Spinner'
 import { usePagination } from '../lib/usePagination'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from './labels'
@@ -674,6 +675,16 @@ export function Planning() {
   useEffect(() => {
     load()
   }, [])
+
+  // Rafraichissement silencieux (pointage fait ailleurs, changement admin…).
+  useAutoRefresh(() => {
+    Promise.all([api.get('/teacher/sessions'), api.get('/teacher/students')])
+      .then(([s, st]) => {
+        setSessions(s)
+        setStudents(st)
+      })
+      .catch(() => {})
+  })
 
   const handleCancelSession = (id, reason) => {
     setSavingId(id)

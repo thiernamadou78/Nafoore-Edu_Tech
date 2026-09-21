@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarClock, Euro } from 'lucide-react'
 import { api } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { formatDate } from '../lib/format'
 import { Badge } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
@@ -40,6 +41,13 @@ export function Remuneration() {
       .then(setData)
       .catch((err) => setError(err.message))
   }, [])
+
+  useAutoRefresh(() => {
+    api
+      .get('/teacher/payments')
+      .then(setData)
+      .catch(() => {})
+  })
 
   const sessionsPage = usePagination(data?.sessionsThisMonth ?? [], 5)
 

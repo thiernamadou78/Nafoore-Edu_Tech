@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, MapPin, RefreshCw, Send, Sparkles, ThumbsDown } from 'lucide-react'
 import { api } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { formatDate } from '../lib/format'
 import { Alert } from '../components/ui/Alert'
 import { Badge } from '../components/ui/Badge'
@@ -270,6 +271,10 @@ export function Demandes() {
   useEffect(() => {
     Promise.all([loadRequests(), loadProposals(), loadRenewals()]).catch((err) => setError(err.message))
   }, [])
+
+  useAutoRefresh(() => {
+    Promise.all([loadRequests(), loadProposals(), loadRenewals()]).catch(() => {})
+  })
 
   const react = async (requestId, interested) => {
     setSavingId(requestId)

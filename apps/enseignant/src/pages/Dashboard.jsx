@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarClock, FileWarning, Users } from 'lucide-react'
 import { api } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { formatDateTime } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { Badge } from '../components/ui/Badge'
@@ -36,6 +37,13 @@ export function Dashboard() {
       .then(setData)
       .catch((err) => setError(err.message))
   }, [])
+
+  useAutoRefresh(() => {
+    api
+      .get('/teacher/dashboard')
+      .then(setData)
+      .catch(() => {})
+  })
 
   if (error) return <p className="text-red-600">{error}</p>
   if (!data) return <Spinner />
