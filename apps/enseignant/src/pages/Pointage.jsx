@@ -68,14 +68,14 @@ function describeResult(result) {
     if (result.alreadyCheckedIn) {
       return {
         variant: 'success',
-        title: 'Déjà pointé(e)',
-        message: `${name} est déjà pointé(e) à l'arrivée — pas besoin de rescanner tout de suite.`,
+        title: 'Début déjà enregistré',
+        message: `Le début de la séance avec ${name} est déjà enregistré — inutile de rescanner tout de suite.`,
       }
     }
     return {
       variant: 'success',
-      title: 'Arrivée enregistrée',
-      message: `${name} est bien arrivé(e) — bonne séance !`,
+      title: 'Début de séance enregistré',
+      message: `Ton arrivée chez ${name} est enregistrée — bonne séance !`,
     }
   }
   if (result.action === 'checkout') {
@@ -83,7 +83,7 @@ function describeResult(result) {
     return {
       variant: 'success',
       title: 'Séance terminée',
-      message: `${name} — durée : ${formatDuration(result.durationMinutes)}.`,
+      message: `Séance avec ${name} terminée — durée : ${formatDuration(result.durationMinutes)}.`,
     }
   }
   if (result.verificationStatus === 'funding_expired') {
