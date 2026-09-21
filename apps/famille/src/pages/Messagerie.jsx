@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { MessageSquare, Send, SquarePen } from 'lucide-react'
 import { api } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { formatDateTime as formatTime } from '../lib/format'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -35,6 +36,10 @@ export function Messagerie() {
   useEffect(() => {
     load()
   }, [])
+
+  useAutoRefresh(() => {
+    Promise.resolve(load()).catch(() => {})
+  })
 
   const handleSelect = (thread) => {
     setSelectedId(thread.id)

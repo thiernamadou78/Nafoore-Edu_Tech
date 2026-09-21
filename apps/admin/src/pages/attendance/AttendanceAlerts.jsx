@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, CalendarX, FileWarning, RadioTower } from 'lucide-react'
 import { api } from '../../lib/api'
+import { useAutoRefresh } from '../../lib/useAutoRefresh'
 import { formatDateTime } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
@@ -42,6 +43,10 @@ export function AttendanceAlerts() {
   useEffect(() => {
     api.get('/dashboard/attendance-alerts').then(setData).catch((err) => setError(err.message))
   }, [])
+
+  useAutoRefresh(() => {
+    api.get('/dashboard/attendance-alerts').then(setData).catch(() => {})
+  })
 
   if (error) return <Alert>{error}</Alert>
   if (!data) return <p className="text-gray-500">Chargement…</p>

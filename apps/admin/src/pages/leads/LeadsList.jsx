@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Inbox, MapPinOff, Search } from 'lucide-react'
 import { api } from '../../lib/api'
+import { useAutoRefresh } from '../../lib/useAutoRefresh'
 import { formatDate } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Avatar } from '../../components/ui/Avatar'
@@ -32,6 +33,14 @@ export function LeadsList() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [filters])
+
+  useAutoRefresh(() => {
+    const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value))
+    api
+      .get(`/leads${params.toString() ? `?${params}` : ''}`)
+      .then(setLeads)
+      .catch(() => {})
+  })
 
   const visibleLeads = useMemo(() => {
     const term = search.trim().toLowerCase()

@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react'
 import { api } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { Alert } from '../components/ui/Alert'
 import { Badge } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
@@ -54,6 +55,13 @@ export function Dashboard() {
       .then(setSummary)
       .catch((err) => setError(err.message))
   }, [])
+
+  useAutoRefresh(() => {
+    api
+      .get('/dashboard')
+      .then(setSummary)
+      .catch(() => {})
+  })
 
   if (error) return <Alert>{error}</Alert>
   if (!summary) return <p className="text-gray-500">Chargement…</p>

@@ -19,6 +19,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { api } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { formatDateTime } from '../lib/format'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -102,6 +103,13 @@ export function StudentDetail() {
   useEffect(() => {
     load()
   }, [load])
+
+  useAutoRefresh(() => {
+    api
+      .get(`/family/students/${id}`)
+      .then(setStudent)
+      .catch(() => {})
+  })
 
   useEffect(() => {
     // Pas de temps réel : on rafraîchit dès que l'onglet redevient actif, pour

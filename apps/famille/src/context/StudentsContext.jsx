@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { api } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 
 const StudentsContext = createContext(null)
 
@@ -20,6 +21,8 @@ export function StudentsProvider({ children }) {
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  useAutoRefresh(refresh)
 
   useEffect(() => {
     // Pas de temps réel : on rafraîchit dès que l'onglet redevient actif, pour

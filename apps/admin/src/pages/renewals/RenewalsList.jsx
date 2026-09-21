@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Check, RefreshCw, X } from 'lucide-react'
 import { api } from '../../lib/api'
+import { useAutoRefresh } from '../../lib/useAutoRefresh'
 import { formatDate } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
@@ -45,6 +46,13 @@ export function RenewalsList() {
   useEffect(() => {
     load()
   }, [])
+
+  useAutoRefresh(() => {
+    api
+      .get('/renewals')
+      .then(setRenewals)
+      .catch(() => {})
+  })
 
   const run = async (id, fn) => {
     setBusyId(id)

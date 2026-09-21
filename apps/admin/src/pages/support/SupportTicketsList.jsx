@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, LifeBuoy, Loader2, RotateCcw, Send } from 'lucide-react'
 import { api } from '../../lib/api'
+import { useAutoRefresh } from '../../lib/useAutoRefresh'
 import { formatDate, formatDateTime } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
@@ -133,6 +134,13 @@ export function SupportTicketsList() {
   useEffect(() => {
     load()
   }, [])
+
+  useAutoRefresh(() => {
+    api
+      .get('/admin/support-tickets')
+      .then(setTickets)
+      .catch(() => {})
+  })
 
   const selected = tickets?.find((t) => t.id === selectedId) ?? null
 

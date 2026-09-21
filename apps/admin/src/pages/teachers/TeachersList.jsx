@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Contact2, Loader2, Pencil, Plus, Power, Search, Trash2, UserPlus } from 'lucide-react'
 import { api } from '../../lib/api'
+import { useAutoRefresh } from '../../lib/useAutoRefresh'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -55,6 +56,13 @@ export function TeachersList() {
   useEffect(() => {
     load()
   }, [load])
+
+  useAutoRefresh(() => {
+    api
+      .get('/teachers')
+      .then(setTeachers)
+      .catch(() => {})
+  })
 
   const toggleVerified = async (event, teacher) => {
     event.stopPropagation()

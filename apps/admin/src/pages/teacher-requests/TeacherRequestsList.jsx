@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, UserPlus } from 'lucide-react'
 import { api } from '../../lib/api'
+import { useAutoRefresh } from '../../lib/useAutoRefresh'
 import { formatDate } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
@@ -28,6 +29,13 @@ export function TeacherRequestsList() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [status])
+
+  useAutoRefresh(() => {
+    api
+      .get(`/teacher-requests${status ? `?status=${status}` : ''}`)
+      .then(setRequests)
+      .catch(() => {})
+  })
 
   return (
     <div>

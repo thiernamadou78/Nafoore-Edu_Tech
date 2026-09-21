@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MessageSquare } from 'lucide-react'
 import { api } from '../../lib/api'
+import { useAutoRefresh } from '../../lib/useAutoRefresh'
 import { formatDateTime } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
 import { Card } from '../../components/ui/Card'
@@ -18,6 +19,13 @@ export function ConversationsList() {
       .then(setThreads)
       .catch((err) => setError(err.message))
   }, [])
+
+  useAutoRefresh(() => {
+    api
+      .get('/admin/message-threads')
+      .then(setThreads)
+      .catch(() => {})
+  })
 
   return (
     <div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, Pencil, Power, Search, Trash2, UserPlus, Users } from 'lucide-react'
 import { api } from '../../lib/api'
+import { useAutoRefresh } from '../../lib/useAutoRefresh'
 import { Alert } from '../../components/ui/Alert'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
@@ -38,6 +39,14 @@ export function StudentsList() {
   useEffect(() => {
     load()
   }, [load])
+
+  useAutoRefresh(() => {
+    const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value))
+    api
+      .get(`/students${params.toString() ? `?${params}` : ''}`)
+      .then(setStudents)
+      .catch(() => {})
+  })
 
   const visibleStudents = useMemo(() => {
     const term = search.trim().toLowerCase()
