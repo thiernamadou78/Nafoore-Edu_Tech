@@ -1,11 +1,7 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsString, Max, Min } from 'class-validator';
+import { IsNumber, Max, Min } from 'class-validator';
 
-export class ProposeMatchingDto {
-  @IsString()
-  teacherId: string;
-
-  // Tarif horaire (EUR/h) verse au prof pour cet eleve : fixe par l'admin.
+export class SetAssignmentRateDto {
   @Type(() => Number)
   @IsNumber({}, { message: 'Le tarif horaire est obligatoire' })
   @Min(1, { message: 'Le tarif horaire doit être supérieur à 0' })

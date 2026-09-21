@@ -2,6 +2,7 @@ import { salutation } from '../salutation.util';
 
 export interface TeacherProposedEmailInput {
   gender?: string | null;
+  hourlyRate?: number | null;
   teacherName: string;
   studentName: string;
   subject: string;
@@ -10,6 +11,7 @@ export interface TeacherProposedEmailInput {
 
 export function renderTeacherProposedEmail({
   gender,
+  hourlyRate,
   teacherName,
   studentName,
   subject,
@@ -43,7 +45,7 @@ export function renderTeacherProposedEmail({
                 </h1>
                 <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
                   Vous avez été proposé pour donner des cours de <strong>${escapeHtml(subject)}</strong> à
-                  <strong>${escapeHtml(studentName)}</strong>. La famille va examiner votre profil et vous
+                  <strong>${escapeHtml(studentName)}</strong>${hourlyRate ? ` au tarif de <strong>${hourlyRate} €/h</strong>` : ''}. La famille va examiner votre profil et vous
                   recevrez une notification dès qu'elle aura répondu.
                 </p>
               </td>

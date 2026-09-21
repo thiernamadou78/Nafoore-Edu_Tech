@@ -60,10 +60,46 @@ export function Remuneration() {
           <p className="mt-1 text-2xl font-bold text-navy">{formatEuros(data.amountThisMonth)}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs text-gray-500">Taux horaire</p>
-          <p className="mt-1 text-2xl font-bold text-navy">{formatEuros(data.hourlyRate)}/h</p>
+          <p className="text-xs text-gray-500">Séances sans tarif défini</p>
+          <p className="mt-1 text-2xl font-bold text-navy">{data.unpricedSessions}</p>
         </Card>
       </div>
+
+      {data.unpricedSessions > 0 && (
+        <p className="mb-6 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Le tarif de certains élèves n'est pas encore défini : ces séances ne sont pas comptées
+          dans le montant. L'équipe Nafoore le fixera prochainement.
+        </p>
+      )}
+
+      <Card className="mb-6 p-5">
+        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+          <Euro size={16} className="text-gold-500" />
+          Tarifs par élève
+        </h2>
+        {data.rates.length === 0 ? (
+          <p className="text-sm text-gray-500">Aucun élève assigné pour l'instant.</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {data.rates.map((rate) => (
+              <li
+                key={`${rate.studentName}-${rate.subject}`}
+                className="flex items-center justify-between py-2 text-sm"
+              >
+                <span className="text-gray-800">
+                  {rate.studentName}
+                  {rate.subject && <span className="text-gray-500"> · {rate.subject}</span>}
+                </span>
+                {rate.hourlyRate ? (
+                  <span className="font-medium text-navy">{formatEuros(rate.hourlyRate)}/h</span>
+                ) : (
+                  <Badge tone="amber">À définir</Badge>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <Card className="mb-6 p-5">
         <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
@@ -93,7 +129,12 @@ export function Remuneration() {
                       )}
                     </p>
                   </div>
-                  <Badge tone="gold">{formatMinutes(session.durationMinutes)}</Badge>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge tone="gold">{formatMinutes(session.durationMinutes)}</Badge>
+                    <span className="text-xs font-medium text-gray-700">
+                      {session.amount !== null ? `${formatEuros(session.amount)} (${session.hourlyRate} €/h)` : 'Tarif à définir'}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

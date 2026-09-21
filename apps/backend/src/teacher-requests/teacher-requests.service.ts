@@ -28,6 +28,7 @@ const adminMatchingSelect = {
   createdAt: true,
   respondedAt: true,
   refusalReason: true,
+  hourlyRate: true,
   teacher: { select: { id: true, name: true } },
   proposedBy: { select: { id: true, name: true } },
 };
@@ -226,6 +227,7 @@ export class TeacherRequestsService {
         matching.teacherRequest.subject,
         tx,
         periodEnd,
+        matching.hourlyRate,
       );
     });
 
@@ -496,6 +498,7 @@ export class TeacherRequestsService {
           teacherRequestId: requestId,
           teacherId: dto.teacherId,
           proposedById: adminId,
+          hourlyRate: dto.hourlyRate,
         },
       }),
       this.prisma.teacherRequest.update({
@@ -547,6 +550,7 @@ export class TeacherRequestsService {
           subject: `Nafoore Education — Vous avez été proposé pour ${request.student.name}`,
           html: renderTeacherProposedEmail({
             gender: teacher.gender,
+            hourlyRate: dto.hourlyRate,
             teacherName: teacher.name,
             studentName: request.student.name,
             subject: request.subject,
@@ -649,6 +653,7 @@ export class TeacherRequestsService {
         createdAt: true,
         respondedAt: true,
         refusalReason: true,
+        hourlyRate: true,
         teacherRequest: {
           select: {
             subject: true,

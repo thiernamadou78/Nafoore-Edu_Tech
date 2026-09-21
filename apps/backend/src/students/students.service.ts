@@ -13,6 +13,7 @@ import { StudentDocumentsService } from './student-documents.service';
 const teacherSelect = {
   id: true,
   subject: true,
+  hourlyRate: true,
   teacher: { select: { id: true, name: true, subjects: true } },
 };
 
@@ -251,6 +252,17 @@ export class StudentsService {
     });
   }
 
+  async setAssignmentRate(studentId: string, assignmentId: string, hourlyRate: number) {
+    const assignment = await this.prisma.studentTeacher.findFirst({
+      where: { id: assignmentId, studentId },
+    });
+    if (!assignment) {
+      throw new NotFoundException('Accompagnement introuvable');
+    }
+    await this.prisma.studentTeacher.update({ where: { id: assignmentId }, data: { hourlyRate } });
+    return { hourlyRate };
+  }
+
   // Assignation additive et idempotente, distincte de assignTeachers (full-replace
   // admin) — utilisée par le flux de matching famille pour ne pas toucher aux
   // autres enseignants déjà assignés à l'élève.
@@ -261,19 +273,25 @@ export class StudentsService {
     subject: string | null = null,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
     endsAt: Date | null = null,
+    hourlyRate: number | null = null,
   ) {
     const existing = await tx.studentTeacher.findFirst({
       where: { studentId, teacherId, subject },
     });
     if (existing) {
       // Meme prof re-choisi : la nouvelle periode remplace l'ancienne.
-      if (endsAt) {
-        await tx.studentTeacher.update({ where: { id: existing.id }, data: { endsAt } });
+      if (endsAt || hourlyRate) {
+        await tx.studentTeacher.update({
+          where: { id: existing.id },
+          data: { endsAt: endsAt ?? undefined, hourlyRate: hourlyRate ?? undefined },
+        });
       }
       return;
     }
 
-    await tx.studentTeacher.create({ data: { studentId, teacherId, subject, endsAt } });
+    await tx.studentTeacher.create({
+      data: { studentId, teacherId, subject, endsAt, hourlyRate },
+    });
     await tx.studentTeacherHistory.create({
       data: { studentId, teacherId, action: 'assigned', adminAccountId: actorId },
     });

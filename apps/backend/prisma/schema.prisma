@@ -468,6 +468,9 @@ model StudentTeacher {
   // Fin de la periode d'accompagnement (assignedAt + duree demandee), prolongee
   // a chaque renouvellement confirme.
   endsAt     DateTime? @map("ends_at")
+  // Tarif horaire verse au prof pour CET eleve (et cette matiere), fixe par
+  // l'admin : un meme prof peut avoir des tarifs differents selon l'eleve.
+  hourlyRate Float?    @map("hourly_rate")
   renewals   PeriodRenewal[]
 
   @@unique([studentId, teacherId, subject])
@@ -481,6 +484,9 @@ model Session {
   teacherId String?   @map("teacher_id")
   teacher   Teacher?  @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   date      DateTime
+  // Tarif horaire fige a la cloture de la seance : une modification ulterieure
+  // du tarif ne reprix pas les seances deja donnees.
+  hourlyRate Float? @map("hourly_rate")
   durationMinutes Int @default(60) @map("duration_minutes")
   subject   String?
   status    String    @default("planifiee")
@@ -686,6 +692,8 @@ model Matching {
   status           String         @default("proposee")
   // proposee | acceptee | refusee
   refusalReason    String?        @map("refusal_reason")
+  // Tarif horaire propose au prof, reporte sur l'accompagnement a l'acceptation.
+  hourlyRate       Float?         @map("hourly_rate")
   respondedAt      DateTime?      @map("responded_at")
 
   @@index([teacherRequestId])

@@ -231,6 +231,9 @@ function ProposalCard({ proposal }) {
         {FORMAT_LABELS[proposal.format] ?? proposal.format}
         {place ? ` · ${place}` : ''}
       </p>
+      {proposal.hourlyRate && (
+        <p className="mt-1 text-sm font-medium text-navy">Tarif proposé : {proposal.hourlyRate} €/h</p>
+      )}
       <p className="mt-2 text-xs text-gray-400">
         Proposé le {formatDate(proposal.createdAt)}
         {proposal.respondedAt && ` · réponse de la famille le ${formatDate(proposal.respondedAt)}`}

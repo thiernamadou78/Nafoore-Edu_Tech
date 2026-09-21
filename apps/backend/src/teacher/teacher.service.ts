@@ -24,10 +24,6 @@ import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
 import { redactRemovedMessage, countUnread } from '../common/redact-message.util';
 
-// Valeur de démonstration en attendant un vrai taux horaire par matching
-// (cf. décision différée sur StudentTeacher.hourlyRate).
-const DEMO_HOURLY_RATE = 22;
-
 @Injectable()
 export class TeacherService {
   private readonly logger = new Logger(TeacherService.name);
@@ -453,9 +449,17 @@ export class TeacherService {
       );
     }
 
+    // Le tarif est fige a la cloture : une revision ulterieure ne reprix pas
+    // une seance deja donnee.
+    let closingRate: number | undefined;
+    if (dto.status === 'realisee' && session.hourlyRate === null) {
+      closingRate = (await this.findAssignmentRate(session.studentId, session.teacherId as string, session.subject)) ?? undefined;
+    }
+
     const updated = await this.prisma.session.update({
       where: { id: sessionId },
       data: {
+        hourlyRate: closingRate,
         date: dto.date ? new Date(dto.date) : undefined,
         durationMinutes: dto.durationMinutes,
         status: dto.status,
@@ -554,22 +558,33 @@ export class TeacherService {
     };
   }
 
+  // Tarif de l'accompagnement (eleve + matiere), a defaut celui de l'eleve avec
+  // ce prof toutes matieres confondues.
+  private async findAssignmentRate(
+    studentId: string,
+    teacherId: string,
+    subject: string | null,
+  ): Promise<number | null> {
+    const exact = subject
+      ? await this.prisma.studentTeacher.findFirst({ where: { studentId, teacherId, subject } })
+      : null;
+    if (exact?.hourlyRate) return exact.hourlyRate;
+    const any = await this.prisma.studentTeacher.findFirst({
+      where: { studentId, teacherId, hourlyRate: { not: null } },
+    });
+    return any?.hourlyRate ?? null;
+  }
+
   async getPayments(teacherAccount: AuthenticatedTeacherAccount) {
     if (!teacherAccount.teacherId) {
-      return {
-        minutesThisMonth: 0,
-        amountThisMonth: 0,
-        hourlyRate: DEMO_HOURLY_RATE,
-        sessionsThisMonth: [],
-        history: [],
-      };
+      return { minutesThisMonth: 0, amountThisMonth: 0, unpricedSessions: 0, rates: [], sessionsThisMonth: [], history: [] };
     }
     const teacherId = teacherAccount.teacherId;
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const [sessionsThisMonth, history] = await Promise.all([
+    const [sessionsThisMonth, history, assignments] = await Promise.all([
       this.prisma.session.findMany({
         // Un compte-rendu seul (sans pointage QR/manuel) ne prouve pas une
         // durée réelle : seules les séances avec un pointage clôturé comptent
@@ -595,21 +610,42 @@ export class TeacherService {
         where: { teacherId },
         orderBy: { createdAt: 'desc' },
       }),
+      this.prisma.studentTeacher.findMany({
+        where: { teacherId },
+        select: { studentId: true, subject: true, hourlyRate: true, student: { select: { name: true } } },
+        orderBy: { assignedAt: 'desc' },
+      }),
     ]);
 
-    const minutesThisMonth = sessionsThisMonth.reduce((sum, s) => sum + s.durationMinutes, 0);
-    const hoursThisMonth = minutesThisMonth / 60;
+    // Tarif d'une seance : celui fige a la cloture, sinon le tarif actuel de
+    // l'accompagnement (eleve + matiere, puis eleve seul).
+    const liveRate = (studentId: string, subject: string | null) =>
+      assignments.find((a) => a.studentId === studentId && a.subject === subject && a.hourlyRate)?.hourlyRate ??
+      assignments.find((a) => a.studentId === studentId && a.hourlyRate)?.hourlyRate ??
+      null;
 
-    return {
-      minutesThisMonth,
-      amountThisMonth: Math.round(hoursThisMonth * DEMO_HOURLY_RATE * 100) / 100,
-      hourlyRate: DEMO_HOURLY_RATE,
-      sessionsThisMonth: sessionsThisMonth.map(({ student, attendanceLogs, ...session }) => ({
+    const sessions = sessionsThisMonth.map(({ student, attendanceLogs, ...session }) => {
+      const hourlyRate = session.hourlyRate ?? liveRate(session.studentId, session.subject);
+      return {
         ...session,
         studentName: student.name,
+        hourlyRate,
+        amount: hourlyRate ? Math.round((session.durationMinutes / 60) * hourlyRate * 100) / 100 : null,
         checkinAt: attendanceLogs[0]?.checkinAt ?? null,
         checkoutAt: attendanceLogs[0]?.checkoutAt ?? null,
+      };
+    });
+
+    return {
+      minutesThisMonth: sessions.reduce((sum, s) => sum + s.durationMinutes, 0),
+      amountThisMonth: Math.round(sessions.reduce((sum, s) => sum + (s.amount ?? 0), 0) * 100) / 100,
+      unpricedSessions: sessions.filter((s) => s.hourlyRate === null).length,
+      rates: assignments.map((a) => ({
+        studentName: a.student.name,
+        subject: a.subject,
+        hourlyRate: a.hourlyRate,
       })),
+      sessionsThisMonth: sessions,
       history,
     };
   }

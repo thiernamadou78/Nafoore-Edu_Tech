@@ -23,6 +23,7 @@ import { AssignTeachersDto } from './dto/assign-teachers.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { ListStudentsQueryDto } from './dto/list-students-query.dto';
 import { SetActiveStudentDto } from './dto/set-active-student.dto';
+import { SetAssignmentRateDto } from './dto/set-assignment-rate.dto';
 import { UpdatePassStatusDto } from './dto/update-pass-status.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { StudentsService } from './students.service';
@@ -72,6 +73,15 @@ export class StudentsController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
     return this.studentsService.assignTeachers(id, dto, admin.id);
+  }
+
+  @Patch(':id/teachers/:assignmentId/rate')
+  setAssignmentRate(
+    @Param('id') id: string,
+    @Param('assignmentId') assignmentId: string,
+    @Body() dto: SetAssignmentRateDto,
+  ) {
+    return this.studentsService.setAssignmentRate(id, assignmentId, dto.hourlyRate);
   }
 
   @Post(':id/photo')

@@ -25,6 +25,8 @@ export function TeacherRequestDetail() {
   const [teachers, setTeachers] = useState([])
   const [error, setError] = useState(null)
   const [proposingId, setProposingId] = useState(null)
+  // Tarif horaire saisi par l'admin pour chaque prof avant de le proposer.
+  const [rates, setRates] = useState({})
 
   const load = () => api.get(`/teacher-requests/${id}`).then(setRequest)
 
@@ -41,7 +43,10 @@ export function TeacherRequestDetail() {
     setProposingId(teacherId)
     setError(null)
     try {
-      await api.post(`/teacher-requests/${id}/matchings`, { teacherId })
+      await api.post(`/teacher-requests/${id}/matchings`, {
+        teacherId,
+        hourlyRate: Number(String(rates[teacherId]).replace(',', '.')),
+      })
       await load()
     } catch (err) {
       setError(err.message)
@@ -173,16 +178,32 @@ export function TeacherRequestDetail() {
                   {alreadyProposed ? (
                     <Badge tone="gray">Déjà proposé</Badge>
                   ) : (
-                    <Button
-                      variant="secondary"
-                      icon={Send}
-                      loading={proposingId === teacher.id}
-                      disabled={!canPropose || proposingId !== null}
-                      onClick={() => proposeMatching(teacher.id)}
-                      className="shrink-0 px-3 py-1.5 text-xs"
-                    >
-                      Proposer
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min="1"
+                          step="0.5"
+                          inputMode="decimal"
+                          value={rates[teacher.id] ?? ''}
+                          onChange={(e) => setRates((r) => ({ ...r, [teacher.id]: e.target.value }))}
+                          placeholder="Tarif"
+                          aria-label={`Tarif horaire pour ${teacher.name}`}
+                          className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
+                        />
+                        <span className="text-xs text-gray-500">€/h</span>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        icon={Send}
+                        loading={proposingId === teacher.id}
+                        disabled={!canPropose || proposingId !== null || !(Number(rates[teacher.id]) > 0)}
+                        onClick={() => proposeMatching(teacher.id)}
+                        className="px-3 py-1.5 text-xs"
+                      >
+                        Proposer
+                      </Button>
+                    </div>
                   )}
                 </li>
               )
@@ -204,6 +225,7 @@ export function TeacherRequestDetail() {
                   <p className="text-xs text-gray-400">
                     Proposé par {matching.proposedBy.name} le{' '}
                     {formatDate(matching.createdAt)}
+                    {matching.hourlyRate ? ` · tarif ${matching.hourlyRate} €/h` : ''}
                     {matching.respondedAt &&
                       ` · répondu le ${formatDate(matching.respondedAt)}`}
                   </p>

@@ -177,6 +177,80 @@ function SessionRow({ session, onSave }) {
   )
 }
 
+// Tarif horaire verse au prof pour cet eleve : un meme prof peut avoir des
+// tarifs differents selon l'eleve (et la matiere), fixes ici par l'admin.
+function TeacherRatesCard({ studentId, assignments, onSaved }) {
+  const [values, setValues] = useState({})
+  const [savingId, setSavingId] = useState(null)
+  const [error, setError] = useState(null)
+
+  const rated = assignments.filter((row) => row.teacher)
+  if (rated.length === 0) return null
+
+  const save = async (row) => {
+    setSavingId(row.id)
+    setError(null)
+    try {
+      await api.patch(`/students/${studentId}/teachers/${row.id}/rate`, {
+        hourlyRate: Number(String(values[row.id]).replace(',', '.')),
+      })
+      setValues((v) => ({ ...v, [row.id]: undefined }))
+      await onSaved()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  return (
+    <Card className="p-6">
+      <h2 className="mb-1 font-semibold text-gray-900">Tarifs horaires des enseignants</h2>
+      <p className="mb-3 text-xs text-gray-500">
+        Montant versé à l'enseignant par heure de cours pour cet élève. Le tarif s'applique aux
+        prochaines séances clôturées ; celles déjà clôturées gardent leur tarif.
+      </p>
+      {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+      <ul className="divide-y divide-gray-100">
+        {rated.map((row) => {
+          const current = values[row.id] ?? (row.hourlyRate ?? '')
+          const changed = values[row.id] !== undefined && Number(values[row.id]) !== row.hourlyRate
+          return (
+            <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-sm">
+              <div>
+                <p className="font-medium text-gray-800">{row.teacher.name}</p>
+                <p className="text-xs text-gray-500">{row.subject ?? 'Toutes matières'}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {!row.hourlyRate && <Badge tone="amber">À définir</Badge>}
+                <input
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  inputMode="decimal"
+                  value={current}
+                  onChange={(e) => setValues((v) => ({ ...v, [row.id]: e.target.value }))}
+                  className="w-24 rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
+                />
+                <span className="text-xs text-gray-500">€/h</span>
+                <Button
+                  variant="secondary"
+                  loading={savingId === row.id}
+                  disabled={!changed || !(Number(values[row.id]) > 0)}
+                  onClick={() => save(row)}
+                  className="px-3 py-1.5 text-xs"
+                >
+                  Enregistrer
+                </Button>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </Card>
+  )
+}
+
 function SessionsByStatusBoard({ sessions, onSave }) {
   const realisees = sessions.filter((s) => s.status === 'realisee')
   const rejetees = sessions.filter((s) => s.status === 'annulee')
@@ -579,6 +653,7 @@ export function StudentDetail() {
 
           {tab === 'enseignants' && (
             <div className="space-y-6">
+              <TeacherRatesCard studentId={id} assignments={student.teachers} onSaved={load} />
               <Card className="p-6">
                 <h2 className="mb-1 font-semibold text-gray-900">Enseignant(s) assigné(s)</h2>
                 <p className="mb-3 text-xs text-gray-500">
