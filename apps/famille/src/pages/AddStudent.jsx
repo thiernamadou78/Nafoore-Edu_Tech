@@ -36,6 +36,7 @@ const DEFAULT_FORM = {
   school: '',
   address: '',
   postalCode: '',
+  city: '',
   dateNaissance: '',
   subjects: [],
 }
@@ -67,11 +68,12 @@ export function AddStudent() {
     api
       .get('/family/me')
       .then((me) => {
-        if (me.address || me.postalCode) {
+        if (me.address || me.postalCode || me.city) {
           setForm((f) => ({
             ...f,
             address: f.address || me.address || '',
             postalCode: f.postalCode || me.postalCode || '',
+            city: f.city || me.city || '',
           }))
         }
       })
@@ -115,6 +117,7 @@ export function AddStudent() {
         school: form.school,
         address: form.address,
         postalCode: form.postalCode,
+        city: form.city,
         dateNaissance: form.dateNaissance || undefined,
         subjects: form.subjects,
       })
@@ -268,6 +271,18 @@ export function AddStudent() {
               required
               value={form.school}
               onChange={(e) => setForm({ ...form, school: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Ville / Commune</label>
+            <input
+              type="text"
+              required
+              minLength={2}
+              value={form.city}
+              onChange={(e) => setForm({ ...form, city: e.target.value })}
               className={inputClass}
             />
           </div>

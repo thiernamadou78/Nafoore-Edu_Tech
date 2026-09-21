@@ -81,6 +81,14 @@ export class GeocodingService {
     }
   }
 
+  // "94550 Chevilly-Larue" : ce que l'on montre a la place de l'adresse
+  // complete. La ville saisie prime, sinon on la retrouve via le code postal.
+  async locationLabel(postalCode?: string | null, city?: string | null): Promise<string | null> {
+    const resolvedCity = city?.trim() || (await this.cityForPostalCode(postalCode));
+    const label = [postalCode?.trim(), resolvedCity].filter(Boolean).join(' ');
+    return label || null;
+  }
+
   private async throttle() {
     const elapsed = Date.now() - this.lastRequestAt;
     if (elapsed < MIN_INTERVAL_MS) {

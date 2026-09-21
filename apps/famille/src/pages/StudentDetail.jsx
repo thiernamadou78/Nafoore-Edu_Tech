@@ -559,8 +559,8 @@ function MatchingProposalCard({ matching, onChanged }) {
         </div>
       </div>
       {teacher.bio && <p className="mt-2 text-xs text-gray-600">{teacher.bio}</p>}
-      {teacher.address && (
-        <p className="mt-1 text-xs text-gray-400">Adresse : {teacher.address}</p>
+      {teacher.location && (
+        <p className="mt-1 text-xs text-gray-400">Secteur : {teacher.location}</p>
       )}
 
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}

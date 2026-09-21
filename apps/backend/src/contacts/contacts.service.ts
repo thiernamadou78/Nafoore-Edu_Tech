@@ -27,6 +27,7 @@ export class ContactsService {
         phone: dto.phone,
         message: dto.message,
         services: dto.services,
+        city: dto.city.trim(),
         address: dto.address ?? null,
         postalCode: dto.postalCode ?? null,
         desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : null,

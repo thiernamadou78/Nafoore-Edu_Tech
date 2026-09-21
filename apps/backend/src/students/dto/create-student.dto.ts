@@ -43,6 +43,11 @@ export class CreateStudentDto {
   postalCode?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
+
+  @IsOptional()
   @IsDateString()
   @IsPlausibleBirthDate()
   dateNaissance?: string;

@@ -39,7 +39,7 @@ export class FamilyService {
     // modifiables si l'enfant vit ailleurs).
     const lead = await this.prisma.lead.findUnique({
       where: { id: portalAccount.leadId },
-      select: { address: true, postalCode: true },
+      select: { address: true, postalCode: true, city: true },
     });
     return {
       id: portalAccount.id,
@@ -51,6 +51,7 @@ export class FamilyService {
       status: portalAccount.status,
       address: lead?.address ?? null,
       postalCode: lead?.postalCode ?? null,
+      city: lead?.city ?? null,
     };
   }
 
@@ -78,6 +79,7 @@ export class FamilyService {
         school: dto.school,
         address: dto.address,
         postalCode: dto.postalCode,
+        city: dto.city,
         dateNaissance: dto.dateNaissance ? new Date(dto.dateNaissance) : undefined,
         subjects: dto.subjects ?? [],
         parentLeadId: portalAccount.leadId,
@@ -104,6 +106,7 @@ export class FamilyService {
         school: dto.school,
         address: dto.address,
         postalCode: dto.postalCode,
+        city: dto.city,
         dateNaissance: dto.dateNaissance ? new Date(dto.dateNaissance) : undefined,
         subjects: dto.subjects,
       },
@@ -223,6 +226,7 @@ export class FamilyService {
         school: true,
         address: true,
         postalCode: true,
+        city: true,
         dateNaissance: true,
         subjects: true,
         photoPath: true,
@@ -312,7 +316,7 @@ export class FamilyService {
                     name: true,
                     subjects: true,
                     bio: true,
-                    address: true,
+                    postalCode: true,
                     verified: true,
                     photoPath: true,
                   },
@@ -337,14 +341,25 @@ export class FamilyService {
       request.matchings.map((matching) => matching.teacher.photoPath),
     );
     const teacherPhotoUrls = await this.photos.signUrls(teacherPhotoPaths);
+    const locations = new Map<string, string | null>();
+    for (const request of rest.teacherRequests) {
+      for (const matching of request.matchings) {
+        const code = matching.teacher.postalCode ?? '';
+        if (code && !locations.has(code)) {
+          locations.set(code, await this.geocoding.locationLabel(code));
+        }
+      }
+    }
     const teacherRequests = rest.teacherRequests.map((request) => ({
       ...request,
       matchings: request.matchings.map((matching) => {
-        const { photoPath: teacherPhotoPath, ...teacherRest } = matching.teacher;
+        const { photoPath: teacherPhotoPath, postalCode: teacherPostalCode, ...teacherRest } =
+          matching.teacher;
         return {
           ...matching,
           teacher: {
             ...teacherRest,
+            location: teacherPostalCode ? (locations.get(teacherPostalCode) ?? null) : null,
             photoUrl: teacherPhotoPath
               ? (teacherPhotoUrls.get(teacherPhotoPath) ?? null)
               : null,

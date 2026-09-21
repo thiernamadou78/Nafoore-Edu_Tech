@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Length,
   Matches,
   MaxLength,
   MinLength,
@@ -46,6 +47,9 @@ export class CreateFamilyStudentDto {
   @IsString()
   @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
   postalCode: string;
+
+  @Length(2, 100, { message: 'La ville / commune est obligatoire' })
+  city: string;
 
   @IsOptional()
   @IsDateString()

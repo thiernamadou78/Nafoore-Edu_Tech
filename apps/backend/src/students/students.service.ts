@@ -128,6 +128,7 @@ export class StudentsService {
         school: dto.school,
         address: dto.address,
         postalCode: dto.postalCode,
+        city: dto.city,
         dateNaissance: dto.dateNaissance ? new Date(dto.dateNaissance) : undefined,
         subjects: dto.subjects ?? [],
         objectives: dto.objectives,

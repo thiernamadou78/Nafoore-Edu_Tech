@@ -40,6 +40,7 @@ export default function ContactForm() {
     phone: '',
     message: '',
     services: [],
+    city: '',
     address: '',
     postalCode: '',
     desiredStartDate: '',
@@ -114,6 +115,7 @@ export default function ContactForm() {
         phone: '',
         message: '',
         services: [],
+        city: '',
         address: '',
         postalCode: '',
         desiredStartDate: '',
@@ -306,6 +308,23 @@ export default function ContactForm() {
                   <p className="mt-1.5 font-sans text-[11px] text-gray-400">
                     Plusieurs choix possibles — par exemple si vous avez plusieurs enfants avec des besoins différents.
                   </p>
+                </div>
+
+                {/* Ville / commune (tous les profils) */}
+                <div className="mb-4">
+                  <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Ville / Commune <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    name="city"
+                    value={form.city}
+                    onChange={handleChange}
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    placeholder="Ex : Chevilly-Larue"
+                    className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
+                  />
                 </div>
 
                 {/* Adresse + code postal (famille) : indispensable pour proposer un enseignant proche du domicile */}

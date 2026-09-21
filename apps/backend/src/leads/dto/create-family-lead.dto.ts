@@ -1,4 +1,4 @@
-import { ArrayMinSize, IsArray, IsEmail, IsIn, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { ArrayMinSize, IsArray, IsEmail, IsIn, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
 import { CONTACT_SERVICES } from '../../contacts/dto/create-contact.dto';
 import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
@@ -41,4 +41,7 @@ export class CreateFamilyLeadDto {
   @IsString()
   @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
   postalCode: string;
+
+  @Length(2, 100, { message: 'La ville / commune est obligatoire' })
+  city: string;
 }

@@ -7,6 +7,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Length,
   Matches,
   Max,
   Min,
@@ -60,6 +61,10 @@ export class CreateContactDto {
   @ArrayMinSize(1, { message: 'Choisissez au moins un service' })
   @IsIn(CONTACT_SERVICES, { each: true, message: 'Service invalide' })
   services: string[];
+
+  // Ville / commune : obligatoire pour tous les profils.
+  @Length(2, 100, { message: 'La ville / commune est obligatoire' })
+  city: string;
 
   // Obligatoire pour les familles (permet de proposer un enseignant proche
   // geographiquement) ; sans objet pour les autres profils (mairie,

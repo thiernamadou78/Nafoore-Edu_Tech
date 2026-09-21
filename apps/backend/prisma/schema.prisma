@@ -27,6 +27,9 @@ model Lead {
   address          String?
   // Ameliore la precision du geocodage (voir GeocodingService.geocode).
   postalCode       String?       @map("postal_code")
+  // Ville / commune : seule la ville et le code postal sont communiques aux
+  // enseignants lors d'une proposition, jamais l'adresse complete.
+  city             String?
   // Geocodees automatiquement (best-effort) a partir de `address` — servent
   // au pin "famille" sur la carte du tableau de bord admin.
   latitude         Float?
@@ -94,6 +97,7 @@ model Student {
   address        String?
   // Ameliore la precision du geocodage (voir GeocodingService.geocode).
   postalCode     String?           @map("postal_code")
+  city           String?
   // Geocodees automatiquement (best-effort) a partir de `address` — servent
   // au pin "élève" sur la carte du tableau de bord admin.
   latitude       Float?

@@ -50,6 +50,12 @@ export class UpdateFamilyStudentDto {
   postalCode?: string;
 
   @IsOptional()
+  @IsString()
+  @MinLength(2, { message: 'La ville / commune est trop courte' })
+  @MaxLength(100)
+  city?: string;
+
+  @IsOptional()
   @IsDateString()
   @IsPlausibleBirthDate()
   dateNaissance?: string;

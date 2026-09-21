@@ -24,6 +24,7 @@ const DEFAULT_FORM = {
   email: '',
   phone: '',
   services: [],
+  city: '',
   address: '',
   postalCode: '',
   message: '',
@@ -62,6 +63,7 @@ export function CreateFamily() {
         email: form.email,
         phone: form.phone,
         services: form.services,
+        city: form.city,
         address: form.address,
         postalCode: form.postalCode,
         message: form.message,
@@ -69,6 +71,7 @@ export function CreateFamily() {
       const params = new URLSearchParams({ leadId: lead.id, familyName: form.name })
       if (form.address) params.set('address', form.address)
       if (form.postalCode) params.set('postalCode', form.postalCode)
+      if (form.city) params.set('city', form.city)
       navigate(`/leads/nouvelle/enfants?${params.toString()}`)
     } catch (err) {
       setError(err.message)
@@ -175,6 +178,19 @@ export function CreateFamily() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Ville / Commune</label>
+            <input
+              type="text"
+              required
+              minLength={2}
+              value={form.city}
+              onChange={(e) => setForm({ ...form, city: e.target.value })}
+              placeholder="Ex : Chevilly-Larue"
+              className={inputClass}
+            />
           </div>
 
           <div className="grid grid-cols-[1fr_130px] gap-3">

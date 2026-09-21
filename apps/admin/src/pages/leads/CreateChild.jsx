@@ -18,6 +18,7 @@ const DEFAULT_FORM = {
   school: '',
   address: '',
   postalCode: '',
+  city: '',
   dateNaissance: '',
 }
 
@@ -31,6 +32,7 @@ export function CreateChild() {
   // qui sert a proposer un enseignant proche geographiquement.
   const leadAddress = searchParams.get('address') ?? ''
   const leadPostalCode = searchParams.get('postalCode') ?? ''
+  const leadCity = searchParams.get('city') ?? ''
 
   const formRef = useRef(null)
   const photoInputRef = useRef(null)
@@ -38,6 +40,7 @@ export function CreateChild() {
     ...DEFAULT_FORM,
     address: leadAddress,
     postalCode: leadPostalCode,
+    city: leadCity,
   })
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
@@ -83,6 +86,7 @@ export function CreateChild() {
         school: form.school,
         address: form.address || undefined,
         postalCode: form.postalCode || undefined,
+        city: form.city || undefined,
         dateNaissance: form.dateNaissance || undefined,
         parentLeadId: leadId,
       })
@@ -115,7 +119,7 @@ export function CreateChild() {
     const ok = await submitChild()
     if (ok) {
       setAddedCount((count) => count + 1)
-      setForm({ ...DEFAULT_FORM, address: leadAddress, postalCode: leadPostalCode })
+      setForm({ ...DEFAULT_FORM, address: leadAddress, postalCode: leadPostalCode, city: leadCity })
       resetPhoto()
     }
   }

@@ -481,7 +481,7 @@ export class TeacherRequestsService {
         gender: true,
         subjects: true,
         bio: true,
-        address: true,
+        postalCode: true,
         verified: true,
         account: { select: { email: true } },
       },
@@ -519,7 +519,7 @@ export class TeacherRequestsService {
             teacherName: teacher.name,
             teacherSubjects: teacher.subjects,
             teacherBio: teacher.bio,
-            teacherAddress: teacher.address,
+            teacherAddress: await this.geocoding.locationLabel(teacher.postalCode),
             teacherVerified: teacher.verified,
             portalUrl: `${resolvePortalUrl('famille')}/eleves/${request.studentId}`,
           }),
@@ -595,7 +595,7 @@ export class TeacherRequestsService {
         desiredStartDate: true,
         // Volontairement ni adresse complete ni nom de l'eleve : seulement
         // classe, code postal et ville.
-        student: { select: { level: true, classe: true, postalCode: true } },
+        student: { select: { level: true, classe: true, postalCode: true, city: true } },
         interests: { where: { teacherId }, select: { interested: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -607,7 +607,7 @@ export class TeacherRequestsService {
         level: student.level,
         classe: student.classe,
         postalCode: student.postalCode,
-        city: await this.geocoding.cityForPostalCode(student.postalCode),
+        city: student.city ?? (await this.geocoding.cityForPostalCode(student.postalCode)),
         reaction: interests.length === 0 ? null : interests[0].interested ? 'interested' : 'declined',
       })),
     );

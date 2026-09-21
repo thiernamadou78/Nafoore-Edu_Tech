@@ -60,6 +60,7 @@ export function EditStudent() {
           school: student.school ?? '',
           address: student.address ?? '',
           postalCode: student.postalCode ?? '',
+          city: student.city ?? '',
           dateNaissance: student.dateNaissance ? student.dateNaissance.slice(0, 10) : '',
           subjects: student.subjects ?? [],
         })
@@ -109,6 +110,7 @@ export function EditStudent() {
         school: form.school,
         address: form.address,
         postalCode: form.postalCode,
+        city: form.city,
         dateNaissance: form.dateNaissance || undefined,
         subjects: form.subjects,
       })
@@ -261,6 +263,18 @@ export function EditStudent() {
               required
               value={form.school}
               onChange={(e) => setForm({ ...form, school: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Ville / Commune</label>
+            <input
+              type="text"
+              required
+              minLength={2}
+              value={form.city}
+              onChange={(e) => setForm({ ...form, city: e.target.value })}
               className={inputClass}
             />
           </div>

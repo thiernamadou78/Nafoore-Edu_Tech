@@ -33,6 +33,7 @@ export class LeadsService {
         services: dto.services,
         address: dto.address ?? null,
         postalCode: dto.postalCode ?? null,
+        city: dto.city,
         status: 'valide',
       },
     });
