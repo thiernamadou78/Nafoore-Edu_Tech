@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { PaginationControls } from '../components/ui/PaginationControls'
 import { PlanningCalendar } from '../components/PlanningCalendar'
+import { SessionReport, StarInput } from '../components/SessionReport'
 import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { Spinner } from '../components/ui/Spinner'
 import { usePagination } from '../lib/usePagination'
@@ -44,7 +45,14 @@ function formatTimeRange(date, durationMinutes) {
 function ReportForm({ session, onCancel, onSave, saving, notice }) {
   const blocked = session.baselineMissing
   const [attended, setAttended] = useState(session.attended ?? true)
-  const [notes, setNotes] = useState(session.notes ?? '')
+  const [chapter, setChapter] = useState(session.chapter ?? '')
+  const [topics, setTopics] = useState(session.topics ?? '')
+  const [understanding, setUnderstanding] = useState(session.understanding ?? null)
+  const [participation, setParticipation] = useState(session.participation ?? null)
+  const [difficulties, setDifficulties] = useState(session.difficulties ?? '')
+  const [homework, setHomework] = useState(session.homework ?? '')
+
+  const complete = chapter.trim() && topics.trim() && understanding && participation
 
   return (
     <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
@@ -58,6 +66,15 @@ function ReportForm({ session, onCancel, onSave, saving, notice }) {
           .
         </p>
       )}
+      {session.notes && !session.chapter && !session.topics && (
+        <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          Ancien compte-rendu : {session.notes}
+        </p>
+      )}
+      <p className="text-sm text-gray-700">
+        <span className="text-gray-500">Matière : </span>
+        <span className="font-medium">{session.subject ?? '—'}</span>
+      </p>
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input
           type="checkbox"
@@ -67,14 +84,53 @@ function ReportForm({ session, onCancel, onSave, saving, notice }) {
         />
         Élève présent
       </label>
-      <textarea
-        required
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        rows={3}
-        placeholder="Ce qui a été travaillé, points à retravailler… (obligatoire pour clôturer la séance)"
-        className={`${inputClass} resize-none`}
-      />
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-500">
+          Chapitre <span className="text-red-500">*</span>
+        </label>
+        <input
+          value={chapter}
+          onChange={(e) => setChapter(e.target.value)}
+          maxLength={200}
+          placeholder="Ex : Fonctions"
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-500">
+          Notions abordées <span className="text-red-500">*</span>
+        </label>
+        <textarea
+          value={topics}
+          onChange={(e) => setTopics(e.target.value)}
+          rows={2}
+          maxLength={1000}
+          placeholder="Ex : dérivation"
+          className={`${inputClass} resize-none`}
+        />
+      </div>
+      <StarInput label="Compréhension *" value={understanding} onChange={setUnderstanding} />
+      <StarInput label="Participation *" value={participation} onChange={setParticipation} />
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-500">Difficultés constatées</label>
+        <textarea
+          value={difficulties}
+          onChange={(e) => setDifficulties(e.target.value)}
+          rows={2}
+          maxLength={1000}
+          className={`${inputClass} resize-none`}
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-500">Travail recommandé</label>
+        <textarea
+          value={homework}
+          onChange={(e) => setHomework(e.target.value)}
+          rows={2}
+          maxLength={1000}
+          className={`${inputClass} resize-none`}
+        />
+      </div>
       {notice && (
         <p
           className={`rounded-lg px-3 py-2 text-sm ${
@@ -92,8 +148,19 @@ function ReportForm({ session, onCancel, onSave, saving, notice }) {
       <div className="flex gap-2">
         <Button
           loading={saving}
-          disabled={!notes.trim()}
-          onClick={() => onSave({ attended, notes, status: 'realisee' })}
+          disabled={!complete}
+          onClick={() =>
+            onSave({
+              attended,
+              chapter: chapter.trim(),
+              topics: topics.trim(),
+              understanding,
+              participation,
+              difficulties: difficulties.trim(),
+              homework: homework.trim(),
+              status: 'realisee',
+            })
+          }
         >
           Enregistrer
         </Button>
@@ -301,7 +368,7 @@ function SessionRow({
             )}
             {session.attended ? 'Élève présent' : 'Élève absent'}
           </p>
-          {session.notes && <p className="text-gray-600">{session.notes}</p>}
+          <SessionReport session={session} />
         </div>
       )}
 

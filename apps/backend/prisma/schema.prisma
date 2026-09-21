@@ -497,6 +497,15 @@ model Session {
   status    String    @default("planifiee")
   // planifiee | confirmee | realisee | annulee | reportee
   attended  Boolean?
+  // Compte-rendu structure (= le bilan de la seance). `notes` en garde un
+  // resume texte compose a partir de ces champs (et les anciens comptes-rendus
+  // libres y restent tels quels).
+  chapter       String?
+  topics        String?
+  understanding Int?
+  participation Int?
+  difficulties  String?
+  homework      String?
   notes     String?
   cancellationReason String? @map("cancellation_reason")
   createdAt DateTime  @default(now()) @map("created_at")

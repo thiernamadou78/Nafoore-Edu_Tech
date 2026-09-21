@@ -27,6 +27,31 @@ import { RecurringScheduleService } from './recurring-schedule.service';
 import { AvailabilityService } from './availability.service';
 import { SessionNotifierService } from '../email/session-notifier.service';
 
+interface SessionReport {
+  chapter: string | null;
+  topics: string | null;
+  understanding: number | null;
+  participation: number | null;
+  difficulties: string | null;
+  homework: string | null;
+}
+
+// Resume texte du compte-rendu structure : garde `notes` renseigne (les
+// controles existants, l'affichage historique et les emails s'appuient dessus).
+function composeReportNotes(subject: string | null, r: SessionReport): string {
+  return [
+    subject ? `Matière : ${subject}` : null,
+    r.chapter ? `Chapitre : ${r.chapter}` : null,
+    r.topics ? `Notions abordées : ${r.topics}` : null,
+    r.understanding ? `Compréhension : ${r.understanding}/5` : null,
+    r.participation ? `Participation : ${r.participation}/5` : null,
+    r.difficulties ? `Difficultés constatées : ${r.difficulties}` : null,
+    r.homework ? `Travail recommandé : ${r.homework}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 @Injectable()
 export class TeacherService {
   private readonly logger = new Logger(TeacherService.name);
@@ -492,11 +517,37 @@ export class TeacherService {
       throw new BadRequestException("Un motif d'annulation est requis");
     }
 
+    // Compte-rendu structure : les champs non fournis gardent leur valeur
+    // actuelle (brouillon deja enregistre).
+    const report: SessionReport = {
+      chapter: dto.chapter?.trim() || (dto.chapter === undefined ? session.chapter : null),
+      topics: dto.topics?.trim() || (dto.topics === undefined ? session.topics : null),
+      understanding: dto.understanding ?? session.understanding,
+      participation: dto.participation ?? session.participation,
+      difficulties:
+        dto.difficulties?.trim() || (dto.difficulties === undefined ? session.difficulties : null),
+      homework: dto.homework?.trim() || (dto.homework === undefined ? session.homework : null),
+    };
+    const touchesReport = [
+      dto.chapter,
+      dto.topics,
+      dto.understanding,
+      dto.participation,
+      dto.difficulties,
+      dto.homework,
+    ].some((value) => value !== undefined);
+    const composedNotes = touchesReport ? composeReportNotes(session.subject, report) : dto.notes;
+
     // Le pointage (QR ou manuel) clôture la présence mais jamais la séance
-    // elle-même : sans compte-rendu, une intervention pointée resterait
-    // "réalisée" sans jamais avoir été documentée.
-    if (dto.status === 'realisee' && !dto.notes?.trim()) {
-      throw new BadRequestException('Un compte-rendu est requis pour clôturer une séance');
+    // elle-même : sans compte-rendu complet, une intervention pointée
+    // resterait "réalisée" sans jamais avoir été documentée.
+    if (
+      dto.status === 'realisee' &&
+      !(report.chapter && report.topics && report.understanding && report.participation)
+    ) {
+      throw new BadRequestException(
+        'Compte-rendu incomplet : chapitre, notions abordées, compréhension et participation sont obligatoires pour clôturer la séance',
+      );
     }
 
     // Notes de depart obligatoires : sans elles, aucune progression ne pourra
@@ -510,7 +561,7 @@ export class TeacherService {
         // reste ouverte tant que les notes de depart manquent.
         const draft = await this.prisma.session.update({
           where: { id: sessionId },
-          data: { attended: dto.attended, notes: dto.notes },
+          data: { attended: dto.attended, notes: composedNotes, ...report },
         });
         return {
           ...draft,
@@ -546,7 +597,8 @@ export class TeacherService {
         durationMinutes: dto.durationMinutes,
         status: dto.status,
         attended: dto.attended,
-        notes: dto.notes,
+        notes: composedNotes,
+        ...(touchesReport ? report : {}),
         cancellationReason: dto.cancellationReason,
       },
     });

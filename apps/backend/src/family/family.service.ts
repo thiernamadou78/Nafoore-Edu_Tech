@@ -256,6 +256,12 @@ export class FamilyService {
             status: true,
             attended: true,
             notes: true,
+            chapter: true,
+            topics: true,
+            understanding: true,
+            participation: true,
+            difficulties: true,
+            homework: true,
             durationMinutes: true,
             teacher: { select: { id: true, name: true } },
             // Utilisé pour ne compter dans les heures cumulées que les

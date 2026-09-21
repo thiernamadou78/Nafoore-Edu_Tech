@@ -92,6 +92,26 @@ export function ProgressCard({ studentId, endpoint = `/family/students/${student
           </div>
         ))}
       </div>
+
+      {progress?.engagement?.length > 0 && (
+        <div className="mt-4 rounded-xl border border-gray-100 p-3">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
+            Suivi des séances (compréhension / participation)
+          </p>
+          <ul className="space-y-1 text-xs text-gray-600">
+            {progress.engagement.slice(-3).map((m) => (
+              <li key={m.month} className="flex items-center justify-between gap-2">
+                <span>
+                  {new Date(`${m.month}-01`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                </span>
+                <span>
+                  Compréhension {m.understanding ?? '—'}/5 · Participation {m.participation ?? '—'}/5
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Card>
   )
 }

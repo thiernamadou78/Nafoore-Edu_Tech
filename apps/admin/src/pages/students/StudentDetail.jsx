@@ -27,6 +27,7 @@ import { PaginationControls } from '../../components/ui/PaginationControls'
 import { PlanningCalendar } from '../../components/ui/PlanningCalendar'
 import { SUBJECT_OPTIONS } from '../teachers/subjects'
 import { StudentProgressCard } from '../../components/StudentProgressCard'
+import { SessionReport } from '../../components/SessionReport'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { Timeline } from '../../components/ui/Timeline'
 import { usePagination } from '../../lib/usePagination'
@@ -75,7 +76,7 @@ const TABS = [
   { key: 'fiche', label: 'Fiche' },
   { key: 'enseignants', label: 'Enseignants' },
   { key: 'seances', label: 'Séances' },
-  { key: 'bilans', label: 'Bilans & progression' },
+  { key: 'bilans', label: 'Bilans' },
   { key: 'documents', label: 'Documents' },
 ]
 
@@ -123,9 +124,9 @@ function AdminSessionCard({ session, onSave }) {
           {log.method === 'qr_scan' ? 'Scan QR' : 'Manuel'}
         </p>
       )}
-      {session.notes && (
-        <p className="mt-1 whitespace-pre-wrap break-words text-xs text-gray-600">{session.notes}</p>
-      )}
+      <div className="mt-1">
+        <SessionReport session={session} />
+      </div>
       <Button variant="secondary" onClick={() => setEditing(true)} className="mt-2 px-3 py-1.5 text-xs">
         Modifier
       </Button>
@@ -1080,6 +1081,30 @@ export function StudentDetail() {
           {tab === 'bilans' && (
             <div className="space-y-6">
               <StudentProgressCard studentId={id} />
+              <Card className="p-6">
+                <h2 className="mb-3 font-semibold text-gray-900">Bilans des séances</h2>
+                {(() => {
+                  const reports = [...student.sessions]
+                    .filter((s) => s.notes || s.chapter || s.topics)
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .slice(0, 15)
+                  return reports.length === 0 ? (
+                    <p className="text-sm text-gray-500">Aucun compte-rendu pour l'instant.</p>
+                  ) : (
+                    <ul className="divide-y divide-gray-100">
+                      {reports.map((s) => (
+                        <li key={s.id} className="py-3">
+                          <p className="mb-1.5 text-sm font-medium text-gray-800">
+                            {formatDateTime(s.date)}
+                            {s.teacher ? ` · ${s.teacher.name}` : ''}
+                          </p>
+                          <SessionReport session={s} />
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                })()}
+              </Card>
               <Card className="p-6">
                 <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
                   <FileText size={16} className="text-navy" />

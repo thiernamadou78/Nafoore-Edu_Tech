@@ -2,6 +2,7 @@ import { Badge } from './ui/Badge'
 import { PaginationControls } from './ui/PaginationControls'
 import { usePagination } from '../lib/usePagination'
 import { formatDateTime } from '../lib/format'
+import { SessionReport } from './SessionReport'
 
 // Grille 3 colonnes (À venir / Réalisées / Rejetées), même logique que côté
 // admin/prof — réutilisée sur la fiche élève et sur l'onglet Planning.
@@ -61,11 +62,9 @@ export function SessionsBoard({ sessions }) {
                       {session.teacher && (
                         <p className="text-[11px] text-gray-400">{session.teacher.name}</p>
                       )}
-                      {session.notes && (
-                        <p className="mt-1 whitespace-pre-wrap break-words text-[11px] text-gray-600">
-                          {session.notes}
-                        </p>
-                      )}
+                      <div className="mt-1">
+                        <SessionReport session={session} />
+                      </div>
                     </li>
                   ))}
                 </ul>

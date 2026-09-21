@@ -28,6 +28,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
 import { SessionsBoard } from '../components/SessionsBoard'
 import { ProgressCard } from '../components/ProgressCard'
+import { SessionReport } from '../components/SessionReport'
 import { PassEducatifCard } from './PassEducatifCard'
 import { DAYS_OF_WEEK, FREQUENCY_OPTIONS, SUBJECTS_BY_LEVEL } from './curriculum'
 import {
@@ -138,6 +139,10 @@ export function StudentDetail() {
   const totalMinutesRealized = student.sessions
     .filter((s) => s.status === 'realisee' && s.attendanceLogs?.length > 0)
     .reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)
+  const reports = [...(student.sessions ?? [])]
+    .filter((s) => s.notes || s.chapter || s.topics)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 10)
   const activeRequests = student.teacherRequests.filter((r) =>
     ACTIVE_REQUEST_STATUSES.includes(r.status),
   )
@@ -249,28 +254,29 @@ export function StudentDetail() {
         </Card>
       )}
 
-      {/* Progression */}
+      {/* Bilans : comptes-rendus des seances */}
       <Card className="mb-6 p-5">
         <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
           <Sparkles size={16} className="text-gold-500" />
-          Progression
+          Bilans des séances
         </h2>
-        {student.progressEntries.length > 0 ? (
+        {reports.length > 0 ? (
           <ul className="divide-y divide-gray-100">
-            {student.progressEntries.map((entry) => (
-              <li key={entry.id} className="flex items-center justify-between py-2.5 text-sm">
-                <span className="text-gray-800">{entry.subject}</span>
-                <Badge tone={PROGRESS_ENTRY_TONES[entry.status]}>
-                  {PROGRESS_ENTRY_LABELS[entry.status] ?? entry.status}
-                </Badge>
+            {reports.map((session) => (
+              <li key={session.id} className="py-3">
+                <p className="mb-1.5 text-sm font-medium text-gray-800">
+                  {formatDateTime(session.date)}
+                  {session.teacher ? ` · ${session.teacher.name}` : ''}
+                </p>
+                <SessionReport session={session} />
               </li>
             ))}
           </ul>
         ) : (
           <EmptyState
             icon={Sparkles}
-            title="Pas encore de bilan partagé"
-            description="Les bilans de progression apparaîtront ici dès qu'ils seront disponibles."
+            title="Pas encore de bilan"
+            description="Le compte-rendu de chaque séance apparaîtra ici dès que l'enseignant l'aura rédigé."
           />
         )}
       </Card>

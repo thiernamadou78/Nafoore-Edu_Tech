@@ -11,6 +11,7 @@ import { Collapsible } from '../../components/ui/Collapsible'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PaginationControls } from '../../components/ui/PaginationControls'
 import { PlanningCalendar } from '../../components/ui/PlanningCalendar'
+import { SessionReport } from '../../components/SessionReport'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { usePagination } from '../../lib/usePagination'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from '../students/labels'
@@ -414,6 +415,9 @@ export function TeacherDetail() {
                   {pointageLabel(session) && (
                     <p className="mt-1 text-xs text-gray-500">Pointage : {pointageLabel(session)}</p>
                   )}
+                  <div className="mt-1">
+                    <SessionReport session={session} />
+                  </div>
                   {session.status === 'annulee' && session.cancellationReason && (
                     <p className="mt-1 text-xs text-gray-600">Motif : {session.cancellationReason}</p>
                   )}

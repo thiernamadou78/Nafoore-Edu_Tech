@@ -135,9 +135,6 @@ export function Pointage() {
   const [showReasonField, setShowReasonField] = useState(false)
   const [earlyReason, setEarlyReason] = useState('')
   const [confirmingEarly, setConfirmingEarly] = useState(false)
-  const [reportAttended, setReportAttended] = useState(true)
-  const [reportNotes, setReportNotes] = useState('')
-  const [savingReport, setSavingReport] = useState(false)
 
   const startCamera = () => {
     setStarting(true)
@@ -210,26 +207,7 @@ export function Pointage() {
     setPaused(false)
     setShowReasonField(false)
     setEarlyReason('')
-    setReportAttended(true)
-    setReportNotes('')
     scanningRef.current = true
-  }
-
-  const handleSaveReport = async (e) => {
-    e.preventDefault()
-    setSavingReport(true)
-    try {
-      await api.patch(`/teacher/sessions/${result.sessionId}`, {
-        attended: reportAttended,
-        notes: reportNotes || undefined,
-        status: 'realisee',
-      })
-      resumeScanning()
-    } catch (err) {
-      setResult({ ...result, reportError: err.message })
-    } finally {
-      setSavingReport(false)
-    }
   }
 
   const handleConfirmEarlyCheckout = async (e) => {
@@ -353,36 +331,15 @@ export function Pointage() {
             </div>
           </div>
           {result.action === 'checkout' && result.sessionId ? (
-            <form onSubmit={handleSaveReport} className="border-t border-white/20 bg-black/10 px-5 py-4">
-              <p className="mb-2 text-sm font-bold">Compte-rendu de la séance</p>
-              <label className="mb-2 flex items-center gap-2 text-sm text-white/90">
-                <input
-                  type="checkbox"
-                  checked={reportAttended}
-                  onChange={(e) => setReportAttended(e.target.checked)}
-                  className="h-4 w-4 rounded border-white/40 bg-transparent"
-                />
-                Élève présent
-              </label>
-              <textarea
-                required
-                value={reportNotes}
-                onChange={(e) => setReportNotes(e.target.value)}
-                rows={2}
-                placeholder="Ce qui a été travaillé, points à retravailler… (obligatoire pour clôturer)"
-                className="w-full resize-none rounded-lg border-0 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white"
-              />
-              {result.reportError && (
-                <p className="mt-2 text-xs font-semibold text-white">{result.reportError}</p>
-              )}
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="submit"
-                  disabled={savingReport || !reportNotes.trim()}
-                  className="rounded-full bg-white px-3.5 py-1.5 text-xs font-bold text-gray-800 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+            <div className="border-t border-white/20 bg-black/10 px-5 py-4">
+              <p className="mb-3 text-sm font-bold">Rédige le compte-rendu de la séance</p>
+              <div className="flex gap-2">
+                <Link
+                  to={`/planning?session=${result.sessionId}`}
+                  className="rounded-full bg-white px-3.5 py-1.5 text-xs font-bold text-gray-800 hover:bg-white/90"
                 >
-                  {savingReport ? 'Enregistrement…' : 'Enregistrer le compte-rendu'}
-                </button>
+                  Rédiger le compte-rendu
+                </Link>
                 <button
                   type="button"
                   onClick={resumeScanning}
@@ -391,7 +348,7 @@ export function Pointage() {
                   Plus tard
                 </button>
               </div>
-            </form>
+            </div>
           ) : (
             <button
               type="button"

@@ -10,6 +10,7 @@ import { Spinner } from '../components/ui/Spinner'
 import { SessionsBoard } from '../components/SessionsBoard'
 import { PlanningCalendar } from '../components/PlanningCalendar'
 import { Badge } from '../components/ui/Badge'
+import { SessionReport } from '../components/SessionReport'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from './labels'
 
 function getInitials(name) {
@@ -87,9 +88,9 @@ function FamilySessionCard({ session }) {
         {session.studentName}
         {session.teacher ? ` · ${session.teacher.name}` : ''}
       </p>
-      {session.notes && (
-        <p className="mt-1 whitespace-pre-wrap break-words text-xs text-gray-600">{session.notes}</p>
-      )}
+      <div className="mt-2">
+        <SessionReport session={session} />
+      </div>
     </Card>
   )
 }

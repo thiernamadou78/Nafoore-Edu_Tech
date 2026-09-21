@@ -74,6 +74,28 @@ export class GradesService {
       };
     });
 
+    // Suivi des seances : compréhension / participation (comptes-rendus), moyenne
+    // par mois — la tendance "avec Nafoore" en plus des notes de l'ecole.
+    const rated = await this.prisma.session.findMany({
+      where: { studentId, understanding: { not: null } },
+      select: { date: true, understanding: true, participation: true },
+      orderBy: { date: 'asc' },
+    });
+    const engagementByMonth = new Map<string, { u: number[]; p: number[] }>();
+    for (const s of rated) {
+      const key = monthKey(s.date);
+      const entry = engagementByMonth.get(key) ?? { u: [], p: [] };
+      if (s.understanding) entry.u.push(s.understanding);
+      if (s.participation) entry.p.push(s.participation);
+      engagementByMonth.set(key, entry);
+    }
+    const engagement = [...engagementByMonth.entries()].map(([month, e]) => ({
+      month,
+      understanding: e.u.length ? round1(mean(e.u)) : null,
+      participation: e.p.length ? round1(mean(e.p)) : null,
+      count: Math.max(e.u.length, e.p.length),
+    }));
+
     const comparable = subjects.filter((s) => s.baselineAverage !== null && s.latestAverage !== null);
     const overall =
       comparable.length > 0
@@ -87,7 +109,7 @@ export class GradesService {
           }
         : null;
 
-    return { subjects, overall };
+    return { subjects, overall, engagement };
   }
 
   async hasBaseline(studentId: string, subject: string) {

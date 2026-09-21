@@ -35,6 +35,39 @@ export class UpdateTeacherSessionDto {
   @MaxLength(2000)
   notes?: string;
 
+  // Compte-rendu structure
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  chapter?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  topics?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1, { message: 'La compréhension se note de 1 à 5' })
+  @Max(5, { message: 'La compréhension se note de 1 à 5' })
+  understanding?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1, { message: 'La participation se note de 1 à 5' })
+  @Max(5, { message: 'La participation se note de 1 à 5' })
+  participation?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  difficulties?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  homework?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(500)
