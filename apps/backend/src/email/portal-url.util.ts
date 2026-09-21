@@ -10,5 +10,5 @@ const PORTAL_URL_ENV: Record<string, string> = {
 
 export function resolvePortalUrl(role: string): string {
   const envKey = PORTAL_URL_ENV[role];
-  return (envKey && process.env[envKey]) || 'https://nafoore.fr';
+  return (envKey && process.env[envKey]) || 'https://education.nafoore.com';
 }

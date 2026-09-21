@@ -16,7 +16,7 @@ export class ResendEmailService extends EmailService {
     super();
     const apiKey = process.env.RESEND_API_KEY;
     this.client = apiKey ? new Resend(apiKey) : null;
-    this.fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@nafoore.fr';
+    this.fromEmail = process.env.RESEND_FROM_EMAIL || 'contact@education.nafoore.com';
   }
 
   async send({ to, subject, html }: SendEmailInput): Promise<SendEmailResult> {
