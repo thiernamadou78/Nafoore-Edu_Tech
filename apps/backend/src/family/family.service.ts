@@ -317,6 +317,7 @@ export class FamilyService {
                     subjects: true,
                     bio: true,
                     postalCode: true,
+                    city: true,
                     verified: true,
                     photoPath: true,
                   },
@@ -341,25 +342,27 @@ export class FamilyService {
       request.matchings.map((matching) => matching.teacher.photoPath),
     );
     const teacherPhotoUrls = await this.photos.signUrls(teacherPhotoPaths);
-    const locations = new Map<string, string | null>();
+    // Ville deduite du code postal pour les profs qui n'en ont pas saisi.
+    const fallbackCities = new Map<string, string | null>();
     for (const request of rest.teacherRequests) {
       for (const matching of request.matchings) {
-        const code = matching.teacher.postalCode ?? '';
-        if (code && !locations.has(code)) {
-          locations.set(code, await this.geocoding.locationLabel(code));
+        const { postalCode: code, city } = matching.teacher;
+        if (code && !city && !fallbackCities.has(code)) {
+          fallbackCities.set(code, await this.geocoding.cityForPostalCode(code));
         }
       }
     }
     const teacherRequests = rest.teacherRequests.map((request) => ({
       ...request,
       matchings: request.matchings.map((matching) => {
-        const { photoPath: teacherPhotoPath, postalCode: teacherPostalCode, ...teacherRest } =
-          matching.teacher;
+        const { photoPath: teacherPhotoPath, ...teacherRest } = matching.teacher;
         return {
           ...matching,
           teacher: {
             ...teacherRest,
-            location: teacherPostalCode ? (locations.get(teacherPostalCode) ?? null) : null,
+            city:
+              teacherRest.city ??
+              (teacherRest.postalCode ? (fallbackCities.get(teacherRest.postalCode) ?? null) : null),
             photoUrl: teacherPhotoPath
               ? (teacherPhotoUrls.get(teacherPhotoPath) ?? null)
               : null,

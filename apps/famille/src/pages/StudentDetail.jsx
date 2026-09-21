@@ -559,8 +559,12 @@ function MatchingProposalCard({ matching, onChanged }) {
         </div>
       </div>
       {teacher.bio && <p className="mt-2 text-xs text-gray-600">{teacher.bio}</p>}
-      {teacher.location && (
-        <p className="mt-1 text-xs text-gray-400">Secteur : {teacher.location}</p>
+      {(teacher.postalCode || teacher.city) && (
+        <p className="mt-1 text-xs text-gray-400">
+          {teacher.postalCode && <>Code postal : {teacher.postalCode}</>}
+          {teacher.postalCode && teacher.city && ' · '}
+          {teacher.city && <>Ville : {teacher.city}</>}
+        </p>
       )}
 
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}

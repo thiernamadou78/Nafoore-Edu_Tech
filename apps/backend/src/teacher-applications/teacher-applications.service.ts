@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { PhotosService } from '../photos/photos.service';
+import { DAYS_OF_WEEK } from '../common/days';
 import { EmailService } from '../email/email.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
 import { TeacherOnboardingService } from '../onboarding/teacher-onboarding.service';
@@ -211,6 +212,8 @@ export class TeacherApplicationsService {
             phone: existing.phone,
             address: existing.zone,
             postalCode: existing.postalCode,
+            city: existing.city,
+            availabilityDays: DAYS_OF_WEEK.filter((day) => existing.availability?.includes(day)),
             verified: true,
           },
         });

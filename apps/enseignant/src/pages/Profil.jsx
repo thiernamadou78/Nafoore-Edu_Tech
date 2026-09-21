@@ -8,6 +8,8 @@ import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
 import { SUBJECT_OPTIONS } from './subjects'
 
+const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
@@ -138,6 +140,8 @@ export function Profil() {
           gender: data.gender ?? '',
           address: data.address ?? '',
           postalCode: data.postalCode ?? '',
+          city: data.city ?? '',
+          availabilityDays: data.availabilityDays ?? [],
           email: data.email ?? '',
           phone: data.phone ?? '',
           bio: data.bio ?? '',
@@ -185,13 +189,14 @@ export function Profil() {
       !form.gender ||
       !form.address.trim() ||
       !form.postalCode.trim() ||
+      !form.city.trim() ||
       !form.email.trim() ||
       !form.phone.trim() ||
       form.subjects.length === 0 ||
       form.bio.trim().length < 20
     ) {
       setError(
-        'Nom, genre, adresse, code postal, email, téléphone, au moins une matière et une présentation (20 caractères minimum) sont obligatoires.',
+        'Nom, genre, ville, adresse, code postal, email, téléphone, au moins une matière et une présentation (20 caractères minimum) sont obligatoires.',
       )
       return
     }
@@ -276,6 +281,18 @@ export function Profil() {
               />
             </div>
 
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Ville / Commune *</label>
+              <input
+                required
+                minLength={2}
+                value={form.city}
+                onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                placeholder="Ex : Chevilly-Larue"
+                className={inputClass}
+              />
+            </div>
+
             <div className="grid grid-cols-[1fr_130px] gap-3 sm:col-span-2">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
@@ -323,6 +340,42 @@ export function Profil() {
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 className={inputClass}
               />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Jours de disponibilité
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {DAYS_OF_WEEK.map((day) => {
+                  const active = form.availabilityDays.includes(day)
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          availabilityDays: active
+                            ? f.availabilityDays.filter((d) => d !== day)
+                            : [...f.availabilityDays, day],
+                        }))
+                      }
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        active
+                          ? 'border-navy bg-navy text-white'
+                          : 'border-gray-300 text-gray-600 hover:border-navy/40'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                Sert à te prévenir quand une séance est planifiée un jour où tu as indiqué ne pas
+                être disponible.
+              </p>
             </div>
 
             <div className="sm:col-span-2">

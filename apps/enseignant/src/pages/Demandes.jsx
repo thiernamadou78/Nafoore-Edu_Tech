@@ -67,8 +67,15 @@ function RequestCard({ request, onReact, saving }) {
       </h3>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Badge tone="blue">{FORMAT_LABELS[request.format] ?? request.format}</Badge>
-        {classLabel(request) && <Badge tone="gray">Classe : {classLabel(request)}</Badge>}
+        {LEVEL_LABELS[request.level] && <Badge tone="gray">Niveau : {LEVEL_LABELS[request.level]}</Badge>}
+        {CLASSE_LABELS[request.classe] && <Badge tone="gray">Classe : {CLASSE_LABELS[request.classe]}</Badge>}
       </div>
+      {request.school && (
+        <p className="mb-1 text-sm text-gray-600">
+          <span className="text-gray-500">École : </span>
+          {request.school}
+        </p>
+      )}
       {place && (
         <p className="flex items-center gap-1.5 text-sm text-gray-600">
           <MapPin size={14} className="shrink-0 text-gray-400" />

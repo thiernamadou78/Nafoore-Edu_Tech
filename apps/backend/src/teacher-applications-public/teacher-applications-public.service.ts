@@ -125,6 +125,7 @@ export class TeacherApplicationsPublicService {
         classes: dto.classes,
         zone: dto.zone,
         postalCode: dto.postalCode,
+        city: dto.city.trim(),
         bio: dto.bio.trim(),
         availability: dto.availability,
         completionToken: generateCompletionToken(),

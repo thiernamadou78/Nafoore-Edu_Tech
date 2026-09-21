@@ -1,15 +1,5 @@
-import {
-  ArrayMinSize,
-  IsArray,
-  IsEmail,
-  IsIn,
-  IsOptional,
-  IsString,
-  Length,
-  Matches,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { DAYS_OF_WEEK } from '../../common/days';
+import { ArrayMinSize, IsArray, IsEmail, IsIn, IsOptional, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
 import { SUBJECT_OPTIONS } from '../../common/subjects';
 import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
@@ -52,6 +42,15 @@ export class UpdateTeacherDto {
   @IsString()
   @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
   postalCode?: string;
+
+  @IsOptional()
+  @Length(2, 100, { message: 'La ville / commune doit faire entre 2 et 100 caractères' })
+  city?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(DAYS_OF_WEEK, { each: true, message: 'Jour de disponibilité invalide' })
+  availabilityDays?: string[];
 
   @IsOptional()
   @IsEmail({}, { message: 'Email invalide' })

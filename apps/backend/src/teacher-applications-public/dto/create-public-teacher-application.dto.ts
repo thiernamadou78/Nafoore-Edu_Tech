@@ -1,16 +1,5 @@
 import { Transform } from 'class-transformer';
-import {
-  ArrayMinSize,
-  IsArray,
-  IsEmail,
-  IsIn,
-  IsNotEmpty,
-  IsString,
-  Length,
-  Matches,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { ArrayMinSize, IsArray, IsEmail, IsIn, IsNotEmpty, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
 import { SUBJECT_OPTIONS } from '../../common/subjects';
 import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
@@ -69,6 +58,9 @@ export class CreatePublicTeacherApplicationDto {
   @IsString()
   @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
   postalCode: string;
+
+  @Length(2, 100, { message: 'La ville / commune est obligatoire' })
+  city: string;
 
   @Length(20, 2000, {
     message: 'La présentation (bio) est obligatoire : entre 20 et 2000 caractères',

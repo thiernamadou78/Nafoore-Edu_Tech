@@ -37,6 +37,7 @@ export function TeacherDetail() {
     bio: '',
     address: '',
     postalCode: '',
+    city: '',
     email: '',
     phone: '',
   })
@@ -54,6 +55,7 @@ export function TeacherDetail() {
         bio: data.bio ?? '',
         address: data.address ?? '',
         postalCode: data.postalCode ?? '',
+        city: data.city ?? '',
         email: data.email ?? '',
         phone: data.phone ?? '',
       })
@@ -137,6 +139,17 @@ export function TeacherDetail() {
             />
           </div>
           <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Ville / Commune *</label>
+            <input
+              required
+              minLength={2}
+              value={form.city}
+              onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+              placeholder="Ex : Chevilly-Larue"
+              className={inputClass}
+            />
+          </div>
+          <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
             <input
               required
@@ -210,11 +223,12 @@ export function TeacherDetail() {
                 !form.gender ||
                 !form.address.trim() ||
                 !form.postalCode.trim() ||
+                !form.city.trim() ||
                 !form.email.trim() ||
                 !form.phone.trim() ||
                 form.subjects.length === 0
               ) {
-                setError('Nom, genre, adresse, code postal, email, téléphone et au moins une matière sont obligatoires.')
+                setError('Nom, genre, ville, adresse, code postal, email, téléphone et au moins une matière sont obligatoires.')
                 return
               }
               if (!PHONE_PATTERN.test(form.phone.trim())) {
@@ -229,6 +243,7 @@ export function TeacherDetail() {
                   bio: form.bio.trim(),
                   address: form.address,
                   postalCode: form.postalCode,
+                  city: form.city.trim(),
                   email: form.email,
                   phone: form.phone,
                 }),

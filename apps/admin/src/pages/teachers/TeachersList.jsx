@@ -21,6 +21,7 @@ const EMPTY_FORM = {
   subjects: [],
   address: '',
   postalCode: '',
+  city: '',
   email: '',
   phone: '',
   bio: '',
@@ -124,6 +125,7 @@ export function TeachersList() {
         subjects: form.subjects,
         address: form.address,
         postalCode: form.postalCode,
+        city: form.city.trim(),
         email: form.email,
         phone: form.phone,
         bio: form.bio.trim(),
@@ -289,6 +291,17 @@ export function TeachersList() {
               <SubjectPicker
                 selected={form.subjects}
                 onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Ville / Commune *</label>
+              <input
+                required
+                minLength={2}
+                value={form.city}
+                onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                placeholder="Ex : Chevilly-Larue"
+                className={inputClass}
               />
             </div>
             <div className="grid grid-cols-[1fr_130px] gap-3">

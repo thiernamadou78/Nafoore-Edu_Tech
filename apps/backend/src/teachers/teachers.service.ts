@@ -84,6 +84,8 @@ export class TeachersService {
         bio: dto.bio,
         address: dto.address,
         postalCode: dto.postalCode,
+        city: dto.city,
+        availabilityDays: dto.availabilityDays ?? [],
         email: dto.email,
         phone: dto.phone,
         verified: true,

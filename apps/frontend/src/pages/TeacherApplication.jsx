@@ -87,6 +87,7 @@ const DEFAULT_FORM = {
   classes: [],
   zone: '',
   postalCode: '',
+  city: '',
   bio: '',
   availabilityDays: [],
 }
@@ -293,6 +294,7 @@ export default function TeacherApplication() {
       formData.append('classes', form.classes.join(','))
       formData.append('zone', form.zone)
       formData.append('postalCode', form.postalCode)
+      formData.append('city', form.city.trim())
       formData.append('bio', form.bio.trim())
       formData.append('availability', form.availabilityDays.join(', '))
       diplomas.forEach((file) => formData.append('diplomas', file))
@@ -447,6 +449,22 @@ export default function TeacherApplication() {
                     onChange={handleChange}
                     required
                     placeholder="aissatou@exemple.fr"
+                    className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Ville / Commune <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    name="city"
+                    value={form.city}
+                    onChange={handleChange}
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    placeholder="Ex : Chevilly-Larue"
                     className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                   />
                 </div>

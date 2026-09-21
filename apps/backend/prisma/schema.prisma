@@ -139,6 +139,10 @@ model Teacher {
   address     String?
   // Ameliore la precision du geocodage (voir GeocodingService.geocode).
   postalCode  String?                @map("postal_code")
+  city        String?
+  // Jours (Lundi..Dimanche) ou le prof declare pouvoir donner cours : sert a
+  // controler (sans bloquer) la planification des seances.
+  availabilityDays String[] @default([]) @map("availability_days")
   // Geocodees automatiquement (best-effort) a partir de `address` — servent
   // au pin "enseignant" sur la carte du tableau de bord admin.
   latitude    Float?
@@ -374,6 +378,7 @@ model TeacherApplication {
   // classes precises enseignees, ex: cm2, 6e, 1re — voir CLASSE_LABELS
   zone              String
   postalCode        String        @map("postal_code")
+  city              String?
   availability      String?
   status            String        @default("preselection")
   // preselection | entretien_planifie | entretien_realise | valide | refuse | documents_requis
