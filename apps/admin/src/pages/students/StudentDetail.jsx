@@ -78,6 +78,60 @@ const TABS = [
   { key: 'documents', label: 'Documents' },
 ]
 
+// Carte de seance du calendrier : meme presentation que cote enseignant et
+// famille (heure, matiere, statut, notes) ; "Modifier" ouvre le formulaire
+// d'edition admin.
+function AdminSessionCard({ session, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const time = new Date(session.date).toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const log = session.attendanceLogs?.[0]
+
+  if (editing) {
+    return (
+      <Card className="p-3 text-sm">
+        <SessionRow session={session} onSave={(patch) => onSave(patch).then(() => setEditing(false))} />
+        <Button variant="secondary" onClick={() => setEditing(false)} className="mt-2 px-3 py-1.5 text-xs">
+          Fermer
+        </Button>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="p-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-medium text-gray-900">
+          {time}
+          {session.subject ? ` · ${session.subject}` : ''}
+        </p>
+        <Badge tone={SESSION_STATUS_TONES[session.status]}>
+          {SESSION_STATUS_LABELS[session.status] ?? session.status}
+        </Badge>
+      </div>
+      <p className="text-xs text-gray-500">{session.teacher?.name ?? 'Enseignant non assigné'}</p>
+      {log?.checkinAt && (
+        <p className="mt-1 text-xs text-gray-500">
+          Pointage :{' '}
+          {new Date(log.checkinAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+          {log.checkoutAt &&
+            ` → ${new Date(log.checkoutAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}
+          {' · '}
+          {log.method === 'qr_scan' ? 'Scan QR' : 'Manuel'}
+        </p>
+      )}
+      {session.notes && (
+        <p className="mt-1 whitespace-pre-wrap break-words text-xs text-gray-600">{session.notes}</p>
+      )}
+      <Button variant="secondary" onClick={() => setEditing(true)} className="mt-2 px-3 py-1.5 text-xs">
+        Modifier
+      </Button>
+    </Card>
+  )
+}
+
 function SessionRow({ session, onSave }) {
   const [status, setStatus] = useState(session.status)
   const [attended, setAttended] = useState(session.attended ?? false)
@@ -818,16 +872,14 @@ export function StudentDetail() {
                   <PlanningCalendar
                     sessions={student.sessions}
                     renderSession={(session) => (
-                      <div className="rounded-xl border border-gray-100 px-4">
-                        <SessionRow
-                          session={session}
-                          onSave={(patch) =>
-                            run('session', () =>
-                              api.patch(`/students/${id}/sessions/${session.id}`, patch),
-                            )
-                          }
-                        />
-                      </div>
+                      <AdminSessionCard
+                        session={session}
+                        onSave={(patch) =>
+                          run('session', () =>
+                            api.patch(`/students/${id}/sessions/${session.id}`, patch),
+                          )
+                        }
+                      />
                     )}
                   />
                 ) : (
