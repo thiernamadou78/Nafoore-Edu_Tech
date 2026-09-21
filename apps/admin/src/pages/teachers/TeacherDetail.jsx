@@ -27,6 +27,16 @@ const TEACHER_DOCUMENT_TYPE_LABELS = {
   autre: 'Autre',
 }
 
+const timeOf = (date) =>
+  new Date(date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+
+function pointageLabel(session) {
+  if (!session.checkinAt) return null
+  return `${timeOf(session.checkinAt)} → ${session.checkoutAt ? timeOf(session.checkoutAt) : 'en cours'} · ${
+    session.pointageMethod === 'qr_scan' ? 'Scan QR' : 'Manuel'
+  }`
+}
+
 export function TeacherDetail() {
   const { id } = useParams()
   const [teacher, setTeacher] = useState(null)
@@ -401,6 +411,9 @@ export function TeacherDetail() {
                   <p className="text-xs text-gray-500">
                     {session.studentName} · {session.familyName}
                   </p>
+                  {pointageLabel(session) && (
+                    <p className="mt-1 text-xs text-gray-500">Pointage : {pointageLabel(session)}</p>
+                  )}
                   {session.status === 'annulee' && session.cancellationReason && (
                     <p className="mt-1 text-xs text-gray-600">Motif : {session.cancellationReason}</p>
                   )}
@@ -423,6 +436,7 @@ export function TeacherDetail() {
                 <th className="px-4 py-3 font-medium">Matière</th>
                 <th className="px-4 py-3 font-medium">Date et heure</th>
                 <th className="px-4 py-3 font-medium">Statut</th>
+                <th className="px-4 py-3 font-medium">Pointage</th>
                 <th className="px-4 py-3 font-medium">Motif d'annulation</th>
               </tr>
             </thead>
@@ -440,6 +454,7 @@ export function TeacherDetail() {
                       {SESSION_STATUS_LABELS[session.status] ?? session.status}
                     </Badge>
                   </td>
+                  <td className="px-4 py-3 text-gray-700">{pointageLabel(session) ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-700">
                     {session.status === 'annulee' ? (session.cancellationReason ?? '—') : '—'}
                   </td>

@@ -43,6 +43,11 @@ export class TeachersService {
         sessions: {
           orderBy: { date: 'desc' },
           include: {
+            attendanceLogs: {
+              select: { checkinAt: true, checkoutAt: true, method: true },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
             student: {
               select: {
                 id: true,
@@ -65,8 +70,11 @@ export class TeachersService {
     }
 
     const photoUrl = await this.photos.signUrl(teacher.photoPath);
-    const sessions = teacher.sessions.map(({ student, ...session }) => ({
+    const sessions = teacher.sessions.map(({ student, attendanceLogs, ...session }) => ({
       ...session,
+      checkinAt: attendanceLogs[0]?.checkinAt ?? null,
+      checkoutAt: attendanceLogs[0]?.checkoutAt ?? null,
+      pointageMethod: attendanceLogs[0]?.method ?? null,
       studentName: student.name,
       familyName:
         student.parentLead?.portalAccount?.familyName ?? student.parentLead?.name ?? 'Sans famille',
