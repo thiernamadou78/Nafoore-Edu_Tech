@@ -18,6 +18,64 @@ function timeRangeLabel(date, durationMinutes) {
   return `${startLabel} – ${endLabel}`
 }
 
+const timeOf = (date) =>
+  new Date(date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+
+// Journal des pointages : arrivee, depart, duree reelle et etat du compte-rendu.
+function RecentPointages({ items }) {
+  return (
+    <Card className="p-5">
+      <div className="mb-1 flex items-center gap-2">
+        <RadioTower size={18} className="text-navy" />
+        <h2 className="font-semibold text-gray-900">Pointages récents (7 derniers jours)</h2>
+        <Badge tone="gray">{items.length}</Badge>
+      </div>
+      <p className="mb-4 text-sm text-gray-500">
+        Arrivée et départ enregistrés par les enseignants (scan QR ou pointage manuel).
+      </p>
+      {items.length === 0 ? (
+        <p className="py-4 text-center text-sm text-gray-400">Aucun pointage cette semaine.</p>
+      ) : (
+        <ul className="divide-y divide-gray-100">
+          {items.map((item) => {
+            const minutes =
+              item.checkoutAt && item.checkinAt
+                ? Math.round((new Date(item.checkoutAt) - new Date(item.checkinAt)) / 60000)
+                : null
+            return (
+              <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                <div>
+                  <Link to={`/eleves/${item.student.id}`} className="font-medium text-navy hover:underline">
+                    {item.student.name}
+                  </Link>
+                  <p className="text-xs text-gray-500">
+                    {item.teacher.name}
+                    {item.subject ? ` · ${item.subject}` : ''} —{' '}
+                    {item.scheduledDate ? formatDateTime(item.scheduledDate) : ''}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone="green">
+                    {timeOf(item.checkinAt)} →{' '}
+                    {item.checkoutAt ? timeOf(item.checkoutAt) : 'en cours'}
+                    {minutes !== null && minutes > 0 ? ` (${minutes} min)` : ''}
+                  </Badge>
+                  <Badge tone="gray">{item.method === 'qr_scan' ? 'Scan QR' : 'Manuel'}</Badge>
+                  {item.checkoutAt && (
+                    <Badge tone={item.hasReport ? 'green' : 'amber'}>
+                      {item.hasReport ? 'Compte-rendu rédigé' : 'Compte-rendu à rédiger'}
+                    </Badge>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
 function AlertSection({ icon: Icon, tone, title, description, items, renderItem, emptyLabel }) {
   return (
     <Card className="p-5">
@@ -51,7 +109,7 @@ export function AttendanceAlerts() {
   if (error) return <Alert>{error}</Alert>
   if (!data) return <p className="text-gray-500">Chargement…</p>
 
-  const { staleOpenSessions, neverPointedSessions, missingReports } = data
+  const { staleOpenSessions, neverPointedSessions, missingReports, recentPointages = [] } = data
   const total = staleOpenSessions.length + neverPointedSessions.length + missingReports.length
 
   return (
@@ -59,6 +117,10 @@ export function AttendanceAlerts() {
       <div className="mb-6 flex items-baseline gap-2">
         <h1 className="text-xl font-semibold text-gray-900">Suivi des pointages</h1>
         <span className="text-sm text-gray-400">{total} à surveiller</span>
+      </div>
+
+      <div className="mb-5">
+        <RecentPointages items={recentPointages} />
       </div>
 
       {total === 0 ? (

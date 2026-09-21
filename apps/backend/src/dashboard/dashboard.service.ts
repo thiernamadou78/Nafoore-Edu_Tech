@@ -87,7 +87,9 @@ export class DashboardService {
     const now = new Date();
     const graceThreshold = new Date(now.getTime() - ATTENDANCE_ALERT_GRACE_HOURS * 3_600_000);
 
-    const [openLogs, pastSessions] = await Promise.all([
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 3_600_000);
+
+    const [openLogs, recentLogs, pastSessions] = await Promise.all([
       // Check-in scanné mais jamais de check-out : séance restée "en cours".
       this.prisma.attendanceLog.findMany({
         where: { checkoutAt: null, sessionId: { not: null }, checkinAt: { not: null } },
@@ -97,6 +99,24 @@ export class DashboardService {
           session: { select: { date: true, durationMinutes: true, subject: true } },
         },
         orderBy: { checkinAt: 'asc' },
+      }),
+      // Journal des pointages de la semaine (les normaux comme les anormaux) :
+      // sans lui, un pointage sans souci n'apparaissait nulle part.
+      this.prisma.attendanceLog.findMany({
+        where: {
+          verificationStatus: 'valid',
+          checkinAt: { not: null, gte: weekAgo },
+          sessionId: { not: null },
+        },
+        orderBy: { checkinAt: 'desc' },
+        take: 50,
+        include: {
+          student: { select: { id: true, name: true } },
+          teacher: { select: { id: true, name: true } },
+          session: {
+            select: { date: true, durationMinutes: true, subject: true, status: true, notes: true },
+          },
+        },
       }),
       // Toutes les séances passées non annulées : on classe en mémoire car le
       // critère "jamais pointée" / "compte-rendu manquant" combine plusieurs
@@ -160,7 +180,21 @@ export class DashboardService {
       })
       .map(({ attendanceLogs, ...session }) => session);
 
-    return { staleOpenSessions, neverPointedSessions, missingReports };
+    const recentPointages = recentLogs.map((log) => ({
+      id: log.id,
+      student: log.student,
+      teacher: log.teacher,
+      subject: log.session?.subject ?? null,
+      scheduledDate: log.session?.date ?? null,
+      durationMinutes: log.session?.durationMinutes ?? null,
+      checkinAt: log.checkinAt,
+      checkoutAt: log.checkoutAt,
+      method: log.method,
+      sessionStatus: log.session?.status ?? null,
+      hasReport: Boolean(log.session?.notes?.trim()),
+    }));
+
+    return { staleOpenSessions, neverPointedSessions, missingReports, recentPointages };
   }
 
   async getNotifications() {
