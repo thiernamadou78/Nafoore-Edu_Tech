@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -18,6 +19,8 @@ import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
 import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { CreateTeacherRequestDto } from './dto/create-teacher-request.dto';
 import { UpdateTeacherRequestDto } from './dto/update-teacher-request.dto';
+import { AssignTeacherDto } from './dto/assign-teacher.dto';
+import { renderNoticeEmail } from '../email/templates/notice.template';
 import { ProposeMatchingDto } from './dto/propose-matching.dto';
 import { RefuseMatchingDto } from './dto/refuse-matching.dto';
 import { ListTeacherRequestsQueryDto } from './dto/list-teacher-requests-query.dto';
@@ -40,6 +43,7 @@ const teacherContactSelect = {
   account: { select: { email: true } },
 };
 
+const ASSIGNED_BY_TEAM_REASON = "Un enseignant a été assigné par l'équipe Nafoore";
 const REQUEST_CANCELLED_REASON = 'La famille a annulé sa demande';
 const OTHER_TEACHER_CHOSEN_REASON = 'Un autre enseignant a été choisi par la famille';
 
@@ -97,6 +101,141 @@ export class TeacherRequestsService {
     });
 
     return created;
+  }
+
+  // Assignation directe : l'admin choisit le prof, le tarif et la periode ; la
+  // famille n'a rien a confirmer, elle recoit seulement un email.
+  async assignTeacher(adminId: string, dto: AssignTeacherDto) {
+    const [student, teacher] = await Promise.all([
+      this.prisma.student.findUnique({
+        where: { id: dto.studentId },
+        select: {
+          id: true,
+          name: true,
+          parentLead: {
+            select: {
+              name: true,
+              gender: true,
+              email: true,
+              portalAccount: { select: { email: true, fullName: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.teacher.findUnique({
+        where: { id: dto.teacherId },
+        select: { id: true, name: true, gender: true, subjects: true, account: { select: { email: true } } },
+      }),
+    ]);
+    if (!student) throw new NotFoundException('Élève introuvable');
+    if (!teacher) throw new NotFoundException('Enseignant introuvable');
+    if (!teacher.subjects.includes(dto.subject)) {
+      throw new BadRequestException(`${teacher.name} ne donne pas de cours de ${dto.subject}`);
+    }
+    const existing = await this.prisma.studentTeacher.findFirst({
+      where: { studentId: dto.studentId, teacherId: dto.teacherId, subject: dto.subject },
+    });
+    if (existing) {
+      throw new ConflictException('Ce professeur est déjà assigné à cet élève pour cette matière');
+    }
+
+    const endsAt = new Date();
+    endsAt.setMonth(endsAt.getMonth() + dto.periodMonths);
+
+    // Une demande de la famille sur la meme matiere est reglee par cette
+    // assignation : les propositions encore en attente sont clotures.
+    const pending = await this.prisma.matching.findMany({
+      where: {
+        status: 'proposee',
+        teacherRequest: {
+          studentId: dto.studentId,
+          subject: dto.subject,
+          status: { in: ['en_attente', 'proposition_envoyee'] },
+        },
+      },
+      include: { teacher: { select: teacherContactSelect } },
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await this.studentsService.addTeacherAssignment(
+        dto.studentId,
+        dto.teacherId,
+        adminId,
+        dto.subject,
+        tx,
+        endsAt,
+        dto.hourlyRate,
+      );
+      await tx.matching.updateMany({
+        where: { id: { in: pending.map((m) => m.id) } },
+        data: { status: 'refusee', refusalReason: ASSIGNED_BY_TEAM_REASON, respondedAt: new Date() },
+      });
+      await tx.teacherRequest.updateMany({
+        where: {
+          studentId: dto.studentId,
+          subject: dto.subject,
+          status: { in: ['en_attente', 'proposition_envoyee'] },
+        },
+        data: { status: 'acceptee' },
+      });
+    });
+
+    const endLabel = endsAt.toLocaleDateString('fr-FR', { dateStyle: 'long' });
+    const lead = student.parentLead;
+    const familyEmail = lead?.portalAccount?.email ?? lead?.email;
+    if (familyEmail && lead) {
+      this.emailService
+        .send({
+          to: familyEmail,
+          subject: `Nafoore Education — ${student.name} est assigné(e) à un enseignant`,
+          html: renderNoticeEmail({
+            gender: lead.gender,
+            fullName: lead.portalAccount?.fullName ?? lead.name,
+            label: 'Enseignant assigné',
+            paragraphs: [
+              `Bonne nouvelle : ${teacher.name} est assigné(e) à ${student.name} pour les cours de ${dto.subject}, pendant ${dto.periodMonths} mois (jusqu'au ${endLabel}).`,
+              "Aucune action n'est nécessaire de votre part : les séances seront planifiées par l'enseignant et vous serez prévenu(e) à chaque fois.",
+            ],
+            ctaUrl: `${resolvePortalUrl('famille')}/eleves/${student.id}`,
+            ctaLabel: "Voir la fiche de l'élève →",
+          }),
+        })
+        .catch((error) =>
+          this.logger.error(
+            `Échec d'envoi de l'email d'assignation à la famille (${student.name})`,
+            error instanceof Error ? error.stack : undefined,
+          ),
+        );
+    }
+    if (teacher.account?.email) {
+      this.emailService
+        .send({
+          to: teacher.account.email,
+          subject: `Nafoore Education — Vous êtes assigné(e) à ${student.name}`,
+          html: renderNoticeEmail({
+            gender: teacher.gender,
+            fullName: teacher.name,
+            label: 'Nouvel élève',
+            paragraphs: [
+              `Vous êtes assigné(e) à ${student.name} pour des cours de ${dto.subject}, pendant ${dto.periodMonths} mois (jusqu'au ${endLabel}).`,
+              `Le cours est fixé à ${dto.hourlyRate} €/h net.`,
+              "Vous pouvez dès maintenant planifier la première séance depuis votre espace.",
+            ],
+            ctaUrl: resolvePortalUrl('teacher'),
+          }),
+        })
+        .catch((error) =>
+          this.logger.error(
+            `Échec d'envoi de l'email d'assignation au prof (${teacher.name})`,
+            error instanceof Error ? error.stack : undefined,
+          ),
+        );
+    }
+    for (const matching of pending) {
+      this.notifyTeacher(matching.teacher, student.name, dto.subject, 'cloturee', ASSIGNED_BY_TEAM_REASON);
+    }
+
+    return { studentId: dto.studentId, teacherId: dto.teacherId, subject: dto.subject, endsAt };
   }
 
   async updateRequest(
@@ -289,7 +428,7 @@ export class TeacherRequestsService {
     teacher: { name: string; gender: string | null; account: { email: string } | null },
     studentName: string,
     subject: string,
-    outcome: 'acceptee' | 'refusee' | 'annulee',
+    outcome: 'acceptee' | 'refusee' | 'annulee' | 'cloturee',
     reason: string | null,
   ) {
     if (!teacher.account?.email) return;
@@ -301,7 +440,9 @@ export class TeacherRequestsService {
             ? `Nafoore Education — Votre proposition a été acceptée (${subject})`
             : outcome === 'annulee'
               ? `Nafoore Education — Demande annulée par la famille (${subject})`
-              : `Nafoore Education — Votre proposition n'a pas été retenue (${subject})`,
+              : outcome === 'cloturee'
+                ? `Nafoore Education — Demande clôturée (${subject})`
+                : `Nafoore Education — Votre proposition n'a pas été retenue (${subject})`,
         html: renderMatchingResponseEmail({
           gender: teacher.gender,
           teacherName: teacher.name,

@@ -6,12 +6,18 @@ import { RolesGuard } from '../auth/roles.guard';
 import { TeacherRequestsService } from './teacher-requests.service';
 import { ListTeacherRequestsQueryDto } from './dto/list-teacher-requests-query.dto';
 import { ProposeMatchingDto } from './dto/propose-matching.dto';
+import { AssignTeacherDto } from './dto/assign-teacher.dto';
 
 @Roles('super_admin', 'admin')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('teacher-requests')
 export class AdminTeacherRequestsController {
   constructor(private readonly teacherRequests: TeacherRequestsService) {}
+
+  @Post('assign')
+  assign(@Body() dto: AssignTeacherDto, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.teacherRequests.assignTeacher(admin.id, dto);
+  }
 
   @Get()
   list(@Query() query: ListTeacherRequestsQueryDto) {

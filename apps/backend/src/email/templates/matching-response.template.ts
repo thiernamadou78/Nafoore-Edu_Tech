@@ -5,7 +5,7 @@ export interface MatchingResponseEmailInput {
   teacherName: string;
   studentName: string;
   subject: string;
-  outcome: 'acceptee' | 'refusee' | 'annulee';
+  outcome: 'acceptee' | 'refusee' | 'annulee' | 'cloturee';
   reason?: string | null;
   portalUrl: string;
 }
@@ -21,12 +21,17 @@ export function renderMatchingResponseEmail({
 }: MatchingResponseEmailInput): string {
   const accepted = outcome === 'acceptee';
   const cancelled = outcome === 'annulee';
+  const closed = outcome === 'cloturee';
   const label = accepted
     ? 'Proposition acceptée'
     : cancelled
       ? 'Demande annulée'
-      : 'Proposition non retenue';
-  const message = cancelled
+      : closed
+        ? 'Demande clôturée'
+        : 'Proposition non retenue';
+  const message = closed
+    ? `La demande de cours de <strong>${escapeHtml(subject)}</strong> de <strong>${escapeHtml(studentName)}</strong> est clôturée : un autre enseignant a été assigné par l'équipe Nafoore. Merci pour votre disponibilité.`
+    : cancelled
     ? `La famille a annulé sa demande de cours de <strong>${escapeHtml(subject)}</strong> pour <strong>${escapeHtml(studentName)}</strong> : votre proposition est donc close.`
     : accepted
     ? `Bonne nouvelle : la famille a choisi votre profil pour les cours de <strong>${escapeHtml(subject)}</strong> de <strong>${escapeHtml(studentName)}</strong>. L'élève est désormais dans votre espace, vous pouvez planifier les séances.`

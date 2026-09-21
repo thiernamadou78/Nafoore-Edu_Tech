@@ -25,6 +25,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { PaginationControls } from '../../components/ui/PaginationControls'
 import { PlanningCalendar } from '../../components/ui/PlanningCalendar'
+import { SUBJECT_OPTIONS } from '../teachers/subjects'
 import { StudentProgressCard } from '../../components/StudentProgressCard'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { Timeline } from '../../components/ui/Timeline'
@@ -301,6 +302,128 @@ function TeacherRatesCard({ studentId, assignments, onSaved }) {
           )
         })}
       </ul>
+    </Card>
+  )
+}
+
+// Assignation directe : l'admin choisit matiere, prof, tarif et periode ; la
+// famille n'a rien a confirmer et recoit seulement un email.
+function AssignTeacherCard({ student, teachers, onAssigned }) {
+  const subjectChoices = student.subjects?.length ? student.subjects : SUBJECT_OPTIONS
+  const [subject, setSubject] = useState('')
+  const [teacherId, setTeacherId] = useState('')
+  const [hourlyRate, setHourlyRate] = useState('')
+  const [periodMonths, setPeriodMonths] = useState(1)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [done, setDone] = useState(null)
+
+  const candidates = teachers.filter((t) => subject && t.subjects.includes(subject))
+
+  const submit = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setError(null)
+    setDone(null)
+    try {
+      await api.post('/teacher-requests/assign', {
+        studentId: student.id,
+        teacherId,
+        subject,
+        hourlyRate: Number(String(hourlyRate).replace(',', '.')),
+        periodMonths,
+      })
+      setDone(`Enseignant assigné pour ${subject}. La famille et l'enseignant ont été prévenus par email.`)
+      setTeacherId('')
+      setHourlyRate('')
+      await onAssigned()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const fieldClass =
+    'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
+
+  return (
+    <Card className="p-6">
+      <h2 className="mb-1 font-semibold text-gray-900">Assigner un enseignant</h2>
+      <p className="mb-3 text-xs text-gray-500">
+        Assignation directe : aucune demande de la famille ni confirmation nécessaire. La famille
+        et l'enseignant reçoivent un email.
+      </p>
+      {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+      {done && <p className="mb-2 text-sm text-green-700">{done}</p>}
+      <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+        <select
+          required
+          value={subject}
+          onChange={(e) => {
+            setSubject(e.target.value)
+            setTeacherId('')
+          }}
+          className={fieldClass}
+        >
+          <option value="">Matière…</option>
+          {subjectChoices.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <select
+          required
+          value={teacherId}
+          onChange={(e) => setTeacherId(e.target.value)}
+          disabled={!subject}
+          className={fieldClass}
+        >
+          <option value="">
+            {subject
+              ? candidates.length
+                ? 'Enseignant…'
+                : 'Aucun enseignant vérifié pour cette matière'
+              : "Choisis d'abord la matière"}
+          </option>
+          {candidates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+        <div className="flex items-center gap-2">
+          <input
+            required
+            type="number"
+            min="1"
+            step="0.5"
+            inputMode="decimal"
+            value={hourlyRate}
+            onChange={(e) => setHourlyRate(e.target.value)}
+            placeholder="Tarif net"
+            className={fieldClass}
+          />
+          <span className="text-sm text-gray-500">€/h</span>
+        </div>
+        <select
+          value={periodMonths}
+          onChange={(e) => setPeriodMonths(Number(e.target.value))}
+          className={fieldClass}
+        >
+          {[1, 2, 3, 6].map((m) => (
+            <option key={m} value={m}>
+              Durée : {m} mois
+            </option>
+          ))}
+        </select>
+        <div className="sm:col-span-2">
+          <Button type="submit" loading={saving} disabled={!subject || !teacherId || !(Number(hourlyRate) > 0)}>
+            Assigner
+          </Button>
+        </div>
+      </form>
     </Card>
   )
 }
@@ -707,6 +830,7 @@ export function StudentDetail() {
 
           {tab === 'enseignants' && (
             <div className="space-y-6">
+              <AssignTeacherCard student={student} teachers={teachers} onAssigned={load} />
               <TeacherRatesCard studentId={id} assignments={student.teachers} onSaved={load} />
               <Card className="p-6">
                 <h2 className="mb-1 font-semibold text-gray-900">Enseignant(s) assigné(s)</h2>

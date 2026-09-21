@@ -68,11 +68,35 @@ export class DashboardService {
     const [students, teachers] = await Promise.all([
       this.prisma.student.findMany({
         where: { latitude: { not: null }, longitude: { not: null } },
-        select: { id: true, name: true, address: true, latitude: true, longitude: true },
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          postalCode: true,
+          city: true,
+          level: true,
+          classe: true,
+          school: true,
+          subjects: true,
+          latitude: true,
+          longitude: true,
+          teachers: { select: { subject: true, teacher: { select: { name: true } } } },
+        },
       }),
       this.prisma.teacher.findMany({
         where: { latitude: { not: null }, longitude: { not: null } },
-        select: { id: true, name: true, address: true, latitude: true, longitude: true },
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          postalCode: true,
+          city: true,
+          subjects: true,
+          verified: true,
+          latitude: true,
+          longitude: true,
+          _count: { select: { students: true } },
+        },
       }),
     ]);
 

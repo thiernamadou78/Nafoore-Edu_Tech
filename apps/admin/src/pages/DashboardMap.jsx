@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Popup, TileLayer, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MapPin } from 'lucide-react'
@@ -26,6 +26,28 @@ function pinIcon(color) {
     popupAnchor: [0, -13],
   })
 }
+
+const LEVEL_LABELS = { primaire: 'Primaire', college: 'Collège', lycee: 'Lycée' }
+
+// Carte "semi-detail" affichee au survol du pin (le clic ouvre la fiche).
+function HoverCard({ title, lines }) {
+  return (
+    <Tooltip direction="top" offset={[0, -16]} opacity={1}>
+      <div className="min-w-[160px] max-w-[220px] text-xs">
+        <p className="mb-0.5 text-sm font-semibold text-gray-900">{title}</p>
+        {lines
+          .filter(Boolean)
+          .map((line) => (
+            <p key={line} className="text-gray-600">
+              {line}
+            </p>
+          ))}
+      </div>
+    </Tooltip>
+  )
+}
+
+const place = (item) => [item.postalCode, item.city].filter(Boolean).join(' ')
 
 const STUDENT_ICON = pinIcon('#1E3A8A')
 const TEACHER_ICON = pinIcon('#EAB308')
@@ -93,6 +115,18 @@ export function DashboardMap() {
                   position={[student.latitude, student.longitude]}
                   icon={STUDENT_ICON}
                 >
+                  <HoverCard
+                    title={student.name}
+                    lines={[
+                      [LEVEL_LABELS[student.level], student.classe].filter(Boolean).join(' · '),
+                      student.school,
+                      student.subjects?.length ? `Matières : ${student.subjects.join(', ')}` : null,
+                      place(student),
+                      student.teachers?.length
+                        ? `Enseignant(s) : ${[...new Set(student.teachers.map((t) => t.teacher.name))].join(', ')}`
+                        : 'Aucun enseignant assigné',
+                    ]}
+                  />
                   <Popup>
                     <div className="text-sm">
                       <p className="font-semibold text-gray-900">{student.name}</p>
@@ -114,6 +148,15 @@ export function DashboardMap() {
                   position={[teacher.latitude, teacher.longitude]}
                   icon={TEACHER_ICON}
                 >
+                  <HoverCard
+                    title={teacher.name}
+                    lines={[
+                      teacher.subjects?.length ? teacher.subjects.join(', ') : null,
+                      place(teacher),
+                      `${teacher._count?.students ?? 0} élève${(teacher._count?.students ?? 0) > 1 ? 's' : ''}`,
+                      teacher.verified ? 'Vérifié' : 'Non vérifié',
+                    ]}
+                  />
                   <Popup>
                     <div className="text-sm">
                       <p className="font-semibold text-gray-900">{teacher.name}</p>
