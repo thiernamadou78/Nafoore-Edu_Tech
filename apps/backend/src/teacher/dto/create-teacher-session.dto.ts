@@ -1,4 +1,4 @@
-import { IsDateString, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsDateString, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateTeacherSessionDto {
   @IsString()
@@ -17,4 +17,15 @@ export class CreateTeacherSessionDto {
   @Min(15)
   @Max(240)
   durationMinutes?: number;
+
+  // Repete la seance chaque semaine jusqu'a la fin de la periode
+  // d'accompagnement (ex : 1 mois = ~4 seances).
+  @IsOptional()
+  @IsBoolean()
+  repeatUntilPeriodEnd?: boolean;
+
+  // Le prof confirme un creneau hors disponibilites (famille ou prof).
+  @IsOptional()
+  @IsBoolean()
+  confirmOutOfAvailability?: boolean;
 }

@@ -14,6 +14,7 @@ import { renderRecurringScheduleUpdatedEmail } from '../email/templates/recurrin
 import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { UpsertRecurringScheduleDto } from './dto/upsert-recurring-schedule.dto';
 import { nextOccurrences, ScheduleSlot, slotsOverlap } from './recurring-schedule.util';
+import { AvailabilityService } from './availability.service';
 
 // Fenêtre glissante : combien de semaines de séances réelles sont
 // matérialisées à l'avance à partir du planning récurrent. Le pointage QR
@@ -27,12 +28,14 @@ export class RecurringScheduleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly availability: AvailabilityService,
   ) {}
 
   async upsert(
     teacherAccount: AuthenticatedTeacherAccount,
     studentId: string,
     dto: UpsertRecurringScheduleDto,
+    options: { startsOn?: Date } = {},
   ) {
     if (dto.slots.length !== dto.frequency) {
       throw new BadRequestException(
@@ -48,6 +51,14 @@ export class RecurringScheduleService {
     if (!assignment) {
       throw new BadRequestException("Tu n'enseignes pas cette matière à cet élève");
     }
+
+    await this.availability.assertSlotsOk(
+      studentId,
+      teacherId,
+      dto.subject,
+      dto.slots,
+      dto.confirmOutOfAvailability ?? false,
+    );
 
     const existingSchedule = await this.prisma.recurringSchedule.findUnique({
       where: { studentId_teacherId_subject: { studentId, teacherId, subject: dto.subject } },
@@ -69,12 +80,14 @@ export class RecurringScheduleService {
         subject: dto.subject,
         durationMinutes: dto.durationMinutes ?? 60,
         slots,
+        startsOn: options.startsOn ?? null,
         active: true,
       },
       update: {
         frequency: dto.frequency,
         durationMinutes: dto.durationMinutes ?? 60,
         slots,
+        startsOn: options.startsOn ?? null,
         active: true,
       },
     });
@@ -90,11 +103,11 @@ export class RecurringScheduleService {
         status: { in: ['planifiee', 'confirmee'] },
       },
     });
-    await this.generateSessionsForSchedule(schedule.id);
+    const sessionsCreated = await this.generateSessionsForSchedule(schedule.id);
 
     await this.notifyFamily(schedule.id);
 
-    return schedule;
+    return { ...schedule, sessionsCreated };
   }
 
   async remove(teacherAccount: AuthenticatedTeacherAccount, studentId: string, subject: string) {
@@ -188,14 +201,26 @@ export class RecurringScheduleService {
     }
   }
 
-  private async generateSessionsForSchedule(scheduleId: string) {
+  private async generateSessionsForSchedule(scheduleId: string): Promise<number> {
     const schedule = await this.prisma.recurringSchedule.findUnique({
       where: { id: scheduleId },
     });
-    if (!schedule || !schedule.active) return;
+    if (!schedule || !schedule.active) return 0;
 
     const slots = schedule.slots as unknown as ScheduleSlot[];
     const now = new Date();
+    // La generation part de la 1ere seance (si elle est dans le futur) et
+    // s'arrete a la fin de la periode d'accompagnement (ex : 1 mois).
+    const from = schedule.startsOn && schedule.startsOn > now ? schedule.startsOn : now;
+    const assignment = await this.prisma.studentTeacher.findFirst({
+      where: {
+        studentId: schedule.studentId,
+        teacherId: schedule.teacherId,
+        subject: schedule.subject,
+      },
+      select: { endsAt: true },
+    });
+    const until = assignment?.endsAt ?? null;
 
     // Sessions déjà générées dans la fenêtre à venir, pour ne pas dupliquer
     // en cas d'exécution répétée (upsert + cron de rattrapage).
@@ -206,8 +231,8 @@ export class RecurringScheduleService {
     const existingKeys = new Set(existing.map((s) => s.date.toISOString()));
 
     const toCreate = slots
-      .flatMap((slot) => nextOccurrences(slot, WEEKS_AHEAD, now))
-      .filter((date) => !existingKeys.has(date.toISOString()))
+      .flatMap((slot) => nextOccurrences(slot, WEEKS_AHEAD, from))
+      .filter((date) => !existingKeys.has(date.toISOString()) && (!until || date <= until))
       .map((date) => ({
         studentId: schedule.studentId,
         teacherId: schedule.teacherId,
@@ -221,6 +246,7 @@ export class RecurringScheduleService {
     if (toCreate.length > 0) {
       await this.prisma.session.createMany({ data: toCreate });
     }
+    return toCreate.length;
   }
 
   private async notifyFamily(scheduleId: string) {

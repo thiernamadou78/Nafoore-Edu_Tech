@@ -23,6 +23,9 @@ import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
 import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 import { UpsertProgressEntryDto } from '../students/dto/upsert-progress-entry.dto';
 import { redactRemovedMessage, countUnread } from '../common/redact-message.util';
+import { RecurringScheduleService } from './recurring-schedule.service';
+import { AvailabilityService } from './availability.service';
+import { SessionNotifierService } from '../email/session-notifier.service';
 
 @Injectable()
 export class TeacherService {
@@ -33,6 +36,9 @@ export class TeacherService {
     private readonly photos: PhotosService,
     private readonly emailService: EmailService,
     private readonly geocoding: GeocodingService,
+    private readonly recurringSchedule: RecurringScheduleService,
+    private readonly availability: AvailabilityService,
+    private readonly sessionNotifier: SessionNotifierService,
   ) {}
 
   async me(teacherAccount: AuthenticatedTeacherAccount) {
@@ -167,7 +173,7 @@ export class TeacherService {
         },
         teachers: {
           where: { teacherId: teacherAccount.teacherId },
-          select: { subject: true },
+          select: { subject: true, endsAt: true },
         },
         sessions: {
           where: {
@@ -184,9 +190,25 @@ export class TeacherService {
     });
 
     const photoUrls = await this.photos.signUrls(students.map((s) => s.photoPath));
+    const schedules = await this.prisma.recurringSchedule.findMany({
+      where: {
+        teacherId: teacherAccount.teacherId,
+        active: true,
+        studentId: { in: students.map((s) => s.id) },
+      },
+      select: { studentId: true, subject: true },
+    });
+    const scheduled = new Set(schedules.map((s) => `${s.studentId}|${s.subject}`));
     return students.map(({ parentLead, teachers, sessions, photoPath, ...student }) => ({
       ...student,
       subjects: [...new Set(teachers.map((t) => t.subject).filter(Boolean))],
+      assignments: teachers
+        .filter((t) => t.subject)
+        .map((t) => ({
+          subject: t.subject as string,
+          endsAt: t.endsAt,
+          hasSchedule: scheduled.has(`${student.id}|${t.subject}`),
+        })),
       familyId: parentLead?.id ?? null,
       familyName: parentLead?.portalAccount?.familyName ?? parentLead?.name ?? 'Sans famille',
       nextSession: sessions[0] ?? null,
@@ -392,9 +414,55 @@ export class TeacherService {
 
     const durationMinutes = dto.durationMinutes ?? 60;
     const startsAt = new Date(dto.date);
-    await this.assertNoConflict(teacherAccount.teacherId as string, startsAt, durationMinutes);
+    const teacherId = teacherAccount.teacherId as string;
+    const slot = {
+      dayOfWeek: startsAt.getDay() === 0 ? 7 : startsAt.getDay(),
+      time: `${String(startsAt.getHours()).padStart(2, '0')}:${String(startsAt.getMinutes()).padStart(2, '0')}`,
+    };
 
-    return this.prisma.session.create({
+    // Controle (non bloquant) des disponibilites de la famille et du prof.
+    await this.availability.assertSlotsOk(
+      dto.studentId,
+      teacherId,
+      dto.subject,
+      [slot],
+      dto.confirmOutOfAvailability ?? false,
+    );
+
+    // Periode d'accompagnement (ex : 1 mois) : la 1ere seance lance le
+    // planning hebdomadaire jusqu'a la fin de la periode.
+    if (dto.repeatUntilPeriodEnd) {
+      if (!assignment.endsAt) {
+        throw new BadRequestException(
+          "Cet accompagnement n'a pas de période définie : impossible de répéter les séances jusqu'à sa fin",
+        );
+      }
+      const existingSchedule = await this.prisma.recurringSchedule.findFirst({
+        where: { studentId: dto.studentId, teacherId, subject: dto.subject, active: true },
+      });
+      if (existingSchedule) {
+        throw new BadRequestException(
+          'Un planning récurrent existe déjà pour cette matière : modifie-le depuis la fiche de l\'élève',
+        );
+      }
+      const schedule = await this.recurringSchedule.upsert(
+        teacherAccount,
+        dto.studentId,
+        {
+          frequency: 1,
+          slots: [slot],
+          subject: dto.subject,
+          durationMinutes,
+          confirmOutOfAvailability: true,
+        },
+        { startsOn: startsAt },
+      );
+      return { repeated: true, sessionsCreated: schedule.sessionsCreated };
+    }
+
+    await this.assertNoConflict(teacherId, startsAt, durationMinutes);
+
+    const created = await this.prisma.session.create({
       data: {
         studentId: dto.studentId,
         teacherId: teacherAccount.teacherId,
@@ -406,6 +474,8 @@ export class TeacherService {
         status: 'confirmee',
       },
     });
+    this.sessionNotifier.notifyPlanned(created.id);
+    return created;
   }
 
   async updateSession(

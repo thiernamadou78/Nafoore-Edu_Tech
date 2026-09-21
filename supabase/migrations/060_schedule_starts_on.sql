@@ -1,0 +1,1 @@
+ALTER TABLE recurring_schedules ADD COLUMN IF NOT EXISTS starts_on TIMESTAMPTZ;

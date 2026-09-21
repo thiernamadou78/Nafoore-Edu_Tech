@@ -315,21 +315,78 @@ function SessionRow({
   )
 }
 
+// Options communes aux formulaires de planification : repetition jusqu'a la
+// fin de la periode d'accompagnement, et avertissement (non bloquant) quand le
+// creneau sort des disponibilites de la famille ou du prof.
+function RepeatAndWarnings({ assignment, repeat, onRepeatChange, warnings, onConfirm, saving }) {
+  const eligible = Boolean(assignment?.endsAt) && !assignment.hasSchedule
+  return (
+    <>
+      {eligible && (
+        <label className="flex items-start gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={repeat}
+            onChange={(e) => onRepeatChange(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-navy focus:ring-navy"
+          />
+          <span>
+            Répéter chaque semaine jusqu'à la fin de la période ({formatDate(assignment.endsAt)})
+          </span>
+        </label>
+      )}
+      {warnings.length > 0 && (
+        <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="font-medium">Ce créneau est en dehors des disponibilités :</p>
+          <ul className="ml-4 mt-1 list-disc space-y-0.5">
+            {warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+          <Button variant="secondary" loading={saving} onClick={onConfirm} className="mt-2">
+            Planifier quand même
+          </Button>
+        </div>
+      )}
+    </>
+  )
+}
+
+const isAvailabilityWarning = (err) => err?.body?.code === 'OUT_OF_AVAILABILITY'
+
 function CalendarCreateForm({ students, day, saving, onSubmit, onClose }) {
   const [studentId, setStudentId] = useState(students[0]?.id ?? '')
   const [subject, setSubject] = useState('')
   const [time, setTime] = useState('17:00')
   const [durationMinutes, setDurationMinutes] = useState(60)
   const [localError, setLocalError] = useState(null)
+  const [repeat, setRepeat] = useState(true)
+  const [warnings, setWarnings] = useState([])
 
   const student = students.find((s) => s.id === studentId)
+  const assignment = student?.assignments?.find((a) => a.subject === subject)
+  const willRepeat = Boolean(assignment?.endsAt) && !assignment.hasSchedule && repeat
+
+  const submit = (confirmed) => {
+    setLocalError(null)
+    onSubmit(studentId, {
+      subject,
+      date: `${day}T${time}`,
+      durationMinutes,
+      repeatUntilPeriodEnd: willRepeat || undefined,
+      confirmOutOfAvailability: confirmed || undefined,
+    })
+      .then(onClose)
+      .catch((err) => {
+        if (isAvailabilityWarning(err)) setWarnings(err.body.warnings ?? [])
+        else setLocalError(err.message)
+      })
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    setLocalError(null)
-    onSubmit(studentId, { subject, date: `${day}T${time}`, durationMinutes })
-      .then(onClose)
-      .catch((err) => setLocalError(err.message))
+    setWarnings([])
+    submit(false)
   }
 
   return (
@@ -382,6 +439,14 @@ function CalendarCreateForm({ students, day, saving, onSubmit, onClose }) {
           ))}
         </select>
       </div>
+      <RepeatAndWarnings
+        assignment={assignment}
+        repeat={repeat}
+        onRepeatChange={setRepeat}
+        warnings={warnings}
+        onConfirm={() => submit(true)}
+        saving={saving}
+      />
       {localError && <p className="text-sm text-red-600">{localError}</p>}
       <div className="flex gap-2">
         <Button type="submit" loading={saving}>
@@ -413,6 +478,9 @@ function StudentPlanningCard({
     date: '',
     durationMinutes: 60,
   })
+  const [repeat, setRepeat] = useState(true)
+  const [warnings, setWarnings] = useState([])
+  const [createError, setCreateError] = useState(null)
 
   // Regroupement par statut (et non par date) : une séance planifiée mais
   // passée sans pointage reste "à venir" (à confirmer) tant qu'elle n'a pas
@@ -442,11 +510,30 @@ function StudentPlanningCard({
 
   const isCreatingHere = creating === student.id
 
+  const assignment = student.assignments?.find((a) => a.subject === createForm.subject)
+  const willRepeat = Boolean(assignment?.endsAt) && !assignment.hasSchedule && repeat
+
+  const submitCreate = (confirmed) => {
+    setCreateError(null)
+    onSubmitCreate(student.id, {
+      ...createForm,
+      repeatUntilPeriodEnd: willRepeat || undefined,
+      confirmOutOfAvailability: confirmed || undefined,
+    })
+      .then(() => {
+        setCreateForm({ subject: '', date: '', durationMinutes: 60 })
+        setWarnings([])
+      })
+      .catch((err) => {
+        if (isAvailabilityWarning(err)) setWarnings(err.body.warnings ?? [])
+        else setCreateError(err.message)
+      })
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSubmitCreate(student.id, createForm).then(() => {
-      setCreateForm({ subject: '', date: '', durationMinutes: 60 })
-    })
+    setWarnings([])
+    submitCreate(false)
   }
 
   return (
@@ -502,6 +589,15 @@ function StudentPlanningCard({
               </option>
             ))}
           </select>
+          <RepeatAndWarnings
+            assignment={assignment}
+            repeat={repeat}
+            onRepeatChange={setRepeat}
+            warnings={warnings}
+            onConfirm={() => submitCreate(true)}
+            saving={savingId === 'create'}
+          />
+          {createError && <p className="text-sm text-red-600">{createError}</p>}
           <div className="flex gap-2">
             <Button type="submit" loading={savingId === 'create'}>
               Confirmer
@@ -619,7 +715,7 @@ export function Planning() {
         return load()
       })
       .catch((err) => {
-        setError(err.message)
+        if (!isAvailabilityWarning(err)) setError(err.message)
         throw err
       })
       .finally(() => setSavingId(null))

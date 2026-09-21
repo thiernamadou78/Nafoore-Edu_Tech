@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -36,4 +37,8 @@ export class UpsertRecurringScheduleDto {
   @IsOptional()
   @IsIn([30, 45, 60, 90, 120])
   durationMinutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  confirmOutOfAvailability?: boolean;
 }

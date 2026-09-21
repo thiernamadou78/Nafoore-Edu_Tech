@@ -65,12 +65,14 @@ function SubjectScheduleCard({ studentId, subject, schedule, defaultDurationMinu
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [warnings, setWarnings] = useState([])
 
   const startEditing = () => {
     setFrequency(schedule?.frequency ?? 2)
     setSlots(schedule?.slots ?? defaultSlots(2))
     setDurationMinutes(schedule?.durationMinutes ?? defaultDurationMinutes ?? 60)
     setError(null)
+    setWarnings([])
     setEditing(true)
   }
 
@@ -88,20 +90,23 @@ function SubjectScheduleCard({ studentId, subject, schedule, defaultDurationMinu
     setSlots((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)))
   }
 
-  const handleSave = async () => {
+  const handleSave = async (confirmed = false) => {
     setSaving(true)
     setError(null)
+    if (!confirmed) setWarnings([])
     try {
       const updated = await api.put(`/teacher/students/${studentId}/schedule`, {
         frequency,
         slots,
         subject,
         durationMinutes,
+        confirmOutOfAvailability: confirmed || undefined,
       })
       onChange(updated)
       setEditing(false)
     } catch (err) {
-      setError(err.message)
+      if (err?.body?.code === 'OUT_OF_AVAILABILITY') setWarnings(err.body.warnings ?? [])
+      else setError(err.message)
     } finally {
       setSaving(false)
     }
@@ -138,6 +143,19 @@ function SubjectScheduleCard({ studentId, subject, schedule, defaultDurationMinu
       </div>
 
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {warnings.length > 0 && (
+        <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="font-medium">Ces créneaux sont en dehors des disponibilités :</p>
+          <ul className="ml-4 mt-1 list-disc space-y-0.5">
+            {warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+          <Button variant="secondary" loading={saving} onClick={() => handleSave(true)} className="mt-2">
+            Enregistrer quand même
+          </Button>
+        </div>
+      )}
 
       {!editing ? (
         schedule ? (
@@ -227,7 +245,7 @@ function SubjectScheduleCard({ studentId, subject, schedule, defaultDurationMinu
           </div>
 
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button loading={saving} onClick={handleSave}>
+            <Button loading={saving} onClick={() => handleSave(false)}>
               Enregistrer le planning
             </Button>
             <Button variant="secondary" onClick={() => setEditing(false)}>

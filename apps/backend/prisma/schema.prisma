@@ -552,6 +552,8 @@ model RecurringSchedule {
   // (1 = lundi ... 7 = dimanche)
   slots           Json
   active          Boolean  @default(true)
+  // Date de la 1ere seance : la generation part de la, pas d'aujourd'hui.
+  startsOn        DateTime? @map("starts_on")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
   sessions        Session[]

@@ -2,12 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
+import { SessionNotifierService } from '../email/session-notifier.service';
 
 const teacherSelect = { teacher: { select: { id: true, name: true } } };
 
 @Injectable()
 export class StudentSessionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly sessionNotifier: SessionNotifierService,
+  ) {}
 
   list(studentId: string) {
     return this.prisma.session.findMany({
@@ -17,8 +21,8 @@ export class StudentSessionsService {
     });
   }
 
-  create(studentId: string, dto: CreateSessionDto) {
-    return this.prisma.session.create({
+  async create(studentId: string, dto: CreateSessionDto) {
+    const session = await this.prisma.session.create({
       data: {
         studentId,
         teacherId: dto.teacherId,
@@ -29,6 +33,12 @@ export class StudentSessionsService {
       },
       include: teacherSelect,
     });
+    // Seule une seance a venir est "planifiee" pour la famille ; un
+    // enregistrement retroactif (seance deja donnee) ne doit pas la notifier.
+    if (session.date > new Date() && ['planifiee', 'confirmee'].includes(session.status)) {
+      this.sessionNotifier.notifyPlanned(session.id);
+    }
+    return session;
   }
 
   async update(studentId: string, sessionId: string, dto: UpdateSessionDto) {
