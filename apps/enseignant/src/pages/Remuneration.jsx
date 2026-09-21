@@ -140,7 +140,7 @@ export function Remuneration() {
                   <div className="flex shrink-0 items-center gap-2">
                     <Badge tone="gold">{formatMinutes(session.durationMinutes)}</Badge>
                     <span className="text-xs font-medium text-gray-700">
-                      {session.amount !== null ? `${formatEuros(session.amount)} (${session.hourlyRate} €/h)` : 'Tarif à définir'}
+                      {session.amount !== null ? `${formatEuros(session.amount)} (${session.hourlyRate} €/h net)` : 'Tarif à définir'}
                     </span>
                   </div>
                 </div>
