@@ -19,10 +19,11 @@ function dotColor(session) {
 
 // Grille du mois façon agenda de téléphone : pastilles colorées sous les
 // jours qui ont des séances, et un clic sur un jour affiche l'agenda du jour.
-export function PlanningCalendar({ sessions, renderSession, renderCreateForm }) {
+export function PlanningCalendar({ sessions, renderSession, renderCreateForm, initialDate }) {
   const today = new Date()
-  const [month, setMonth] = useState(startOfMonth(today))
-  const [selected, setSelected] = useState(today)
+  const start = initialDate ? new Date(initialDate) : today
+  const [month, setMonth] = useState(startOfMonth(start))
+  const [selected, setSelected] = useState(start)
   const [creating, setCreating] = useState(false)
 
   const byDay = useMemo(() => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { CalendarPlus, Check, ScanLine, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
@@ -41,7 +41,7 @@ function formatTimeRange(date, durationMinutes) {
   return `${dateLabel}, ${startLabel} – ${endLabel}`
 }
 
-function ReportForm({ session, onCancel, onSave, saving }) {
+function ReportForm({ session, onCancel, onSave, saving, notice }) {
   const blocked = session.baselineMissing
   const [attended, setAttended] = useState(session.attended ?? true)
   const [notes, setNotes] = useState(session.notes ?? '')
@@ -50,10 +50,10 @@ function ReportForm({ session, onCancel, onSave, saving }) {
     <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
       {blocked && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Avant de clôturer cette séance, saisis les notes de départ de l'élève en{' '}
-          {session.subject} :{' '}
-          <Link to={`/eleves/${session.studentId}`} className="font-medium underline">
-            ouvrir la fiche de l'élève
+          Ton compte-rendu sera enregistré, mais la séance ne sera clôturée qu'une fois les notes de
+          départ de l'élève en {session.subject} saisies :{' '}
+          <Link to={`/eleves/${session.studentId}#notes`} className="font-medium underline">
+            ouvrir « Notes et progression »
           </Link>
           .
         </p>
@@ -75,10 +75,24 @@ function ReportForm({ session, onCancel, onSave, saving }) {
         placeholder="Ce qui a été travaillé, points à retravailler… (obligatoire pour clôturer la séance)"
         className={`${inputClass} resize-none`}
       />
+      {notice && (
+        <p
+          className={`rounded-lg px-3 py-2 text-sm ${
+            notice.tone === 'red' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900'
+          }`}
+        >
+          {notice.text}{' '}
+          {notice.tone === 'amber' && (
+            <Link to={`/eleves/${session.studentId}#notes`} className="font-medium underline">
+              Ouvrir la fiche de l'élève
+            </Link>
+          )}
+        </p>
+      )}
       <div className="flex gap-2">
         <Button
           loading={saving}
-          disabled={!notes.trim() || blocked}
+          disabled={!notes.trim()}
           onClick={() => onSave({ attended, notes, status: 'realisee' })}
         >
           Enregistrer
@@ -191,7 +205,11 @@ function SessionRow({
   useEffect(() => {
     if (autoOpenReport) setReportOpen(true)
   }, [autoOpenReport])
-  const hasReport = session.status === 'realisee' && (session.notes || session.attended !== null)
+  // Un compte-rendu enregistre mais pas encore cloture (notes de depart
+  // manquantes) reste visible et modifiable.
+  const isClosed = session.status === 'realisee'
+  const hasReport = Boolean(session.notes) || (isClosed && session.attended !== null)
+  const [reportNotice, setReportNotice] = useState(null)
   const isPast = new Date(session.date) < new Date()
   // Reflete cote client la fenetre appliquee par le backend
   // (attendance.service.ts) : le pointage manuel est un secours ponctuel,
@@ -294,12 +312,43 @@ function SessionRow({
         </div>
       )}
 
+      {hasReport && !isClosed && !reportOpen && (
+        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Compte-rendu enregistré, séance pas encore clôturée.
+          {session.baselineMissing && (
+            <>
+              {' '}
+              Saisis d'abord les notes de départ :{' '}
+              <Link to={`/eleves/${session.studentId}#notes`} className="font-medium underline">
+                ouvrir « Notes et progression »
+              </Link>
+              .
+            </>
+          )}
+        </p>
+      )}
+
       {reportOpen && (
         <ReportForm
           session={session}
           saving={savingId === session.id}
-          onCancel={() => setReportOpen(false)}
-          onSave={(data) => onSaveReport(session.id, data).then(() => setReportOpen(false))}
+          notice={reportNotice}
+          onCancel={() => {
+            setReportOpen(false)
+            setReportNotice(null)
+          }}
+          onSave={(data) => {
+            setReportNotice(null)
+            return onSaveReport(session.id, data)
+              .then((result) => {
+                if (result?.pendingBaseline) {
+                  setReportNotice({ tone: 'amber', text: result.message })
+                } else {
+                  setReportOpen(false)
+                }
+              })
+              .catch((err) => setReportNotice({ tone: 'red', text: err.message }))
+          }}
         />
       )}
 
@@ -663,6 +712,8 @@ export function Planning() {
   const [creatingForStudentId, setCreatingForStudentId] = useState(null)
   const [autoReportIds, setAutoReportIds] = useState(() => new Set())
   const [view, setView] = useState('calendrier')
+  const [searchParams] = useSearchParams()
+  const focusSessionId = searchParams.get('session')
 
   const load = () =>
     Promise.all([api.get('/teacher/sessions'), api.get('/teacher/students')])
@@ -675,6 +726,14 @@ export function Planning() {
   useEffect(() => {
     load()
   }, [])
+
+  // Lien depuis le tableau de bord : ouvre directement le compte-rendu.
+  useEffect(() => {
+    if (focusSessionId && sessions) {
+      setView('calendrier')
+      setAutoReportIds((prev) => (prev.has(focusSessionId) ? prev : new Set(prev).add(focusSessionId)))
+    }
+  }, [focusSessionId, sessions])
 
   // Rafraichissement silencieux (pointage fait ailleurs, changement admin…).
   useAutoRefresh(() => {
@@ -695,12 +754,16 @@ export function Planning() {
       .finally(() => setSavingId(null))
   }
 
+  // L'erreur remonte au formulaire (qui reste ouvert) au lieu d'etre avalee :
+  // sinon la fenetre se fermait comme si le compte-rendu etait enregistre.
   const handleSaveReport = (id, data) => {
     setSavingId(id)
     return api
       .patch(`/teacher/sessions/${id}`, data)
-      .then(load)
-      .catch((err) => setError(err.message))
+      .then(async (result) => {
+        await load()
+        return result
+      })
       .finally(() => setSavingId(null))
   }
 
@@ -775,6 +838,7 @@ export function Planning() {
       ) : view === 'calendrier' ? (
         <PlanningCalendar
           sessions={sessions}
+          initialDate={sessions.find((s) => s.id === focusSessionId)?.date}
           renderCreateForm={({ day, onClose }) => (
             <CalendarCreateForm
               students={students}

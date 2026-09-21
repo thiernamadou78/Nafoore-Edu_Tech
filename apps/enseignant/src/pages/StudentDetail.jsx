@@ -300,6 +300,13 @@ export function StudentDetail() {
     }
   }
 
+  // Lien direct #notes (depuis le compte-rendu) : descend sur la section.
+  useEffect(() => {
+    if (student && window.location.hash === '#notes') {
+      document.getElementById('notes')?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [student])
+
   if (error) {
     return <p className="text-red-600">{error}</p>
   }
@@ -355,7 +362,9 @@ export function StudentDetail() {
         </span>
       </div>
 
-      <GradesCard studentId={id} subjects={student.subjects} />
+      <div id="notes" className="scroll-mt-4">
+        <GradesCard studentId={id} subjects={student.subjects} />
+      </div>
 
       <Card className="mb-6 p-5">
         <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">

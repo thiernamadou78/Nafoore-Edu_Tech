@@ -506,9 +506,17 @@ export class TeacherService {
         where: { studentId: session.studentId, subject: session.subject, kind: 'depart' },
       });
       if (baseline === 0) {
-        throw new BadRequestException(
-          `Saisis d'abord les notes de départ de l'élève en ${session.subject} (fiche de l'élève, section Notes) avant de clôturer cette séance`,
-        );
+        // Le compte-rendu est enregistre (rien n'est perdu) mais la seance
+        // reste ouverte tant que les notes de depart manquent.
+        const draft = await this.prisma.session.update({
+          where: { id: sessionId },
+          data: { attended: dto.attended, notes: dto.notes },
+        });
+        return {
+          ...draft,
+          pendingBaseline: true,
+          message: `Compte-rendu enregistré, mais la séance n'est pas clôturée : saisis d'abord les notes de départ de l'élève en ${session.subject} (Mes élèves, fiche de l'élève, « Notes et progression »), puis clique de nouveau sur Enregistrer.`,
+        };
       }
     }
 
@@ -597,23 +605,25 @@ export class TeacherService {
 
   async getDashboard(teacherAccount: AuthenticatedTeacherAccount) {
     if (!teacherAccount.teacherId) {
-      return { upcomingSessions: [], pendingReportsCount: 0, studentsCount: 0, familiesCount: 0 };
+      return { upcomingSessions: [], pendingReports: [], pendingReportsCount: 0, studentsCount: 0, familiesCount: 0 };
     }
     const teacherId = teacherAccount.teacherId;
 
-    const [upcoming, pendingReports, students] = await Promise.all([
+    const [upcoming, pendingReportSessions, students] = await Promise.all([
       this.prisma.session.findMany({
         where: { teacherId, date: { gte: new Date() }, status: { not: 'annulee' } },
         orderBy: { date: 'asc' },
         take: 5,
         include: { student: { select: { name: true } } },
       }),
-      this.prisma.session.count({
+      this.prisma.session.findMany({
         where: {
           teacherId,
           date: { lt: new Date() },
           status: { notIn: ['annulee', 'realisee'] },
         },
+        orderBy: { date: 'desc' },
+        include: { student: { select: { name: true } } },
       }),
       this.prisma.student.findMany({
         where: { teachers: { some: { teacherId } } },
@@ -626,7 +636,14 @@ export class TeacherService {
         ...session,
         studentName: student.name,
       })),
-      pendingReportsCount: pendingReports,
+      pendingReportsCount: pendingReportSessions.length,
+      pendingReports: pendingReportSessions.slice(0, 10).map(({ student, ...session }) => ({
+        id: session.id,
+        date: session.date,
+        subject: session.subject,
+        studentName: student.name,
+        hasDraft: Boolean(session.notes),
+      })),
       studentsCount: students.length,
       familiesCount: new Set(students.map((s) => s.parentLeadId).filter(Boolean)).size,
     };

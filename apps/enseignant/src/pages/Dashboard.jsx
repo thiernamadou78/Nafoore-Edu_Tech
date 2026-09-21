@@ -61,6 +61,33 @@ export function Dashboard() {
         <StatCard icon={FileWarning} label="Comptes-rendus en attente" value={data.pendingReportsCount} />
       </div>
 
+      {data.pendingReports?.length > 0 && (
+        <Card className="mb-6 border-amber-200 bg-amber-50/50 p-5">
+          <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+            <FileWarning size={16} className="text-amber-600" />
+            Comptes-rendus à rédiger
+          </h2>
+          <div className="space-y-2">
+            {data.pendingReports.map((session) => (
+              <div key={session.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <div>
+                  <span className="font-medium text-gray-900">{session.studentName}</span>
+                  {session.subject && <span className="ml-2 text-gray-500">{session.subject}</span>}
+                  <span className="ml-2 text-gray-400">{formatDateTime(session.date)}</span>
+                  {session.hasDraft && <Badge tone="amber">Brouillon enregistré</Badge>}
+                </div>
+                <Link
+                  to={`/planning?session=${session.id}`}
+                  className="rounded-full bg-navy px-3 py-1 text-xs font-semibold text-white hover:bg-navy/90"
+                >
+                  {session.hasDraft ? 'Terminer' : 'Rédiger le compte-rendu'}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card className="mb-6 p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-semibold text-gray-900">
