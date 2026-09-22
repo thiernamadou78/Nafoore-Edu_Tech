@@ -413,7 +413,7 @@ function AssignTeacherCard({ student, teachers, onAssigned }) {
           onChange={(e) => setPeriodMonths(Number(e.target.value))}
           className={fieldClass}
         >
-          {[1, 2, 3, 6].map((m) => (
+          {[1, 2, 3, 6, 9].map((m) => (
             <option key={m} value={m}>
               Durée : {m} mois
             </option>

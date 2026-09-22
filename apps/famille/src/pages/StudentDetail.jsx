@@ -669,7 +669,7 @@ const TIME_SLOTS = [
 const DURATION_OPTIONS = [30, 45, 60, 90, 120]
 
 // Objectif de duree (renouvelable) : 1, 2, 3 ou 6 mois.
-const PERIOD_OPTIONS = [1, 2, 3, 6]
+const PERIOD_OPTIONS = [1, 2, 3, 6, 9]
 
 const RENEWAL_STATUS_LABELS = {
   en_attente_prof: "En attente de la réponse de l'enseignant",

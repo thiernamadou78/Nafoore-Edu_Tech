@@ -33,6 +33,49 @@ export class FamilyService {
     private readonly geocoding: GeocodingService,
   ) {}
 
+  // Heures cumulees par enfant (seances realisees et pointees, checkout
+  // clos) + total pour toute la famille — memes criteres que la remuneration
+  // du prof et le calendrier, pour rester coherent partout.
+  async getHours(portalAccount: AuthenticatedPortalAccount) {
+    const students = await this.prisma.student.findMany({
+      where: { parentLeadId: portalAccount.leadId },
+      select: {
+        id: true,
+        name: true,
+        photoPath: true,
+        sessions: {
+          where: {
+            status: 'realisee',
+            attendanceLogs: { some: { checkoutAt: { not: null } } },
+          },
+          select: { durationMinutes: true, subject: true },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const photoUrls = await this.photos.signUrls(students.map((s) => s.photoPath));
+    const children = students.map(({ sessions, photoPath, ...student }) => {
+      const bySubject = new Map<string, number>();
+      for (const session of sessions) {
+        const key = session.subject ?? 'Non précisé';
+        bySubject.set(key, (bySubject.get(key) ?? 0) + session.durationMinutes);
+      }
+      return {
+        ...student,
+        photoUrl: photoPath ? (photoUrls.get(photoPath) ?? null) : null,
+        totalMinutes: sessions.reduce((sum, s) => sum + s.durationMinutes, 0),
+        sessionsCount: sessions.length,
+        bySubject: [...bySubject.entries()].map(([subject, minutes]) => ({ subject, minutes })),
+      };
+    });
+
+    return {
+      children,
+      totalMinutes: children.reduce((sum, c) => sum + c.totalMinutes, 0),
+    };
+  }
+
   async me(portalAccount: AuthenticatedPortalAccount) {
     // Adresse/code postal du lead, exposes pour prefiller le formulaire de
     // creation d'un enfant (memes coordonnees par defaut que la famille,

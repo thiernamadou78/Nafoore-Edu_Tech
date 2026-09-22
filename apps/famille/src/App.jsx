@@ -12,6 +12,7 @@ import { StudentDetail } from './pages/StudentDetail'
 import { AddStudent } from './pages/AddStudent'
 import { EditStudent } from './pages/EditStudent'
 import { Planning } from './pages/Planning'
+import { Heures } from './pages/Heures'
 import { Messagerie } from './pages/Messagerie'
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/eleves/:id" element={<StudentDetail />} />
             <Route path="/eleves/:id/modifier" element={<EditStudent />} />
             <Route path="/planning" element={<Planning />} />
+            <Route path="/heures" element={<Heures />} />
             <Route path="/messagerie" element={<Messagerie />} />
           </Route>
         </Route>

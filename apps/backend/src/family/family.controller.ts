@@ -105,6 +105,11 @@ export class FamilyController {
     return this.familyService.removeStudentPhoto(portalAccount, id);
   }
 
+  @Get('hours')
+  hours(@CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount) {
+    return this.familyService.getHours(portalAccount);
+  }
+
   @Get('teachers')
   listTeachers(@CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount) {
     return this.familyService.listMyTeachers(portalAccount);

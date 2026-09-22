@@ -35,7 +35,8 @@ const DAY_OPTIONS = [
   { value: 7, label: 'Dimanche' },
 ]
 const DAY_LABELS = Object.fromEntries(DAY_OPTIONS.map((d) => [d.value, d.label]))
-const DURATION_OPTIONS = [30, 45, 60, 90, 120]
+// 5 et 10 min : creneaux courts pour tester rapidement pointage/compte-rendu.
+const DURATION_OPTIONS = [5, 10, 30, 45, 60, 90, 120]
 
 // Même calcul que côté famille/admin : seules les séances confirmées
 // réalisées comptent dans le cumul d'heures.

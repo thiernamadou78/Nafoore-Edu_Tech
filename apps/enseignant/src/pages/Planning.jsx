@@ -31,6 +31,9 @@ const DURATION_OPTIONS = [
   { value: 60, label: '1h' },
   { value: 90, label: '1h30' },
   { value: 120, label: '2h' },
+
+  { value: 5, label: '5 min (test)' },
+  { value: 10, label: '10 min (test)' },
 ]
 
 function formatTimeRange(date, durationMinutes) {

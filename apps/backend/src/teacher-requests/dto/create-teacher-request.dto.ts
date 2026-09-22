@@ -3,7 +3,7 @@ import { IsDateString, IsIn, IsOptional, IsString, MaxLength, MinLength } from '
 import { SUBJECT_OPTIONS } from '../../common/subjects';
 
 export const TEACHER_REQUEST_FORMATS = ['presentiel', 'distanciel', 'hybride'] as const;
-export const TEACHER_REQUEST_PERIODS = [1, 2, 3, 6] as const;
+export const TEACHER_REQUEST_PERIODS = [1, 2, 3, 6, 9] as const;
 export const TEACHER_REQUEST_DURATIONS = [30, 45, 60, 90, 120] as const;
 
 export class CreateTeacherRequestDto {
@@ -28,7 +28,7 @@ export class CreateTeacherRequestDto {
   desiredStartDate?: string;
 
   @Type(() => Number)
-  @IsIn(TEACHER_REQUEST_PERIODS, { message: "La durée d'accompagnement doit être 1, 2, 3 ou 6 mois" })
+  @IsIn(TEACHER_REQUEST_PERIODS, { message: "La durée d'accompagnement doit être 1, 2, 3, 6 ou 9 mois" })
   periodMonths: number;
 
   // Duree de seance souhaitee : sert de defaut au prof pour le planning,

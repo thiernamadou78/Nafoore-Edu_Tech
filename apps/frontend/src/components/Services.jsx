@@ -102,6 +102,27 @@ const STRUCTURE_OFFERS = [
   },
 ]
 
+function ContactCta() {
+  return (
+    <a
+      href="#contact"
+      className="group flex flex-col justify-between rounded-2xl border border-dashed border-navy/25 bg-navy/[0.03] p-6 transition-all hover:border-gold-400/50 hover:bg-navy/[0.05] sm:col-span-2"
+    >
+      <div>
+        <h3 className="font-sans font-bold text-navy text-sm mb-2">
+          Un besoin qui ne figure pas ici ?
+        </h3>
+        <p className="font-sans text-gray-500 text-sm leading-relaxed">
+          Parlons de votre situation : nous adaptons l'accompagnement à chaque élève.
+        </p>
+      </div>
+      <span className="mt-4 inline-flex items-center gap-1.5 font-sans text-sm font-bold text-navy group-hover:text-gold-600 transition-colors">
+        Nous contacter →
+      </span>
+    </a>
+  )
+}
+
 function handleServiceClick(service, profile) {
   window.dispatchEvent(new CustomEvent('nafoore-select-service', { detail: { service, profile } }))
   document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })
@@ -153,6 +174,7 @@ export default function Services() {
               <p className="font-sans text-gray-500 text-sm leading-relaxed">{desc}</p>
             </button>
           ))}
+          <ContactCta />
         </div>
 
         {/* Offres pour les structures */}
