@@ -23,7 +23,7 @@ export function StudentProgressCard({ studentId }) {
     <Card className="mb-6 p-5">
       <h2 className="mb-1 flex items-center gap-2 font-semibold text-gray-900">
         <LineChart size={16} className="text-gold-500" />
-        Progression par matière
+        Progression
       </h2>
       <p className="mb-4 text-xs text-gray-500">
         Moyenne des notes avant l'accompagnement, comparée à la moyenne du dernier mois
