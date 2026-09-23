@@ -24,6 +24,7 @@ const PHONE_PATTERN = /^(\+33 ?|0)[1-9]([ .-]?\d{2}){4}$/
 
 const TEACHER_DOCUMENT_TYPE_LABELS = {
   cv: 'CV',
+  piece_identite: "Pièce d'identité",
   diplome: 'Diplôme',
   casier_judiciaire: 'Casier judiciaire',
   autre: 'Autre',

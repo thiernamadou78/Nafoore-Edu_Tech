@@ -203,6 +203,7 @@ function SubjectQuickAdd({ selected, onChange }) {
 export default function TeacherApplication() {
   const [form, setForm] = useState(DEFAULT_FORM)
   const [cv, setCv] = useState(null)
+  const [identityDocument, setIdentityDocument] = useState(null)
   const [diplomas, setDiplomas] = useState([])
   const [criminalRecord, setCriminalRecord] = useState(null)
   const [status, setStatus] = useState('idle')
@@ -262,11 +263,6 @@ export default function TeacherApplication() {
       setErrorMsg('Choisissez au moins un niveau.')
       return
     }
-    if (!cv) {
-      setStatus('error')
-      setErrorMsg('Le CV est obligatoire.')
-      return
-    }
     if (form.availabilityDays.length === 0) {
       setStatus('error')
       setErrorMsg('Choisissez au moins un jour de disponibilité.')
@@ -303,7 +299,8 @@ export default function TeacherApplication() {
       formData.append('city', form.city.trim())
       formData.append('bio', form.bio.trim())
       formData.append('availability', form.availabilityDays.join(', '))
-      formData.append('cv', cv)
+      if (cv) formData.append('cv', cv)
+      if (identityDocument) formData.append('identityDocument', identityDocument)
       diplomas.forEach((file) => formData.append('diplomas', file))
       if (criminalRecord) formData.append('criminalRecord', criminalRecord)
 
@@ -321,6 +318,7 @@ export default function TeacherApplication() {
       setStatus('success')
       setForm(DEFAULT_FORM)
       setCv(null)
+      setIdentityDocument(null)
       setDiplomas([])
       setCriminalRecord(null)
     } catch (err) {
@@ -611,32 +609,51 @@ export default function TeacherApplication() {
                   />
                 </div>
 
-                <div className="mb-4">
-                  <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                    CV <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="file"
-                    required
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null
-                      const error = validateUploads(file ? [file] : [])
-                      setFileErrors((prev) => ({ ...prev, cv: error }))
-                      if (error) e.target.value = ''
-                      setCv(error ? null : file)
-                    }}
-                    className="w-full font-sans text-xs text-gray-500"
-                  />
-                  {fileErrors.cv && (
-                    <p className="mt-1.5 font-sans text-xs text-red-600">{fileErrors.cv}</p>
-                  )}
-                </div>
-
                 <p className="font-sans text-xs text-gray-400 mb-3">
-                  Autres documents (facultatifs pour l'instant) — formats acceptés : PDF, JPG ou PNG, 5 Mo maximum par fichier.
+                  Documents (facultatifs pour l'instant, à compléter plus tard par email) — formats
+                  acceptés : PDF, JPG ou PNG, 5 Mo maximum par fichier.
                 </p>
                 <div className="grid sm:grid-cols-2 gap-4 mb-5">
+                  <div>
+                    <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                      CV
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null
+                        const error = validateUploads(file ? [file] : [])
+                        setFileErrors((prev) => ({ ...prev, cv: error }))
+                        if (error) e.target.value = ''
+                        setCv(error ? null : file)
+                      }}
+                      className="w-full font-sans text-xs text-gray-500"
+                    />
+                    {fileErrors.cv && (
+                      <p className="mt-1.5 font-sans text-xs text-red-600">{fileErrors.cv}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                      Pièce d'identité
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null
+                        const error = validateUploads(file ? [file] : [])
+                        setFileErrors((prev) => ({ ...prev, identityDocument: error }))
+                        if (error) e.target.value = ''
+                        setIdentityDocument(error ? null : file)
+                      }}
+                      className="w-full font-sans text-xs text-gray-500"
+                    />
+                    {fileErrors.identityDocument && (
+                      <p className="mt-1.5 font-sans text-xs text-red-600">{fileErrors.identityDocument}</p>
+                    )}
+                  </div>
                   <div>
                     <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
                       Diplômes

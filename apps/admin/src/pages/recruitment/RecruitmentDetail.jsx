@@ -29,6 +29,7 @@ const inputClass =
 
 const DOCUMENT_TYPE_LABELS = {
   cv: 'CV',
+  piece_identite: "Pièce d'identité",
   diplome: 'Diplôme',
   casier_judiciaire: 'Casier judiciaire',
   autre: 'Autre',
@@ -186,6 +187,10 @@ export function RecruitmentDetail() {
                 {[
                   ['Présentation', Boolean(application.bio && application.bio.trim().length >= 20)],
                   ['CV', application.documents?.some((d) => d.type === 'cv')],
+                  [
+                    "Pièce d'identité",
+                    application.documents?.some((d) => d.type === 'piece_identite'),
+                  ],
                   ['Diplôme', application.documents?.some((d) => d.type === 'diplome')],
                   [
                     'Casier judiciaire',

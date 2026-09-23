@@ -19,6 +19,7 @@ const STATUS_LABELS = {
 
 const DOCUMENT_TYPE_LABELS = {
   cv: 'CV',
+  piece_identite: "Pièce d'identité",
   diplome: 'Diplôme',
   casier_judiciaire: 'Casier judiciaire',
   autre: 'Document',
@@ -27,6 +28,7 @@ const DOCUMENT_TYPE_LABELS = {
 const isProfileComplete = (application) =>
   Boolean(application?.bio && application.bio.trim().length >= 20) &&
   (application?.documents ?? []).some((doc) => doc.type === 'cv') &&
+  (application?.documents ?? []).some((doc) => doc.type === 'piece_identite') &&
   (application?.documents ?? []).some((doc) => doc.type === 'diplome') &&
   (application?.documents ?? []).some((doc) => doc.type === 'casier_judiciaire')
 
@@ -36,6 +38,7 @@ export default function ApplicationCompletion() {
   const [loadError, setLoadError] = useState('')
   const [bio, setBio] = useState('')
   const [cv, setCv] = useState(null)
+  const [identityDocument, setIdentityDocument] = useState(null)
   const [diplomas, setDiplomas] = useState([])
   const [criminalRecord, setCriminalRecord] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -106,9 +109,10 @@ export default function ApplicationCompletion() {
       })
     }
 
-    if (cv || diplomas.length > 0 || criminalRecord) {
+    if (cv || identityDocument || diplomas.length > 0 || criminalRecord) {
       const formData = new FormData()
       if (cv) formData.append('cv', cv)
+      if (identityDocument) formData.append('identityDocument', identityDocument)
       diplomas.forEach((file) => formData.append('diplomas', file))
       if (criminalRecord) formData.append('criminalRecord', criminalRecord)
       jobs.push({
@@ -135,6 +139,7 @@ export default function ApplicationCompletion() {
         succeededTypes.push(jobs[index].type)
         if (jobs[index].type === 'documents') {
           setCv(null)
+          setIdentityDocument(null)
           setDiplomas([])
           setCriminalRecord(null)
         }
@@ -278,6 +283,7 @@ export default function ApplicationCompletion() {
           <ul className="mb-3 font-sans text-sm space-y-1.5">
             {[
               ['cv', 'CV'],
+              ['piece_identite', "Pièce d'identité"],
               ['diplome', 'Diplôme'],
               ['casier_judiciaire', 'Casier judiciaire'],
             ].map(([type, label]) =>
@@ -304,6 +310,23 @@ export default function ApplicationCompletion() {
             />
             {fileErrors.cv && (
               <p className="mt-1.5 font-sans text-xs text-red-600">{fileErrors.cv}</p>
+            )}
+          </div>
+          <div className="mb-4">
+            <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+              Pièce d'identité
+            </label>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              disabled={locked}
+              onChange={(e) =>
+                pickFiles('identityDocument', 'document', e, (files) => setIdentityDocument(files?.[0] ?? null))
+              }
+              className="w-full font-sans text-xs text-gray-500"
+            />
+            {fileErrors.identityDocument && (
+              <p className="mt-1.5 font-sans text-xs text-red-600">{fileErrors.identityDocument}</p>
             )}
           </div>
           <div className="grid sm:grid-cols-2 gap-4">

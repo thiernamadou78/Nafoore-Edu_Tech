@@ -170,9 +170,13 @@ export class TeacherApplicationsService {
     if (!application.bio || application.bio.trim().length < 20) {
       missing.push('Présentation (20 caractères minimum)');
     }
-    // Le CV est deja obligatoire a la soumission de la candidature ; ce
-    // controle defensif ne joue que pour d'anciennes candidatures.
+    // Inscription en deux temps : candidature rapide (bio + coordonnees),
+    // puis dossier complete avant validation — CV, piece d'identite, diplome
+    // et casier judiciaire sont tous facultatifs au depart et requis ici.
     if (!application.documents.some((doc) => doc.type === 'cv')) missing.push('CV');
+    if (!application.documents.some((doc) => doc.type === 'piece_identite')) {
+      missing.push("Pièce d'identité");
+    }
     if (!application.documents.some((doc) => doc.type === 'diplome')) missing.push('Diplôme');
     if (!application.documents.some((doc) => doc.type === 'casier_judiciaire')) {
       missing.push('Casier judiciaire (bulletin n°3)');

@@ -30,6 +30,7 @@ export class TeacherApplicationsPublicController {
     FileFieldsInterceptor(
       [
         { name: 'cv', maxCount: 1 },
+        { name: 'identityDocument', maxCount: 1 },
         { name: 'diplomas', maxCount: 3 },
         { name: 'criminalRecord', maxCount: 1 },
       ],
@@ -63,6 +64,7 @@ export class TeacherApplicationsPublicController {
     FileFieldsInterceptor(
       [
         { name: 'cv', maxCount: 1 },
+        { name: 'identityDocument', maxCount: 1 },
         { name: 'diplomas', maxCount: 3 },
         { name: 'criminalRecord', maxCount: 1 },
       ],
