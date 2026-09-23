@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
 import { CreateAdminAccountDto } from './dto/create-admin-account.dto';
+import { resolvePortalUrl } from '../email/portal-url.util';
 
 @Injectable()
 export class AdminAccountsService {
@@ -23,9 +24,12 @@ export class AdminAccountsService {
 
   async create(dto: CreateAdminAccountDto, actorId: string) {
     const { data, error } =
-      await this.supabaseAdmin.client.auth.admin.inviteUserByEmail(
-        dto.email,
-      );
+      await this.supabaseAdmin.client.auth.admin.inviteUserByEmail(dto.email, {
+        // Sans redirectTo, Supabase renvoie vers son "Site URL" par defaut
+        // (localhost:3000) : l'invite doit arriver sur la page de l'admin qui
+        // lui fait choisir son mot de passe.
+        redirectTo: `${resolvePortalUrl('admin')}/reinitialiser-mot-de-passe`,
+      });
     if (error || !data.user) {
       throw error ?? new Error("Échec de l'invitation Supabase Auth");
     }
