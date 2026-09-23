@@ -50,8 +50,8 @@ const TABS = [
 
 export function RecruitmentDetail() {
   const { id } = useParams()
-  const { hasRole } = useAuth()
-  const canAccessDocuments = hasRole('super_admin', 'admin', 'recruiter')
+  const { can } = useAuth()
+  const canAccessDocuments = can('recruitment')
   const [application, setApplication] = useState(null)
   const [tab, setTab] = useState('documents')
   const [interviewDate, setInterviewDate] = useState('')

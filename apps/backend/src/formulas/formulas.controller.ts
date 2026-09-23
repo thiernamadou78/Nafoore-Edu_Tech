@@ -9,14 +9,14 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CreateFormulaDto } from './dto/create-formula.dto';
 import { UpdateFormulaDto } from './dto/update-formula.dto';
 import { FormulasService } from './formulas.service';
 
-@Roles('super_admin', 'admin')
+@Permission('formulas')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('formulas')
 export class FormulasController {

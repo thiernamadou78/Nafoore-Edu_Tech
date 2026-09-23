@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
@@ -24,7 +24,7 @@ import { SetVerifiedTeacherDto } from './dto/set-verified-teacher.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
 import { TeachersService } from './teachers.service';
 
-@Roles('super_admin', 'admin')
+@Permission('teachers')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('teachers')
 export class TeachersController {

@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CurrentPortalAccount } from '../auth/current-portal-account.decorator';
@@ -58,7 +58,7 @@ export class FamilyGradesController {
   }
 }
 
-@Roles('super_admin', 'admin')
+@Permission('students')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('students')
 export class AdminGradesController {

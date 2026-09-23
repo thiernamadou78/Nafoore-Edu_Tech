@@ -1,12 +1,12 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { AdminMessagingService } from './admin-messaging.service';
 import { UpdateSupportTicketDto } from './dto/update-support-ticket.dto';
 import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 
-@Roles('super_admin', 'admin')
+@Permission('support')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('admin/support-tickets')
 export class AdminSupportTicketsController {

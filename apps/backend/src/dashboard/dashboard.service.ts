@@ -1,3 +1,5 @@
+import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
+import { hasPermission } from '../auth/permissions';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -197,27 +199,32 @@ export class DashboardService {
     return { staleOpenSessions, neverPointedSessions, missingReports, recentPointages };
   }
 
-  async getNotifications() {
+  async getNotifications(admin: AuthenticatedAdmin) {
+    const canLeads = hasPermission(admin, 'leads');
+    const canRecruitment = hasPermission(admin, 'recruitment');
+    const canRequests = hasPermission(admin, 'teacher_requests');
+    const none = Promise.resolve(0);
+    const noItems = Promise.resolve([]);
     const [leadsCount, leads, applicationsCount, applications, requestsCount, requests] =
       await Promise.all([
-        this.prisma.lead.count({ where: { status: 'nouveau' } }),
-        this.prisma.lead.findMany({
+        canLeads ? this.prisma.lead.count({ where: { status: 'nouveau' } }) : none,
+        !canLeads ? noItems : this.prisma.lead.findMany({
           where: { status: 'nouveau' },
           select: { id: true, name: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
           take: 5,
         }),
-        this.prisma.teacherApplication.count({
+        !canRecruitment ? none : this.prisma.teacherApplication.count({
           where: { status: { notIn: ['valide', 'refuse'] } },
         }),
-        this.prisma.teacherApplication.findMany({
+        !canRecruitment ? noItems : this.prisma.teacherApplication.findMany({
           where: { status: { notIn: ['valide', 'refuse'] } },
           select: { id: true, candidateName: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
           take: 5,
         }),
-        this.prisma.teacherRequest.count({ where: { status: 'en_attente' } }),
-        this.prisma.teacherRequest.findMany({
+        canRequests ? this.prisma.teacherRequest.count({ where: { status: 'en_attente' } }) : none,
+        !canRequests ? noItems : this.prisma.teacherRequest.findMany({
           where: { status: 'en_attente' },
           select: {
             id: true,

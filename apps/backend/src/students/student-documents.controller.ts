@@ -14,13 +14,13 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { StudentDocumentsService } from './student-documents.service';
 
-@Roles('super_admin', 'admin')
+@Permission('students')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('students/:studentId/documents')
 export class StudentDocumentsController {

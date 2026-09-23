@@ -1,14 +1,14 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { TeacherRequestsService } from './teacher-requests.service';
 import { ListTeacherRequestsQueryDto } from './dto/list-teacher-requests-query.dto';
 import { ProposeMatchingDto } from './dto/propose-matching.dto';
 import { AssignTeacherDto } from './dto/assign-teacher.dto';
 
-@Roles('super_admin', 'admin')
+@Permission('teacher_requests')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('teacher-requests')
 export class AdminTeacherRequestsController {

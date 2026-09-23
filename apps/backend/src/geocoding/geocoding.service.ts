@@ -20,7 +20,11 @@ export class GeocodingService {
   // sur la carte admin sera juste absent tant que l'adresse n'est pas géocodée.
   // Le code postal, quand il est fourni, desambiguise nettement le resultat
   // (ex: rues homonymes dans plusieurs communes).
-  async geocode(address: string, postalCode?: string | null): Promise<Coordinates | null> {
+  async geocode(
+    address: string,
+    postalCode?: string | null,
+    options: { worldwide?: boolean } = {},
+  ): Promise<Coordinates | null> {
     const query = [address?.trim(), postalCode?.trim()].filter(Boolean).join(', ');
     if (!query) return null;
 
@@ -31,7 +35,9 @@ export class GeocodingService {
       url.searchParams.set('q', query);
       url.searchParams.set('format', 'json');
       url.searchParams.set('limit', '1');
-      url.searchParams.set('countrycodes', 'fr');
+      // Adresses des familles/enseignants : France uniquement. Adresse d'un
+      // delegue admin : partout dans le monde (delegues hors de France).
+      if (!options.worldwide) url.searchParams.set('countrycodes', 'fr');
 
       const response = await fetch(url, {
         headers: { 'User-Agent': 'NafooreEducation/1.0 (contact@nafoore.com)' },

@@ -39,32 +39,56 @@ export default function App() {
         <Route path="/reinitialiser-mot-de-passe" element={<ResetPassword />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AdminLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/recrutement" element={<RecruitmentList />} />
-            <Route path="/recrutement/:id" element={<RecruitmentDetail />} />
-            <Route element={<ProtectedRoute roles={['super_admin', 'admin']} />}>
+            <Route element={<ProtectedRoute module="dashboard" />}>
+              <Route path="/" element={<Dashboard />} />
+            </Route>
+            <Route element={<ProtectedRoute module="recruitment" />}>
+              <Route path="/recrutement" element={<RecruitmentList />} />
+              <Route path="/recrutement/:id" element={<RecruitmentDetail />} />
+            </Route>
+            <Route element={<ProtectedRoute module="leads" />}>
               <Route path="/leads" element={<LeadsList />} />
               <Route path="/leads/nouvelle" element={<CreateFamily />} />
               <Route path="/leads/nouvelle/enfants" element={<CreateChild />} />
               <Route path="/leads/:id" element={<LeadDetail />} />
+            </Route>
+            <Route element={<ProtectedRoute module="students" />}>
               <Route path="/eleves" element={<StudentsList />} />
               <Route path="/eleves/:id" element={<StudentDetail />} />
+            </Route>
+            <Route element={<ProtectedRoute module="teachers" />}>
               <Route path="/enseignants" element={<TeachersList />} />
               <Route path="/enseignants/:id" element={<TeacherDetail />} />
+            </Route>
+            <Route element={<ProtectedRoute module="teacher_requests" />}>
               <Route path="/demandes-professeur" element={<TeacherRequestsList />} />
               <Route path="/demandes-professeur/:id" element={<TeacherRequestDetail />} />
+            </Route>
+            <Route element={<ProtectedRoute module="renewals" />}>
               <Route path="/renouvellements" element={<RenewalsList />} />
+            </Route>
+            <Route element={<ProtectedRoute module="messaging" />}>
               <Route path="/conversations" element={<ConversationsList />} />
               <Route path="/conversations/:id" element={<ConversationDetail />} />
+            </Route>
+            <Route element={<ProtectedRoute module="attendance" />}>
               <Route path="/pointages" element={<AttendanceAlerts />} />
+            </Route>
+            <Route element={<ProtectedRoute module="support" />}>
               <Route path="/support-tickets" element={<SupportTicketsList />} />
+            </Route>
+            <Route element={<ProtectedRoute module="enterprises" />}>
               <Route path="/entreprises" element={<EnterprisesList />} />
               <Route path="/entreprises/:id" element={<EnterpriseDetail />} />
               <Route path="/entreprises/:id/import" element={<EnterpriseImport />} />
+            </Route>
+            <Route element={<ProtectedRoute module="formulas" />}>
               <Route path="/formules" element={<FormulasList />} />
+            </Route>
+            <Route element={<ProtectedRoute module="site" />}>
               <Route path="/site-vitrine" element={<SiteVitrine />} />
             </Route>
-            <Route element={<ProtectedRoute roles={['super_admin']} />}>
+            <Route element={<ProtectedRoute superAdminOnly />}>
               <Route path="/comptes" element={<AdminAccounts />} />
             </Route>
           </Route>

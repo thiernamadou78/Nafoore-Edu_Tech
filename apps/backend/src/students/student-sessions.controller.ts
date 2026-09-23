@@ -9,14 +9,14 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { StudentSessionsService } from './student-sessions.service';
 
-@Roles('super_admin', 'admin')
+@Permission('students')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('students/:studentId/sessions')
 export class StudentSessionsController {

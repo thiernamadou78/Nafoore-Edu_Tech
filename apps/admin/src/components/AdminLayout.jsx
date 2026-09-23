@@ -1,5 +1,5 @@
-import { LogOut } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { Eye, LogOut } from 'lucide-react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { NAV_ITEMS } from '../config/navigation'
 import { ROLE_LABELS } from '../config/roles'
@@ -8,11 +8,20 @@ import { NotificationBell } from './NotificationBell'
 import logoSrc from './IMG/Logo.png'
 
 export function AdminLayout() {
-  const { adminAccount, signOut, hasRole } = useAuth()
-  const visibleItems = NAV_ITEMS.filter((item) => hasRole(...item.roles))
-  const primaryRole = adminAccount?.roles.includes('super_admin')
-    ? 'super_admin'
-    : adminAccount?.roles[0]
+  const { adminAccount, signOut, can, isSuperAdmin } = useAuth()
+  const location = useLocation()
+  const visibleItems = NAV_ITEMS.filter((item) =>
+    item.superAdminOnly ? isSuperAdmin : can(item.module),
+  )
+  const primaryRole = adminAccount?.role
+  // Rubrique courante en consultation seule : on le signale en haut de page
+  // (les boutons restent visibles mais l'API refusera les modifications).
+  const currentItem = [...NAV_ITEMS]
+    .sort((a, b) => b.path.length - a.path.length)
+    .find((item) =>
+      item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path),
+    )
+  const readOnly = currentItem?.module && can(currentItem.module) && !can(currentItem.module, 'edit')
 
   return (
     <div className="min-h-screen flex bg-gray-50">
@@ -67,6 +76,12 @@ export function AdminLayout() {
           <NotificationBell />
         </header>
         <div className="p-8">
+          {readOnly && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <Eye size={16} className="shrink-0" />
+              Consultation seule : vous pouvez voir cette rubrique mais pas la modifier.
+            </div>
+          )}
           <Outlet />
         </div>
       </main>

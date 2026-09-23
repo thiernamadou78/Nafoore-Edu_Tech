@@ -32,8 +32,15 @@ function requireRole(account, roles) {
   }
 }
 
+// Mode demo : les anciens roles sont traduits en droits (recruiter = seul
+// le module Candidatures, admin = tout).
+const ALL_MODULES = ['dashboard', 'leads', 'students', 'teachers', 'recruitment', 'teacher_requests', 'renewals', 'messaging', 'support', 'attendance', 'enterprises', 'formulas', 'site']
+
 function toAccountDto({ id, email, name, isActive, createdAt, roles }) {
-  return { id, email, name, isActive, createdAt, roles }
+  const role = roles.includes('super_admin') ? 'super_admin' : 'admin'
+  const modules = roles.includes('admin') ? ALL_MODULES : ['recruitment']
+  const permissions = role === 'super_admin' ? [] : modules.flatMap((m) => [`${m}:view`, `${m}:edit`])
+  return { id, email, name, isActive, createdAt, roles, role, permissions, zoneAddress: null, zoneRadiusKm: null }
 }
 
 function toAccountRef(accountId) {

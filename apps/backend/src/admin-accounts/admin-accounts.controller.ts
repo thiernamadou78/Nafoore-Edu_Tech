@@ -16,7 +16,7 @@ import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.gua
 import { AdminAccountsService } from './admin-accounts.service';
 import { CreateAdminAccountDto } from './dto/create-admin-account.dto';
 import { UpdateActiveDto } from './dto/update-active.dto';
-import { UpdateRolesDto } from './dto/update-roles.dto';
+import { UpdateAdminAccountDto } from './dto/update-admin-account.dto';
 
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller()
@@ -26,7 +26,10 @@ export class AdminAccountsController {
   @Get('admin/me')
   getMe(@CurrentAdmin() admin: AuthenticatedAdmin) {
     const { roleNames, ...rest } = admin;
-    return { ...rest, roles: roleNames };
+    return this.adminAccountsService.toDto({
+      ...rest,
+      roles: roleNames.map((name) => ({ role: { name } })),
+    });
   }
 
   @Roles('super_admin')
@@ -45,13 +48,13 @@ export class AdminAccountsController {
   }
 
   @Roles('super_admin')
-  @Patch('admin-accounts/:id/roles')
-  updateRoles(
+  @Patch('admin-accounts/:id')
+  update(
     @Param('id') id: string,
-    @Body() dto: UpdateRolesDto,
+    @Body() dto: UpdateAdminAccountDto,
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
-    return this.adminAccountsService.updateRoles(id, dto.roles, admin.id);
+    return this.adminAccountsService.update(id, dto, admin.id);
   }
 
   @Roles('super_admin')

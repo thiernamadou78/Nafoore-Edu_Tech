@@ -9,13 +9,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CreateProgressReportDto } from './dto/create-progress-report.dto';
 import { StudentProgressReportsService } from './student-progress-reports.service';
 
-@Roles('super_admin', 'admin')
+@Permission('students')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('students/:studentId/progress-reports')
 export class StudentProgressReportsController {

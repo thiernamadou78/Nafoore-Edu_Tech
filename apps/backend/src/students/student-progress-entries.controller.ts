@@ -1,12 +1,12 @@
 import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { UpsertProgressEntryDto } from './dto/upsert-progress-entry.dto';
 import { StudentProgressEntriesService } from './student-progress-entries.service';
 
-@Roles('super_admin', 'admin')
+@Permission('students')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('students/:studentId/progress-entries')
 export class StudentProgressEntriesController {

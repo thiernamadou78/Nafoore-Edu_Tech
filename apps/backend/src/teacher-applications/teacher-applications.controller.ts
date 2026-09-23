@@ -16,7 +16,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { TeacherOnboardingService } from '../onboarding/teacher-onboarding.service';
@@ -29,9 +29,7 @@ import { UpdateTeacherApplicationProfileDto } from './dto/update-teacher-applica
 import { TeacherApplicationDocumentsService } from './teacher-application-documents.service';
 import { TeacherApplicationsService } from './teacher-applications.service';
 
-const RECRUITMENT_ROLES = ['super_admin', 'admin', 'recruiter'];
-
-@Roles(...RECRUITMENT_ROLES)
+@Permission('recruitment')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('teacher-applications')
 export class TeacherApplicationsController {
@@ -114,7 +112,6 @@ export class TeacherApplicationsController {
     return this.teacherApplicationsService.decide(id, dto.status, admin.id);
   }
 
-  @Roles('super_admin', 'admin', 'recruiter')
   @Get(':id/documents/:documentId/download')
   downloadDocument(
     @Param('id') id: string,
@@ -123,7 +120,6 @@ export class TeacherApplicationsController {
     return this.teacherApplicationDocumentsService.getDownloadUrl(id, documentId);
   }
 
-  @Roles('super_admin', 'admin', 'recruiter')
   @Delete(':id/documents/:documentId')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeDocument(@Param('id') id: string, @Param('documentId') documentId: string) {

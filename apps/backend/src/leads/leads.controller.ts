@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { LeadOnboardingService } from '../onboarding/lead-onboarding.service';
@@ -21,7 +21,7 @@ import { UpdateLeadAddressDto } from './dto/update-lead-address.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 import { LeadsService } from './leads.service';
 
-@Roles('super_admin', 'admin')
+@Permission('leads')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('leads')
 export class LeadsController {

@@ -1,12 +1,12 @@
 import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { ContractsService } from './contracts.service';
 import { UpdateContractDto } from './dto/update-contract.dto';
 
-@Roles('super_admin', 'admin')
+@Permission('enterprises')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('contracts')
 export class ContractsController {

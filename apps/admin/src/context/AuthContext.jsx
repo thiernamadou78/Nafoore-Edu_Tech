@@ -69,9 +69,18 @@ export function AuthProvider({ children }) {
   const hasRole = (...roles) =>
     adminAccount ? roles.some((role) => adminAccount.roles.includes(role)) : false
 
+  const isSuperAdmin = adminAccount?.role === 'super_admin'
+
+  // Droit sur un module : 'view' (consulter) ou 'edit' (modifier).
+  const can = (module, level = 'view') =>
+    Boolean(
+      adminAccount &&
+        (isSuperAdmin || (adminAccount.permissions ?? []).includes(`${module}:${level}`)),
+    )
+
   return (
     <AuthContext.Provider
-      value={{ session, adminAccount, loading, error, signIn, signOut, hasRole }}
+      value={{ session, adminAccount, loading, error, signIn, signOut, hasRole, isSuperAdmin, can }}
     >
       {children}
     </AuthContext.Provider>

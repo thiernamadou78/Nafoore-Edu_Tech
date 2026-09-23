@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
@@ -7,7 +7,7 @@ import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
 import { AdminMessagingService } from './admin-messaging.service';
 import { ModerateMessageDto } from './dto/moderate-message.dto';
 
-@Roles('super_admin', 'admin')
+@Permission('messaging')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('admin/message-threads')
 export class AdminMessageThreadsController {

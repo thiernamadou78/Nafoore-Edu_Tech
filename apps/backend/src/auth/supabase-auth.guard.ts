@@ -39,13 +39,10 @@ export class SupabaseAuthGuard implements CanActivate {
       throw new UnauthorizedException('Compte admin introuvable ou désactivé');
     }
 
+    const { roles, ...account } = adminAccount;
     const authenticatedAdmin: AuthenticatedAdmin = {
-      id: adminAccount.id,
-      email: adminAccount.email,
-      name: adminAccount.name,
-      isActive: adminAccount.isActive,
-      createdAt: adminAccount.createdAt,
-      roleNames: adminAccount.roles.map((r) => r.role.name),
+      ...account,
+      roleNames: roles.map((r) => r.role.name),
     };
 
     request.adminAccount = authenticatedAdmin;

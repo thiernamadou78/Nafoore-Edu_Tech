@@ -307,6 +307,13 @@ model AdminAccount {
   name                  String
   isActive              Boolean              @default(true) @map("is_active")
   createdAt             DateTime             @default(now()) @map("created_at")
+  // Droits "<module>:view|edit" (ignores pour un super_admin, qui a tout).
+  permissions           String[]             @default([])
+  // Zone du delegue : cercle autour de son adresse. Vide = toutes zones.
+  zoneAddress           String?              @map("zone_address")
+  zoneLatitude          Float?               @map("zone_latitude")
+  zoneLongitude         Float?               @map("zone_longitude")
+  zoneRadiusKm          Int?                 @map("zone_radius_km")
   roles                 AdminAccountRole[]
   activityLogs          ActivityLog[]
   reviewedApplications  TeacherApplication[] @relation("ReviewedApplications")
@@ -333,7 +340,7 @@ model AdminAccount {
 
 model Role {
   id       String             @id @default(cuid())
-  name     String             @unique // super_admin | admin | recruiter
+  name     String             @unique // super_admin | admin
   accounts AdminAccountRole[]
 
   @@map("roles")
@@ -379,6 +386,8 @@ model TeacherApplication {
   zone              String
   postalCode        String        @map("postal_code")
   city              String?
+  latitude          Float?
+  longitude         Float?
   availability      String?
   status            String        @default("preselection")
   // preselection | entretien_planifie | entretien_realise | valide | refuse | documents_requis

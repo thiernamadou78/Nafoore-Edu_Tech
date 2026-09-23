@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentPortalAccount } from '../auth/current-portal-account.decorator';
 import { AuthenticatedPortalAccount, PortalAuthGuard } from '../auth/portal-auth.guard';
@@ -50,7 +50,7 @@ export class TeacherRenewalsController {
   }
 }
 
-@Roles('super_admin', 'admin')
+@Permission('renewals')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('renewals')
 export class AdminRenewalsController {

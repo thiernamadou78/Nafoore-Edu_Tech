@@ -15,7 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
-import { Roles } from '../auth/roles.decorator';
+import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { ContractsService } from '../contracts/contracts.service';
@@ -30,7 +30,7 @@ import { ListEnterprisesQueryDto } from './dto/list-enterprises-query.dto';
 import { UpdateEnterpriseDto } from './dto/update-enterprise.dto';
 import { EnterprisesService } from './enterprises.service';
 
-@Roles('super_admin', 'admin')
+@Permission('enterprises')
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('enterprises')
 export class EnterprisesController {
