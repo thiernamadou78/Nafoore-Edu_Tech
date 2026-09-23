@@ -28,6 +28,7 @@ const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
 const DOCUMENT_TYPE_LABELS = {
+  cv: 'CV',
   diplome: 'Diplôme',
   casier_judiciaire: 'Casier judiciaire',
   autre: 'Autre',
@@ -184,6 +185,7 @@ export function RecruitmentDetail() {
               <ul className="space-y-0.5">
                 {[
                   ['Présentation', Boolean(application.bio && application.bio.trim().length >= 20)],
+                  ['CV', application.documents?.some((d) => d.type === 'cv')],
                   ['Diplôme', application.documents?.some((d) => d.type === 'diplome')],
                   [
                     'Casier judiciaire',

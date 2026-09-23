@@ -1,6 +1,6 @@
 import { IsIn } from 'class-validator';
 
-export const TEACHER_DOCUMENT_TYPES = ['diplome', 'casier_judiciaire', 'autre'] as const;
+export const TEACHER_DOCUMENT_TYPES = ['cv', 'diplome', 'casier_judiciaire', 'autre'] as const;
 
 export class CreateTeacherDocumentDto {
   @IsIn(TEACHER_DOCUMENT_TYPES, {

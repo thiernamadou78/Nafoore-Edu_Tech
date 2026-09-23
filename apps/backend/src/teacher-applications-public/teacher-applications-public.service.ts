@@ -21,6 +21,7 @@ const CLASSES_BY_LEVEL: Record<string, string[]> = {
 };
 
 export interface TeacherApplicationUploadedFiles {
+  cv?: Express.Multer.File[];
   diplomas?: Express.Multer.File[];
   criminalRecord?: Express.Multer.File[];
 }
@@ -78,6 +79,7 @@ export class TeacherApplicationsPublicService {
 
   private async uploadDocuments(applicationId: string, files: TeacherApplicationUploadedFiles) {
     const uploads = [
+      ...(files.cv ?? []).map((file) => ({ file, type: 'cv' })),
       ...(files.diplomas ?? []).map((file) => ({ file, type: 'diplome' })),
       ...(files.criminalRecord ?? []).map((file) => ({ file, type: 'casier_judiciaire' })),
     ];
@@ -105,6 +107,9 @@ export class TeacherApplicationsPublicService {
   }
 
   async create(dto: CreatePublicTeacherApplicationDto, files: TeacherApplicationUploadedFiles) {
+    if (!files.cv?.length) {
+      throw new BadRequestException('Le CV est obligatoire');
+    }
     for (const level of dto.levels) {
       const validClasses = CLASSES_BY_LEVEL[level] ?? [];
       if (!dto.classes.some((classe) => validClasses.includes(classe))) {

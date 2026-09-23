@@ -29,6 +29,7 @@ export class TeacherApplicationsPublicController {
   @UseInterceptors(
     FileFieldsInterceptor(
       [
+        { name: 'cv', maxCount: 1 },
         { name: 'diplomas', maxCount: 3 },
         { name: 'criminalRecord', maxCount: 1 },
       ],
@@ -61,6 +62,7 @@ export class TeacherApplicationsPublicController {
   @UseInterceptors(
     FileFieldsInterceptor(
       [
+        { name: 'cv', maxCount: 1 },
         { name: 'diplomas', maxCount: 3 },
         { name: 'criminalRecord', maxCount: 1 },
       ],
