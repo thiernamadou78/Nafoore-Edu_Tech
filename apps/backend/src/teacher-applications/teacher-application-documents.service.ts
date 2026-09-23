@@ -12,13 +12,18 @@ export class TeacherApplicationDocumentsService {
     private readonly supabaseAdmin: SupabaseAdminService,
   ) {}
 
-  async getDownloadUrl(applicationId: string, documentId: string) {
+  private async findOwned(applicationId: string, documentId: string) {
     const document = await this.prisma.teacherApplicationDocument.findFirst({
       where: { id: documentId, teacherApplicationId: applicationId },
     });
     if (!document) {
       throw new NotFoundException('Document introuvable');
     }
+    return document;
+  }
+
+  async getDownloadUrl(applicationId: string, documentId: string) {
+    const document = await this.findOwned(applicationId, documentId);
 
     const { data, error } = await this.supabaseAdmin.client.storage
       .from(BUCKET)
@@ -28,5 +33,16 @@ export class TeacherApplicationDocumentsService {
     }
 
     return { url: data.signedUrl };
+  }
+
+  // Suppression definitive (fichier + ligne) : laissee a l'appreciation de
+  // l'admin, par ex. un casier judiciaire une fois verifie.
+  async remove(applicationId: string, documentId: string) {
+    const document = await this.findOwned(applicationId, documentId);
+    const { error } = await this.supabaseAdmin.client.storage
+      .from(BUCKET)
+      .remove([document.filePath]);
+    if (error) throw error;
+    await this.prisma.teacherApplicationDocument.delete({ where: { id: documentId } });
   }
 }

@@ -10,6 +10,7 @@ import {
   MessageSquarePlus,
   Paperclip,
   Sparkles,
+  Trash2,
   UserPlus,
   X,
 } from 'lucide-react'
@@ -344,22 +345,37 @@ export function RecruitmentDetail() {
                           {formatDate(doc.createdAt)}
                         </span>
                       </div>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const { url } = await api.get(
-                              `/teacher-applications/${id}/documents/${doc.id}/download`,
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const { url } = await api.get(
+                                `/teacher-applications/${id}/documents/${doc.id}/download`,
+                              )
+                              window.open(url, '_blank', 'noopener')
+                            } catch (err) {
+                              setError(err.message)
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-navy hover:underline"
+                        >
+                          <Download size={14} />
+                          Télécharger
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!window.confirm(`Supprimer définitivement « ${doc.fileName} » ?`)) return
+                            run('delete-doc', () =>
+                              api.del(`/teacher-applications/${id}/documents/${doc.id}`),
                             )
-                            window.open(url, '_blank', 'noopener')
-                          } catch (err) {
-                            setError(err.message)
-                          }
-                        }}
-                        className="inline-flex items-center gap-1 text-navy hover:underline"
-                      >
-                        <Download size={14} />
-                        Télécharger
-                      </button>
+                          }}
+                          disabled={savingAction === 'delete-doc'}
+                          className="text-gray-400 hover:text-red-600 disabled:opacity-50"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -123,6 +123,13 @@ export class TeacherApplicationsController {
     return this.teacherApplicationDocumentsService.getDownloadUrl(id, documentId);
   }
 
+  @Roles('super_admin', 'admin', 'recruiter')
+  @Delete(':id/documents/:documentId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeDocument(@Param('id') id: string, @Param('documentId') documentId: string) {
+    return this.teacherApplicationDocumentsService.remove(id, documentId);
+  }
+
   @Post(':id/create-account')
   createAccount(
     @Param('id') id: string,

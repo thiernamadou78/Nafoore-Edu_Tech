@@ -1145,9 +1145,10 @@ export function StudentDetail() {
                           Télécharger
                         </button>
                         <button
-                          onClick={() =>
+                          onClick={() => {
+                            if (!window.confirm(`Supprimer définitivement « ${doc.fileName} » ?`)) return
                             run('delete-doc', () => api.del(`/students/${id}/documents/${doc.id}`))
-                          }
+                          }}
                           className="text-gray-400 hover:text-red-600"
                           title="Supprimer"
                         >
