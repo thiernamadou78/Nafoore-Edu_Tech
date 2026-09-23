@@ -7,6 +7,7 @@ import { PhotosService } from '../photos/photos.service';
 import { AdminNotificationService } from '../email/admin-notification.service';
 import { renderApplicationReceivedEmail } from '../email/templates/application-received.template';
 import { generateCompletionToken } from '../teacher-applications/completion-token.util';
+import { assertFileSignature, DOCUMENT_MIME_TYPES, safeFileName } from '../common/file-signature';
 import { CreatePublicTeacherApplicationDto } from './dto/create-public-teacher-application.dto';
 import { UpdateCompletionProfileDto } from './dto/update-completion-profile.dto';
 
@@ -74,23 +75,34 @@ export class TeacherApplicationsPublicService {
   async addDocuments(token: string, files: TeacherApplicationUploadedFiles) {
     const application = await this.findByToken(token);
     this.assertEditable(application.status);
-    await this.uploadDocuments(application.id, files);
+    const uploads = this.checkUploads(files);
+    await this.uploadDocuments(application.id, uploads);
     return this.findByToken(token);
   }
 
-  private async uploadDocuments(applicationId: string, files: TeacherApplicationUploadedFiles) {
-    const uploads = [
+  // Verifie TOUS les fichiers avant d'en stocker un seul : un fichier refuse
+  // ne doit pas laisser une candidature a moitie enregistree.
+  private checkUploads(files: TeacherApplicationUploadedFiles) {
+    return [
       ...(files.cv ?? []).map((file) => ({ file, type: 'cv' })),
       ...(files.identityDocument ?? []).map((file) => ({ file, type: 'piece_identite' })),
       ...(files.diplomas ?? []).map((file) => ({ file, type: 'diplome' })),
       ...(files.criminalRecord ?? []).map((file) => ({ file, type: 'casier_judiciaire' })),
-    ];
+    ].map((upload) => ({
+      ...upload,
+      contentType: assertFileSignature(upload.file, DOCUMENT_MIME_TYPES, 'PDF, JPG ou PNG'),
+    }));
+  }
 
-    for (const { file, type } of uploads) {
-      const filePath = `${applicationId}/${randomUUID()}-${file.originalname}`;
+  private async uploadDocuments(
+    applicationId: string,
+    uploads: Array<{ file: Express.Multer.File; type: string; contentType: string }>,
+  ) {
+    for (const { file, type, contentType } of uploads) {
+      const filePath = `${applicationId}/${randomUUID()}-${safeFileName(file.originalname)}`;
       const { error } = await this.supabaseAdmin.client.storage
         .from(BUCKET)
-        .upload(filePath, file.buffer, { contentType: file.mimetype });
+        .upload(filePath, file.buffer, { contentType });
       if (error) {
         this.logger.error(
           `Échec d'upload du document "${file.originalname}" pour la candidature ${applicationId}: ${error.message}`,
@@ -109,6 +121,7 @@ export class TeacherApplicationsPublicService {
   }
 
   async create(dto: CreatePublicTeacherApplicationDto, files: TeacherApplicationUploadedFiles) {
+    const uploads = this.checkUploads(files);
     for (const level of dto.levels) {
       const validClasses = CLASSES_BY_LEVEL[level] ?? [];
       if (!dto.classes.some((classe) => validClasses.includes(classe))) {
@@ -136,7 +149,7 @@ export class TeacherApplicationsPublicService {
       },
     });
 
-    await this.uploadDocuments(application.id, files);
+    await this.uploadDocuments(application.id, uploads);
 
     this.adminNotification.notify({
       subject: `Nouvelle candidature : ${dto.candidateName}`,

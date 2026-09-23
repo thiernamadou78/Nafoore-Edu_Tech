@@ -146,6 +146,7 @@ export class TeacherApplicationsService {
 
   async uploadPhoto(id: string, file: Express.Multer.File) {
     const application = await this.findOne(id);
+    this.photos.assertImage(file);
     if (application.photoPath) {
       await this.photos.remove(application.photoPath);
     }

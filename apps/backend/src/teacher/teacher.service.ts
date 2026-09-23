@@ -158,6 +158,7 @@ export class TeacherService {
       where: { id: teacherId },
       select: { photoPath: true },
     });
+    this.photos.assertImage(file);
     if (existing?.photoPath) {
       await this.photos.remove(existing.photoPath);
     }

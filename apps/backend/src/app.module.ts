@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { ContactsModule } from './contacts/contacts.module';
@@ -32,6 +34,13 @@ import { TestimonialsModule } from './testimonials/testimonials.module';
 
 @Module({
   imports: [
+    // Limite par adresse IP. Large par defaut (les portails se rafraichissent
+    // tout seuls toutes les 30 s) ; les formulaires publics ont des limites
+    // beaucoup plus strictes, posees directement sur leurs routes.
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: 'default', ttl: 60_000, limit: 300 }],
+      errorMessage: 'Trop de tentatives. Merci de réessayer un peu plus tard.',
+    }),
     ScheduleModule.forRoot(),
     PrismaModule,
     ContactsModule,
@@ -63,5 +72,6 @@ import { TestimonialsModule } from './testimonials/testimonials.module';
     SettingsModule,
     TestimonialsModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

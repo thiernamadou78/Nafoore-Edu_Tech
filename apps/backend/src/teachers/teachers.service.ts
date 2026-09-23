@@ -137,6 +137,7 @@ export class TeachersService {
 
   async uploadPhoto(id: string, file: Express.Multer.File) {
     const teacher = await this.findOneRaw(id);
+    this.photos.assertImage(file);
     if (teacher.photoPath) {
       await this.photos.remove(teacher.photoPath);
     }

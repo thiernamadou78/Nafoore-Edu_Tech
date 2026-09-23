@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
+import { assertFileSignature, IMAGE_MIME_TYPES, safeFileName } from '../common/file-signature';
 
 const BUCKET = 'profile-photos';
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1h — affichées en continu dans les listes
@@ -14,13 +15,22 @@ export class PhotosService {
     entityId: string,
     fileName: string,
   ) {
-    return `${entityType}/${entityId}/${randomUUID()}-${fileName}`;
+    return `${entityType}/${entityId}/${randomUUID()}-${safeFileName(fileName)}`;
+  }
+
+  // Toutes les photos (eleves, profs, candidats, familles) passent par ici :
+  // on verifie qu'il s'agit reellement d'une image JPG/PNG de 5 Mo maximum.
+  // A appeler AVANT de supprimer l'ancienne photo : un fichier refuse ne doit
+  // pas faire perdre la photo existante.
+  assertImage(file: Express.Multer.File | undefined): string {
+    return assertFileSignature(file, IMAGE_MIME_TYPES, 'JPG ou PNG');
   }
 
   async upload(path: string, file: Express.Multer.File) {
+    const contentType = this.assertImage(file);
     const { error } = await this.supabaseAdmin.client.storage
       .from(BUCKET)
-      .upload(path, file.buffer, { contentType: file.mimetype });
+      .upload(path, file.buffer, { contentType });
     if (error) {
       throw error;
     }

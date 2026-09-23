@@ -1,3 +1,4 @@
+import { Throttle } from '@nestjs/throttler';
 import {
   Body,
   Controller,
@@ -24,6 +25,8 @@ import { documentFileFilter, MAX_FILE_SIZE_BYTES } from './upload.constants';
 export class TeacherApplicationsPublicController {
   constructor(private readonly service: TeacherApplicationsPublicService) {}
 
+  // Candidature publique : 5 envois par heure et par IP.
+  @Throttle({ default: { limit: 5, ttl: 3_600_000 } })
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
@@ -48,16 +51,19 @@ export class TeacherApplicationsPublicController {
     return this.service.create(dto, files ?? {});
   }
 
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get(':token')
   getByToken(@Param('token') token: string) {
     return this.service.getByToken(token);
   }
 
+  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
   @Patch(':token/profile')
   updateProfile(@Param('token') token: string, @Body() dto: UpdateCompletionProfileDto) {
     return this.service.updateProfile(token, dto);
   }
 
+  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
   @Post(':token/documents')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(

@@ -184,6 +184,7 @@ export class FamilyService {
     file: Express.Multer.File,
   ) {
     const student = await this.assertOwnsStudent(portalAccount, studentId);
+    this.photos.assertImage(file);
     if (student.photoPath) {
       await this.photos.remove(student.photoPath);
     }
