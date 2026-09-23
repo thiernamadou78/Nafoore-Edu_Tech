@@ -27,6 +27,10 @@ const ITEMS = [
     q: 'Comment sont sélectionnés les enseignants ?',
     a: 'Processus rigoureux en 4 étapes : vérification des diplômes, entretien pédagogique, contrôle du casier judiciaire B3, puis période d\'essai évaluée. Moins de 20 % des candidats rejoignent notre réseau.',
   },
+  {
+    q: 'Je veux devenir enseignant : quels documents fournir ?',
+    a: 'CV, pièce d\'identité, copie de votre plus haut diplôme et extrait de casier judiciaire (bulletin n°3) de moins de 3 mois. Ce dernier s\'obtient gratuitement sur casier-judiciaire.justice.gouv.fr, généralement sous 24h par e-mail (jusqu\'à 2 jours si vous êtes né(e) hors de France, avec une pièce d\'identité ou un titre de séjour). Nous vérifions votre extrait sans en conserver de copie.',
+  },
 ]
 
 function Item({ q, a, index }) {
