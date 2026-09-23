@@ -1,6 +1,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
+import { ZoneService } from '../auth/zone.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
 import { ConvertToStudentDto } from './dto/convert-to-student.dto';
@@ -17,6 +19,7 @@ export class LeadsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly zone: ZoneService,
     private readonly activityLog: ActivityLogService,
     private readonly geocoding: GeocodingService,
   ) {}
@@ -35,6 +38,7 @@ export class LeadsService {
         postalCode: dto.postalCode ?? null,
         city: dto.city,
         status: 'valide',
+        assignedToId: actorId,
       },
     });
 
@@ -53,8 +57,10 @@ export class LeadsService {
     return lead;
   }
 
-  list(query: ListLeadsQueryDto) {
+  async list(query: ListLeadsQueryDto, admin: AuthenticatedAdmin) {
+    const zoneWhere = await this.zone.where(admin, 'lead');
     const where: Prisma.LeadWhereInput = {
+      AND: zoneWhere ? [zoneWhere] : [],
       profile: query.profile,
       status: query.status,
       createdAt:

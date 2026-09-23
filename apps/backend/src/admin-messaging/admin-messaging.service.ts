@@ -1,5 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
+import { ZoneService } from '../auth/zone.service';
 import { EmailService } from '../email/email.service';
 import { renderModerationWarningEmail } from '../email/templates/moderation-warning.template';
 import { ActivityLogService } from '../activity-log/activity-log.service';
@@ -13,12 +15,15 @@ export class AdminMessagingService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly zone: ZoneService,
     private readonly emailService: EmailService,
     private readonly activityLog: ActivityLogService,
   ) {}
 
-  async listThreads() {
+  async listThreads(admin: AuthenticatedAdmin) {
+    const zoneWhere = await this.zone.where(admin, 'thread');
     const threads = await this.prisma.messageThread.findMany({
+      where: zoneWhere,
       include: {
         teacher: { select: { id: true, name: true } },
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
@@ -122,8 +127,10 @@ export class AdminMessagingService {
     return updated;
   }
 
-  listSupportTickets() {
+  async listSupportTickets(admin: AuthenticatedAdmin) {
+    const zoneWhere = await this.zone.where(admin, 'supportTicket');
     return this.prisma.supportTicket.findMany({
+      where: zoneWhere,
       include: {
         teacher: { select: { name: true } },
         messages: { orderBy: { createdAt: 'asc' } },

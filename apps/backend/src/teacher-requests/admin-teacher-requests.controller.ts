@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/co
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { Permission } from '../auth/permissions';
+import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
 import { TeacherRequestsService } from './teacher-requests.service';
 import { ListTeacherRequestsQueryDto } from './dto/list-teacher-requests-query.dto';
@@ -9,6 +10,7 @@ import { ProposeMatchingDto } from './dto/propose-matching.dto';
 import { AssignTeacherDto } from './dto/assign-teacher.dto';
 
 @Permission('teacher_requests')
+@ZoneParams({ id: 'teacherRequest' })
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('teacher-requests')
 export class AdminTeacherRequestsController {
@@ -20,8 +22,8 @@ export class AdminTeacherRequestsController {
   }
 
   @Get()
-  list(@Query() query: ListTeacherRequestsQueryDto) {
-    return this.teacherRequests.listForAdmin(query);
+  list(@Query() query: ListTeacherRequestsQueryDto, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.teacherRequests.listForAdmin(query, admin);
   }
 
   @Get(':id')

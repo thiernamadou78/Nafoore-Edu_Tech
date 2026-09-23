@@ -12,8 +12,8 @@ export class DashboardController {
 
   @Permission('dashboard')
   @Get()
-  getSummary() {
-    return this.dashboardService.getSummary();
+  getSummary(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.dashboardService.getSummary(admin);
   }
 
   // Accessible a tout admin : le contenu est filtre selon ses droits.
@@ -24,13 +24,13 @@ export class DashboardController {
 
   @Permission('dashboard')
   @Get('map')
-  getMapData() {
-    return this.dashboardService.getMapData();
+  getMapData(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.dashboardService.getMapData(admin);
   }
 
   @Permission('attendance')
   @Get('attendance-alerts')
-  getAttendanceAlerts() {
-    return this.dashboardService.getAttendanceAlerts();
+  getAttendanceAlerts(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.dashboardService.getAttendanceAlerts(admin);
   }
 }

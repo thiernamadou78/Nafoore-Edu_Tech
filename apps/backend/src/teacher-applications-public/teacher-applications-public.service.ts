@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
 import { EmailService } from '../email/email.service';
 import { PhotosService } from '../photos/photos.service';
+import { GeocodingService } from '../geocoding/geocoding.service';
 import { AdminNotificationService } from '../email/admin-notification.service';
 import { renderApplicationReceivedEmail } from '../email/templates/application-received.template';
 import { generateCompletionToken } from '../teacher-applications/completion-token.util';
@@ -38,6 +39,7 @@ export class TeacherApplicationsPublicService {
     private readonly emailService: EmailService,
     private readonly photos: PhotosService,
     private readonly adminNotification: AdminNotificationService,
+    private readonly geocoding: GeocodingService,
   ) {}
 
   private async findByToken(token: string) {
@@ -150,6 +152,17 @@ export class TeacherApplicationsPublicService {
     });
 
     await this.uploadDocuments(application.id, uploads);
+
+    // Position du candidat : sert au filtrage par zone des delegues admin.
+    this.geocoding
+      .geocode(`${dto.zone}, ${dto.city.trim()}`, dto.postalCode)
+      .then((coords) => {
+        if (!coords) return;
+        return this.prisma.teacherApplication.update({ where: { id: application.id }, data: coords });
+      })
+      .catch((error) =>
+        this.logger.warn(`Géocodage de la candidature ${application.id} échoué: ${error}`),
+      );
 
     this.adminNotification.notify({
       subject: `Nouvelle candidature : ${dto.candidateName}`,

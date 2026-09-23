@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { Permission } from '../auth/permissions';
+import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { TeacherOnboardingService } from '../onboarding/teacher-onboarding.service';
@@ -30,6 +31,7 @@ import { TeacherApplicationDocumentsService } from './teacher-application-docume
 import { TeacherApplicationsService } from './teacher-applications.service';
 
 @Permission('recruitment')
+@ZoneParams({ id: 'application' })
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('teacher-applications')
 export class TeacherApplicationsController {
@@ -40,8 +42,11 @@ export class TeacherApplicationsController {
   ) {}
 
   @Get()
-  list(@Query() query: ListTeacherApplicationsQueryDto) {
-    return this.teacherApplicationsService.list(query);
+  list(
+    @Query() query: ListTeacherApplicationsQueryDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.teacherApplicationsService.list(query, admin);
   }
 
   @Get(':id')

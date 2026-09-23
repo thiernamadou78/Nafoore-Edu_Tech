@@ -2,6 +2,12 @@ import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
 import { hasPermission } from '../auth/permissions';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ZoneService } from '../auth/zone.service';
+
+// Combine un filtre existant avec celui de la zone du delegue.
+function inZone<T extends object>(base: T, zone: object | undefined): T {
+  return (zone ? { AND: [base, zone] } : base) as T;
+}
 
 const STALE_LEAD_DAYS = 3;
 // Delai de grace apres l'horaire prevu avant de considerer une seance comme
@@ -11,9 +17,18 @@ const ATTENDANCE_ALERT_GRACE_HOURS = 2;
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly zone: ZoneService,
+  ) {}
 
-  async getSummary() {
+  async getSummary(admin: AuthenticatedAdmin) {
+    const [zs, zt, zl, za] = await Promise.all([
+      this.zone.where(admin, 'student'),
+      this.zone.where(admin, 'teacher'),
+      this.zone.where(admin, 'lead'),
+      this.zone.where(admin, 'application'),
+    ]);
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const staleThreshold = new Date(
@@ -30,24 +45,27 @@ export class DashboardService {
       staleLeads,
       pendingApplications,
     ] = await Promise.all([
-      this.prisma.student.count(),
-      this.prisma.teacher.count({ where: { verified: true } }),
-      this.prisma.lead.count({ where: { createdAt: { gte: startOfMonth } } }),
-      this.prisma.lead.count(),
-      this.prisma.lead.count({ where: { status: 'converti' } }),
+      this.prisma.student.count({ where: inZone({}, zs) }),
+      this.prisma.teacher.count({ where: inZone({ verified: true }, zt) }),
+      this.prisma.lead.count({ where: inZone({ createdAt: { gte: startOfMonth } }, zl) }),
+      this.prisma.lead.count({ where: inZone({}, zl) }),
+      this.prisma.lead.count({ where: inZone({ status: 'converti' }, zl) }),
       // Ne compte que les seances avec un pointage de fin confirme (meme
       // convention que totalMinutesRealized cote portail enseignant/famille).
       this.prisma.session.aggregate({
-        where: { status: 'realisee', attendanceLogs: { some: { checkoutAt: { not: null } } } },
+        where: inZone(
+          { status: 'realisee', attendanceLogs: { some: { checkoutAt: { not: null } } } },
+          zs && { student: zs },
+        ),
         _sum: { durationMinutes: true },
       }),
       this.prisma.lead.findMany({
-        where: { status: 'nouveau', createdAt: { lte: staleThreshold } },
+        where: inZone({ status: 'nouveau', createdAt: { lte: staleThreshold } }, zl),
         select: { id: true, name: true, createdAt: true },
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.teacherApplication.findMany({
-        where: { status: { notIn: ['valide', 'refuse'] } },
+        where: inZone({ status: { notIn: ['valide', 'refuse'] } }, za),
         select: { id: true, candidateName: true, status: true, createdAt: true },
         orderBy: { createdAt: 'asc' },
       }),
@@ -66,26 +84,43 @@ export class DashboardService {
     };
   }
 
-  async getMapData() {
+  async getMapData(admin: AuthenticatedAdmin) {
+    const [zs, zt] = await Promise.all([
+      this.zone.where(admin, 'student'),
+      this.zone.where(admin, 'teacher'),
+    ]);
     const [students, teachers] = await Promise.all([
       this.prisma.student.findMany({
-        where: { latitude: { not: null }, longitude: { not: null } },
+        where: inZone({ latitude: { not: null }, longitude: { not: null } }, zs),
         select: { id: true, name: true, address: true, latitude: true, longitude: true },
       }),
       this.prisma.teacher.findMany({
-        where: { latitude: { not: null }, longitude: { not: null } },
+        where: inZone({ latitude: { not: null }, longitude: { not: null } }, zt),
         select: { id: true, name: true, address: true, latitude: true, longitude: true },
       }),
     ]);
 
-    return { students, teachers };
+    // Zone du delegue, pour la dessiner sur la carte.
+    const zone =
+      admin.roleNames.includes('super_admin') || admin.zoneLatitude == null
+        ? null
+        : {
+            address: admin.zoneAddress,
+            latitude: admin.zoneLatitude,
+            longitude: admin.zoneLongitude,
+            radiusKm: admin.zoneRadiusKm,
+          };
+
+    return { students, teachers, zone };
   }
 
   // Vue de suivi pour l'admin : trois familles de séances qui indiquent un
   // pointage QR/compte-rendu qui a mal tourné ou n'a jamais eu lieu — aucune
   // de ces situations n'était visible auparavant en dehors de la fiche élève
   // consultée une par une.
-  async getAttendanceAlerts() {
+  async getAttendanceAlerts(admin: AuthenticatedAdmin) {
+    const zs = await this.zone.where(admin, 'student');
+    const byStudent = zs && { student: zs };
     const now = new Date();
     const graceThreshold = new Date(now.getTime() - ATTENDANCE_ALERT_GRACE_HOURS * 3_600_000);
 
@@ -94,7 +129,7 @@ export class DashboardService {
     const [openLogs, recentLogs, pastSessions] = await Promise.all([
       // Check-in scanné mais jamais de check-out : séance restée "en cours".
       this.prisma.attendanceLog.findMany({
-        where: { checkoutAt: null, sessionId: { not: null }, checkinAt: { not: null } },
+        where: inZone({ checkoutAt: null, sessionId: { not: null }, checkinAt: { not: null } }, byStudent),
         include: {
           student: { select: { id: true, name: true } },
           teacher: { select: { id: true, name: true } },
@@ -105,11 +140,14 @@ export class DashboardService {
       // Journal des pointages de la semaine (les normaux comme les anormaux) :
       // sans lui, un pointage sans souci n'apparaissait nulle part.
       this.prisma.attendanceLog.findMany({
-        where: {
-          verificationStatus: 'valid',
-          checkinAt: { not: null, gte: weekAgo },
-          sessionId: { not: null },
-        },
+        where: inZone(
+          {
+            verificationStatus: 'valid',
+            checkinAt: { not: null, gte: weekAgo },
+            sessionId: { not: null },
+          },
+          byStudent,
+        ),
         orderBy: { checkinAt: 'desc' },
         take: 50,
         include: {
@@ -124,7 +162,7 @@ export class DashboardService {
       // critère "jamais pointée" / "compte-rendu manquant" combine plusieurs
       // colonnes (statut, notes, présence d'un pointage clôturé, date).
       this.prisma.session.findMany({
-        where: { status: { not: 'annulee' }, date: { lt: now } },
+        where: inZone({ status: { not: 'annulee' }, date: { lt: now } }, byStudent),
         select: {
           id: true,
           date: true,
@@ -203,29 +241,34 @@ export class DashboardService {
     const canLeads = hasPermission(admin, 'leads');
     const canRecruitment = hasPermission(admin, 'recruitment');
     const canRequests = hasPermission(admin, 'teacher_requests');
+    const [zl, za, zr] = await Promise.all([
+      this.zone.where(admin, 'lead'),
+      this.zone.where(admin, 'application'),
+      this.zone.where(admin, 'teacherRequest'),
+    ]);
     const none = Promise.resolve(0);
     const noItems = Promise.resolve([]);
     const [leadsCount, leads, applicationsCount, applications, requestsCount, requests] =
       await Promise.all([
-        canLeads ? this.prisma.lead.count({ where: { status: 'nouveau' } }) : none,
+        canLeads ? this.prisma.lead.count({ where: inZone({ status: 'nouveau' }, zl) }) : none,
         !canLeads ? noItems : this.prisma.lead.findMany({
-          where: { status: 'nouveau' },
+          where: inZone({ status: 'nouveau' }, zl),
           select: { id: true, name: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
           take: 5,
         }),
         !canRecruitment ? none : this.prisma.teacherApplication.count({
-          where: { status: { notIn: ['valide', 'refuse'] } },
+          where: inZone({ status: { notIn: ['valide', 'refuse'] } }, za),
         }),
         !canRecruitment ? noItems : this.prisma.teacherApplication.findMany({
-          where: { status: { notIn: ['valide', 'refuse'] } },
+          where: inZone({ status: { notIn: ['valide', 'refuse'] } }, za),
           select: { id: true, candidateName: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
           take: 5,
         }),
-        canRequests ? this.prisma.teacherRequest.count({ where: { status: 'en_attente' } }) : none,
+        canRequests ? this.prisma.teacherRequest.count({ where: inZone({ status: 'en_attente' }, zr) }) : none,
         !canRequests ? noItems : this.prisma.teacherRequest.findMany({
-          where: { status: 'en_attente' },
+          where: inZone({ status: 'en_attente' }, zr),
           select: {
             id: true,
             subject: true,

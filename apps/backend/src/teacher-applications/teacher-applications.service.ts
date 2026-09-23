@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
+import { ZoneService } from '../auth/zone.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { PhotosService } from '../photos/photos.service';
 import { DAYS_OF_WEEK } from '../common/days';
@@ -21,6 +23,7 @@ export class TeacherApplicationsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly zone: ZoneService,
     private readonly activityLog: ActivityLogService,
     private readonly photos: PhotosService,
     private readonly emailService: EmailService,
@@ -28,8 +31,10 @@ export class TeacherApplicationsService {
     private readonly teacherOnboarding: TeacherOnboardingService,
   ) {}
 
-  list(query: ListTeacherApplicationsQueryDto) {
+  async list(query: ListTeacherApplicationsQueryDto, admin: AuthenticatedAdmin) {
+    const zoneWhere = await this.zone.where(admin, 'application');
     const where: Prisma.TeacherApplicationWhereInput = {
+      AND: zoneWhere ? [zoneWhere] : [],
       status: query.status,
       zone: query.zone ? { equals: query.zone, mode: 'insensitive' } : undefined,
       subjects: query.subject ? { has: query.subject } : undefined,
@@ -59,10 +64,20 @@ export class TeacherApplicationsService {
     return { ...application, photoUrl };
   }
 
-  create(dto: CreateTeacherApplicationDto) {
-    return this.prisma.teacherApplication.create({
+  async create(dto: CreateTeacherApplicationDto) {
+    const application = await this.prisma.teacherApplication.create({
       data: { ...dto, completionToken: generateCompletionToken() },
     });
+    this.geocoding
+      .geocode(dto.zone, dto.postalCode)
+      .then((coords) => {
+        if (!coords) return;
+        return this.prisma.teacherApplication.update({ where: { id: application.id }, data: coords });
+      })
+      .catch((error) =>
+        this.logger.warn(`Géocodage de la candidature ${application.id} échoué: ${error}`),
+      );
+    return application;
   }
 
   async scheduleInterview(id: string, interviewDate: string, actorId: string) {
@@ -223,10 +238,12 @@ export class TeacherApplicationsService {
             city: existing.city,
             availabilityDays: DAYS_OF_WEEK.filter((day) => existing.availability?.includes(day)),
             verified: true,
+            latitude: existing.latitude,
+            longitude: existing.longitude,
           },
         });
         createdTeacherId = teacher.id;
-        if (existing.zone) {
+        if (existing.zone && existing.latitude == null) {
           this.geocoding
             .geocode(existing.zone, existing.postalCode)
             .then((coords) => {

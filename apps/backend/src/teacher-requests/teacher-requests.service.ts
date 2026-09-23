@@ -6,6 +6,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
+import { ZoneService } from '../auth/zone.service';
 import { EmailService } from '../email/email.service';
 import { renderMatchingConfirmationEmail } from '../email/templates/matching-confirmation.template';
 import { renderMatchingProposalEmail } from '../email/templates/matching-proposal.template';
@@ -60,6 +62,7 @@ export class TeacherRequestsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly zone: ZoneService,
     private readonly studentsService: StudentsService,
     private readonly emailService: EmailService,
     private readonly geocoding: GeocodingService,
@@ -514,9 +517,10 @@ export class TeacherRequestsService {
     return { status: 'refusee' };
   }
 
-  listForAdmin(query: ListTeacherRequestsQueryDto) {
+  async listForAdmin(query: ListTeacherRequestsQueryDto, admin: AuthenticatedAdmin) {
+    const zoneWhere = await this.zone.where(admin, 'teacherRequest');
     return this.prisma.teacherRequest.findMany({
-      where: { status: query.status },
+      where: { status: query.status, AND: zoneWhere ? [zoneWhere] : [] },
       include: {
         student: {
           select: {

@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { Permission } from '../auth/permissions';
+import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentPortalAccount } from '../auth/current-portal-account.decorator';
 import { AuthenticatedPortalAccount, PortalAuthGuard } from '../auth/portal-auth.guard';
@@ -51,14 +52,15 @@ export class TeacherRenewalsController {
 }
 
 @Permission('renewals')
+@ZoneParams({ id: 'renewal' })
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('renewals')
 export class AdminRenewalsController {
   constructor(private readonly renewals: RenewalsService) {}
 
   @Get()
-  list() {
-    return this.renewals.listForAdmin();
+  list(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.renewals.listForAdmin(admin);
   }
 
   @Patch(':id/confirm')

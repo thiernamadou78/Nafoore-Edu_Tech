@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { Permission } from '../auth/permissions';
+import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CurrentPortalAccount } from '../auth/current-portal-account.decorator';
@@ -59,6 +60,7 @@ export class FamilyGradesController {
 }
 
 @Permission('students')
+@ZoneParams({ id: 'student' })
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('students')
 export class AdminGradesController {

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { Permission } from '../auth/permissions';
+import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { LeadOnboardingService } from '../onboarding/lead-onboarding.service';
@@ -22,6 +23,7 @@ import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 import { LeadsService } from './leads.service';
 
 @Permission('leads')
+@ZoneParams({ id: 'lead' })
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('leads')
 export class LeadsController {
@@ -31,8 +33,8 @@ export class LeadsController {
   ) {}
 
   @Get()
-  list(@Query() query: ListLeadsQueryDto) {
-    return this.leadsService.list(query);
+  list(@Query() query: ListLeadsQueryDto, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.leadsService.list(query, admin);
   }
 
   @Post()

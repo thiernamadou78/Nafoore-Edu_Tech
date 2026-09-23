@@ -15,12 +15,14 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { Permission } from '../auth/permissions';
+import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { StudentDocumentsService } from './student-documents.service';
 
 @Permission('students')
+@ZoneParams({ studentId: 'student' })
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('students/:studentId/documents')
 export class StudentDocumentsController {

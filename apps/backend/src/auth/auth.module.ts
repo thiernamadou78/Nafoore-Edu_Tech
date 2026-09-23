@@ -6,6 +6,7 @@ import { RolesGuard } from './roles.guard';
 import { PortalAuthGuard } from './portal-auth.guard';
 import { PortalRolesGuard } from './portal-roles.guard';
 import { TeacherAuthGuard } from './teacher-auth.guard';
+import { ZoneService } from './zone.service';
 
 @Global()
 @Module({
@@ -17,6 +18,7 @@ import { TeacherAuthGuard } from './teacher-auth.guard';
     PortalAuthGuard,
     PortalRolesGuard,
     TeacherAuthGuard,
+    ZoneService,
   ],
   exports: [
     SupabaseAdminService,
@@ -26,6 +28,7 @@ import { TeacherAuthGuard } from './teacher-auth.guard';
     PortalAuthGuard,
     PortalRolesGuard,
     TeacherAuthGuard,
+    ZoneService,
   ],
 })
 export class AuthModule {}

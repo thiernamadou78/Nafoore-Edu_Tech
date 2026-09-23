@@ -1,20 +1,23 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { Permission } from '../auth/permissions';
+import { CurrentAdmin } from '../auth/current-admin.decorator';
+import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
-import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { AdminMessagingService } from './admin-messaging.service';
 import { UpdateSupportTicketDto } from './dto/update-support-ticket.dto';
 import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 
 @Permission('support')
+@ZoneParams({ id: 'supportTicket' })
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('admin/support-tickets')
 export class AdminSupportTicketsController {
   constructor(private readonly adminMessagingService: AdminMessagingService) {}
 
   @Get()
-  list() {
-    return this.adminMessagingService.listSupportTickets();
+  list(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.adminMessagingService.listSupportTickets(admin);
   }
 
   @Patch(':id')

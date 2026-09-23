@@ -16,8 +16,10 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Permission } from '../auth/permissions';
+import { CurrentAdmin } from '../auth/current-admin.decorator';
+import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
-import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { ListTeachersQueryDto } from './dto/list-teachers-query.dto';
 import { SetVerifiedTeacherDto } from './dto/set-verified-teacher.dto';
@@ -25,14 +27,15 @@ import { UpdateTeacherDto } from './dto/update-teacher.dto';
 import { TeachersService } from './teachers.service';
 
 @Permission('teachers')
+@ZoneParams({ id: 'teacher' })
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('teachers')
 export class TeachersController {
   constructor(private readonly teachersService: TeachersService) {}
 
   @Get()
-  list(@Query() query: ListTeachersQueryDto) {
-    return this.teachersService.list(query);
+  list(@Query() query: ListTeachersQueryDto, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.teachersService.list(query, admin);
   }
 
   @Get(':id')

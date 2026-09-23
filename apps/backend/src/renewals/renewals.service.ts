@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
+import { ZoneService } from '../auth/zone.service';
 import { EmailService } from '../email/email.service';
 import { AdminNotificationService } from '../email/admin-notification.service';
 import { resolvePortalUrl } from '../email/portal-url.util';
@@ -49,6 +51,7 @@ export class RenewalsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly zone: ZoneService,
     private readonly emailService: EmailService,
     private readonly adminNotification: AdminNotificationService,
   ) {}
@@ -253,8 +256,10 @@ export class RenewalsService {
 
   // ----------------------------------------------------------------- admin
 
-  async listForAdmin() {
+  async listForAdmin(admin: AuthenticatedAdmin) {
+    const zoneWhere = await this.zone.where(admin, 'renewal');
     const renewals = await this.prisma.periodRenewal.findMany({
+      where: zoneWhere,
       orderBy: { createdAt: 'desc' },
       include: { studentTeacher: { include: assignmentInclude } },
     });

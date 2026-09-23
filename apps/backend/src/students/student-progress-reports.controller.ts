@@ -10,12 +10,14 @@ import {
 } from '@nestjs/common';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { Permission } from '../auth/permissions';
+import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CreateProgressReportDto } from './dto/create-progress-report.dto';
 import { StudentProgressReportsService } from './student-progress-reports.service';
 
 @Permission('students')
+@ZoneParams({ studentId: 'student' })
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('students/:studentId/progress-reports')
 export class StudentProgressReportsController {

@@ -1,5 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
+import { ZoneService } from '../auth/zone.service';
 import { PhotosService } from '../photos/photos.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
@@ -12,13 +14,17 @@ export class TeachersService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly zone: ZoneService,
     private readonly photos: PhotosService,
     private readonly geocoding: GeocodingService,
   ) {}
 
-  async list(query: ListTeachersQueryDto) {
+  async list(query: ListTeachersQueryDto, admin: AuthenticatedAdmin) {
+    const zoneWhere = await this.zone.where(admin, 'teacher');
     const teachers = await this.prisma.teacher.findMany({
-      where: query.verified === 'true' ? { verified: true } : undefined,
+      where: {
+        AND: [query.verified === 'true' ? { verified: true } : {}, ...(zoneWhere ? [zoneWhere] : [])],
+      },
       orderBy: { name: 'asc' },
     });
 

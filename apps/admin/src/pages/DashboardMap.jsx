@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import { Circle, MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MapPin } from 'lucide-react'
@@ -56,6 +56,16 @@ function HoverMarker({ children, ...props }) {
   )
 }
 
+// Cadre de la carte pour un delegue : le cercle de sa zone.
+function zoneBounds({ latitude, longitude, radiusKm }) {
+  const latDelta = radiusKm / 111
+  const lngDelta = radiusKm / (111 * Math.cos((latitude * Math.PI) / 180))
+  return [
+    [latitude - latDelta, longitude - lngDelta],
+    [latitude + latDelta, longitude + lngDelta],
+  ]
+}
+
 const STUDENT_ICON = pinIcon('#1E3A8A')
 const TEACHER_ICON = pinIcon('#EAB308')
 
@@ -73,7 +83,8 @@ export function DashboardMap() {
 
   const studentCount = data?.students.length ?? 0
   const teacherCount = data?.teachers.length ?? 0
-  const isEmpty = data && studentCount === 0 && teacherCount === 0
+  const zone = data?.zone ?? null
+  const isEmpty = data && studentCount === 0 && teacherCount === 0 && !zone
 
   return (
     <Card className="mb-6 overflow-hidden p-0">
@@ -81,6 +92,11 @@ export function DashboardMap() {
         <h2 className="flex items-center gap-2 font-semibold text-gray-900">
           <MapPin size={16} className="text-navy" />
           Carte des élèves et enseignants
+          {zone && (
+            <span className="text-sm font-normal text-gray-500">
+              — votre zone : {zone.address} ({zone.radiusKm} km)
+            </span>
+          )}
         </h2>
         <div className="flex items-center gap-4 text-xs text-gray-500">
           <span className="flex items-center gap-1.5">
@@ -107,8 +123,9 @@ export function DashboardMap() {
         ) : (
           <div className="h-[420px] overflow-hidden rounded-xl border border-gray-100">
             <MapContainer
-              center={DEFAULT_CENTER}
-              zoom={DEFAULT_ZOOM}
+              {...(zone
+                ? { bounds: zoneBounds(zone) }
+                : { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM })}
               scrollWheelZoom={false}
               style={{ height: '100%', width: '100%' }}
             >
@@ -116,6 +133,13 @@ export function DashboardMap() {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
+              {zone && (
+                <Circle
+                  center={[zone.latitude, zone.longitude]}
+                  radius={zone.radiusKm * 1000}
+                  pathOptions={{ color: '#1E3A8A', weight: 2, fillColor: '#EAB308', fillOpacity: 0.08 }}
+                />
+              )}
               {data.students.map((student) => (
                 <HoverMarker
                   key={`student-${student.id}`}
