@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Search, ShieldCheck, UserCheck, UserX } from 'lucide-react'
+import { Mail, Plus, Search, ShieldCheck, UserCheck, UserX } from 'lucide-react'
 import { api } from '../lib/api'
 import { Alert } from '../components/ui/Alert'
 import { Avatar } from '../components/ui/Avatar'
@@ -15,6 +15,7 @@ const inputClass =
 export function AdminAccounts() {
   const [accounts, setAccounts] = useState([])
   const [error, setError] = useState(null)
+  const [notice, setNotice] = useState(null)
   const [search, setSearch] = useState('')
   const [form, setForm] = useState({ email: '', name: '', roles: [] })
   const [submitting, setSubmitting] = useState(false)
@@ -49,12 +50,15 @@ export function AdminAccounts() {
     event.preventDefault()
     setSubmitting(true)
     setError(null)
+    setNotice(null)
     try {
       await api.post('/admin-accounts', form)
+      setNotice(`Invitation envoyée à ${form.email}.`)
       setForm({ email: '', name: '', roles: [] })
       await load()
     } catch (err) {
       setError(err.message)
+      await load().catch(() => {})
     } finally {
       setSubmitting(false)
     }
@@ -70,6 +74,21 @@ export function AdminAccounts() {
     try {
       await api.patch(`/admin-accounts/${account.id}/roles`, { roles: nextRoles })
       await load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  const resendInvitation = async (account) => {
+    if (!window.confirm(`Renvoyer un lien d'accès à ${account.email} ?`)) return
+    setPendingId(account.id)
+    setError(null)
+    setNotice(null)
+    try {
+      await api.post(`/admin-accounts/${account.id}/resend-invitation`, {})
+      setNotice(`Nouveau lien d'accès envoyé à ${account.email}.`)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -100,6 +119,7 @@ export function AdminAccounts() {
       </div>
 
       {error && <Alert>{error}</Alert>}
+      {notice && <Alert variant="success">{notice}</Alert>}
 
       <Card className="mb-6 p-6">
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
@@ -209,15 +229,27 @@ export function AdminAccounts() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <Button
-                      variant="ghost"
-                      icon={account.isActive ? UserX : UserCheck}
-                      loading={pendingId === account.id}
-                      onClick={() => toggleActive(account)}
-                      className="px-2 py-1"
-                    >
-                      {account.isActive ? 'Suspendre' : 'Réactiver'}
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        icon={Mail}
+                        disabled={pendingId === account.id || !account.isActive}
+                        onClick={() => resendInvitation(account)}
+                        className="px-2 py-1"
+                        title="Renvoyer un lien pour choisir le mot de passe"
+                      >
+                        Renvoyer l'invitation
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        icon={account.isActive ? UserX : UserCheck}
+                        loading={pendingId === account.id}
+                        onClick={() => toggleActive(account)}
+                        className="px-2 py-1"
+                      >
+                        {account.isActive ? 'Suspendre' : 'Réactiver'}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

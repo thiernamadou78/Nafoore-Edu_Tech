@@ -1,16 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
-import { SupabaseAdminService } from '../auth/supabase-admin.service';
+import { AuthEmailsService } from '../auth-emails/auth-emails.service';
 import { CreateAdminAccountDto } from './dto/create-admin-account.dto';
-import { resolvePortalUrl } from '../email/portal-url.util';
 
 @Injectable()
 export class AdminAccountsService {
+  private readonly logger = new Logger(AdminAccountsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly activityLog: ActivityLogService,
-    private readonly supabaseAdmin: SupabaseAdminService,
+    private readonly authEmails: AuthEmailsService,
   ) {}
 
   list() {
@@ -23,17 +24,9 @@ export class AdminAccountsService {
   }
 
   async create(dto: CreateAdminAccountDto, actorId: string) {
-    const { data, error } =
-      await this.supabaseAdmin.client.auth.admin.inviteUserByEmail(dto.email, {
-        // Sans redirectTo, Supabase renvoie vers son "Site URL" par defaut
-        // (localhost:3000) : l'invite doit arriver sur la page de l'admin qui
-        // lui fait choisir son mot de passe.
-        redirectTo: `${resolvePortalUrl('admin')}/reinitialiser-mot-de-passe`,
-      });
-    if (error || !data.user) {
-      throw error ?? new Error("Échec de l'invitation Supabase Auth");
-    }
-
+    // L'email d'invitation est envoye par nous (charte Nafoore), pas par
+    // Supabase — voir AuthEmailsService.
+    const invitation = await this.authEmails.createInvitedUser(dto.email);
     const roles = await this.prisma.role.findMany({
       where: { name: { in: dto.roles } },
     });
@@ -41,19 +34,19 @@ export class AdminAccountsService {
     const account = await this.prisma.$transaction(async (tx) => {
       await tx.adminAccount.create({
         data: {
-          id: data.user.id,
+          id: invitation.userId,
           email: dto.email,
           name: dto.name,
         },
       });
       await tx.adminAccountRole.createMany({
         data: roles.map((role) => ({
-          adminAccountId: data.user.id,
+          adminAccountId: invitation.userId,
           roleId: role.id,
         })),
       });
       return tx.adminAccount.findUniqueOrThrow({
-        where: { id: data.user.id },
+        where: { id: invitation.userId },
         include: { roles: { include: { role: true } } },
       });
     });
@@ -65,7 +58,25 @@ export class AdminAccountsService {
       account.id,
     );
 
+    try {
+      await this.authEmails.sendAdminInvitation(dto.email, dto.name, invitation.link);
+    } catch (error) {
+      this.logger.error(
+        `Échec d'envoi de l'invitation à ${dto.email}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException(
+        "Compte créé, mais l'email d'invitation n'a pas pu être envoyé. Utilisez « Renvoyer l'invitation ».",
+      );
+    }
+
     return this.toDto(account);
+  }
+
+  async resendInvitation(id: string, actorId: string) {
+    const account = await this.prisma.adminAccount.findUniqueOrThrow({ where: { id } });
+    await this.authEmails.resendAdminInvitation(account.email, account.name);
+    await this.activityLog.log(actorId, 'resend_admin_invitation', 'admin_accounts', id);
   }
 
   async updateRoles(id: string, roleNames: string[], actorId: string) {

@@ -7,6 +7,7 @@ import { ContactsModule } from './contacts/contacts.module';
 import { AuthModule } from './auth/auth.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
 import { AdminAccountsModule } from './admin-accounts/admin-accounts.module';
+import { AuthEmailsModule } from './auth-emails/auth-emails.module';
 import { TeacherApplicationsModule } from './teacher-applications/teacher-applications.module';
 import { LeadsModule } from './leads/leads.module';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -49,6 +50,7 @@ import { TestimonialsModule } from './testimonials/testimonials.module';
     EmailModule,
     OnboardingModule,
     AdminAccountsModule,
+    AuthEmailsModule,
     TeacherApplicationsModule,
     TeacherApplicationsPublicModule,
     LeadsModule,

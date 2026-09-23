@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authClient } from '../lib/authAdapter'
@@ -14,6 +14,25 @@ export function ResetPassword() {
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // Lien recu par email (invitation ou mot de passe oublie) : on valide le
+  // jeton pour ouvrir la session, puis on retire le jeton de l'adresse.
+  const [verifying, setVerifying] = useState(() =>
+    new URLSearchParams(window.location.search).has('token_hash'),
+  )
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tokenHash = params.get('token_hash')
+    if (!tokenHash) return
+    const type = params.get('type') === 'invite' ? 'invite' : 'recovery'
+    authClient.auth
+      .verifyOtp({ token_hash: tokenHash, type })
+      .catch(() => {})
+      .finally(() => {
+        window.history.replaceState(null, '', window.location.pathname)
+        setVerifying(false)
+      })
+  }, [])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -40,7 +59,7 @@ export function ResetPassword() {
     }
   }
 
-  if (loading) {
+  if (loading || verifying) {
     return <p className="text-gray-500">Chargement…</p>
   }
 

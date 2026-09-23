@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -42,6 +52,13 @@ export class AdminAccountsController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
     return this.adminAccountsService.updateRoles(id, dto.roles, admin.id);
+  }
+
+  @Roles('super_admin')
+  @Post('admin-accounts/:id/resend-invitation')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  resendInvitation(@Param('id') id: string, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.adminAccountsService.resendInvitation(id, admin.id);
   }
 
   @Roles('super_admin')

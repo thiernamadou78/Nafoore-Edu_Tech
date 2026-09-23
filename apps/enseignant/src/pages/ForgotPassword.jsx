@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Mail } from 'lucide-react'
-import { supabase } from '../lib/supabaseClient'
+import { api } from '../lib/api'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import logoSrc from '../components/Logo.png'
@@ -17,9 +17,8 @@ export function ForgotPassword() {
     setError(null)
     setSubmitting(true)
     try {
-      await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reinitialiser-mot-de-passe`,
-      })
+      // Email envoye par Nafoore (et non Supabase) : voir AuthEmailsService.
+      await api.post('/auth/forgot-password', { email, portal: 'enseignant' })
       setSent(true)
     } catch (err) {
       setError(err.message)
