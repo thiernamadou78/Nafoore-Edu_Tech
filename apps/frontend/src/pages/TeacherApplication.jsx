@@ -290,7 +290,7 @@ export default function TeacherApplication() {
       setErrorMsg('Ta présentation doit faire au moins 20 caractères.')
       return
     }
-    const levelWithoutClasse = form.levels.find(
+    const levelWithoutClasse = needsLevels && form.levels.find(
       (level) => !CLASSES_BY_LEVEL[level].some(({ value }) => form.classes.includes(value)),
     )
     if (levelWithoutClasse) {
@@ -310,8 +310,9 @@ export default function TeacherApplication() {
       formData.append('phone', form.phone)
       // JSON : un nom de matiere peut contenir une virgule.
       formData.append('subjects', JSON.stringify(form.subjects))
-      formData.append('levels', JSON.stringify(form.levels))
-      formData.append('classes', JSON.stringify(form.classes))
+      // Niveaux masques (domaines pro uniquement) : on n'envoie rien.
+      formData.append('levels', JSON.stringify(needsLevels ? form.levels : []))
+      formData.append('classes', JSON.stringify(needsLevels ? form.classes : []))
       formData.append('zone', form.zone)
       formData.append('postalCode', form.postalCode)
       formData.append('city', form.city.trim())
@@ -538,16 +539,12 @@ export default function TeacherApplication() {
                   />
                 </div>
 
+                {/* Niveaux : affiches seulement si une matiere de soutien
+                    scolaire est choisie (inutiles pour un formateur pro). */}
+                {needsLevels && (
                 <div className="mb-4">
                   <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                    Niveaux scolaires{' '}
-                    {needsLevels ? (
-                      <span className="text-red-400">*</span>
-                    ) : (
-                      <span className="normal-case tracking-normal text-gray-300">
-                        (facultatif pour les domaines professionnels)
-                      </span>
-                    )}
+                    Niveaux scolaires <span className="text-red-400">*</span>
                   </label>
                   <div className="flex gap-2">
                     {LEVELS.map(({ value, label }) => (
@@ -598,6 +595,7 @@ export default function TeacherApplication() {
                     </div>
                   )}
                 </div>
+                )}
 
                 <div className="mb-4">
                   <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">

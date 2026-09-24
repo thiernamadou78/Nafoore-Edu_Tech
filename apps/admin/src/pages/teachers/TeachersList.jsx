@@ -13,7 +13,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import { SubjectPicker } from './SubjectPicker'
 import { SUBJECT_CATEGORY_LABELS, useSubjects } from '../../lib/useSubjects'
-import { formatLevels } from '../../lib/levels'
+import { CLASS_LABELS, LEVELS, formatLevels, matchLevel } from '../../lib/levels'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -76,6 +76,8 @@ export function TeachersList() {
   // Banque de formateurs : filtre par profil (scolaire / pro) et par matiere.
   const [profile, setProfile] = useState('all')
   const [subjectFilter, setSubjectFilter] = useState('')
+  // Niveau ('level:college') ou classe precise ('classe:5e').
+  const [levelFilter, setLevelFilter] = useState('')
   const catalog = useSubjects()
   const proSubjects = useMemo(
     () => new Set(catalog.filter((s) => s.category === 'professionnel').map((s) => s.name)),
@@ -151,12 +153,21 @@ export function TeachersList() {
       if (profile === 'professionnel' && !pro) return false
       if (profile === 'scolaire' && !school) return false
       if (subjectFilter && !teacher.subjects.includes(subjectFilter)) return false
+      if (levelFilter) {
+        const [kind, value] = levelFilter.split(':')
+        if (kind === 'level' && !(teacher.levels ?? []).includes(value)) return false
+        if (kind === 'classe') {
+          const level = LEVELS.find((l) => l.classes.includes(value))?.value
+          // Meme regle que le matching des demandes (prof de 6e != demande de 5e).
+          if (matchLevel(teacher, { level, classe: value }) !== 'match') return false
+        }
+      }
       if (!term) return true
       return [teacher.name, teacher.city, teacher.postalCode, ...teacher.subjects]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(term))
     })
-  }, [teachers, search, profile, subjectFilter, isPro])
+  }, [teachers, search, profile, subjectFilter, levelFilter, isPro])
   const proCount = useMemo(() => teachers.filter((t) => t.subjects.some(isPro)).length, [teachers, isPro])
 
   const closeCreate = () => {
@@ -273,6 +284,35 @@ export function TeachersList() {
             </optgroup>
           ))}
         </select>
+        <select
+          value={levelFilter}
+          onChange={(e) => setLevelFilter(e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
+        >
+          <option value="">Tous les niveaux</option>
+          {LEVELS.map((level) => (
+            <optgroup key={level.value} label={level.label}>
+              <option value={`level:${level.value}`}>Tout le {level.label.toLowerCase()}</option>
+              {level.classes.map((classe) => (
+                <option key={classe} value={`classe:${classe}`}>
+                  {CLASS_LABELS[classe]}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        {(subjectFilter || levelFilter) && (
+          <button
+            type="button"
+            onClick={() => {
+              setSubjectFilter('')
+              setLevelFilter('')
+            }}
+            className="text-sm text-gray-500 hover:text-navy hover:underline"
+          >
+            Réinitialiser
+          </button>
+        )}
         <span className="text-sm text-gray-500">
           {visibleTeachers.length} résultat{visibleTeachers.length > 1 ? 's' : ''}
         </span>
@@ -306,6 +346,7 @@ export function TeachersList() {
           <Thead>
             <Th>Enseignant</Th>
             <Th>Matières / domaines</Th>
+            <Th>Niveaux</Th>
             <Th>Ville</Th>
             <Th>Statut</Th>
             <Th className="text-right">Actions</Th>
@@ -348,9 +389,14 @@ export function TeachersList() {
                         ))}
                     </div>
                   )}
-                  {formatLevels(teacher.levels, teacher.classes) && (
-                    <p className="mt-1 text-xs text-gray-500">{formatLevels(teacher.levels, teacher.classes)}</p>
-                  )}
+                </Td>
+                <Td className="max-w-[200px] text-sm text-gray-600">
+                  {formatLevels(teacher.levels, teacher.classes) ||
+                    (teacher.subjects.some((subject) => !isPro(subject)) ? (
+                      <span className="text-xs text-amber-700">Non renseignés</span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    ))}
                 </Td>
                 <Td className="whitespace-nowrap text-gray-600">
                   {teacher.city ? `${teacher.city}${teacher.postalCode ? ` (${teacher.postalCode})` : ''}` : teacher.address || '—'}
