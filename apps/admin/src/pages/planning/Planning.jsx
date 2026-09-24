@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, FileText, QrCode, UserCheck } from 'lucide-react'
+import { CalendarDays, Clock, FileText, QrCode, UserCheck } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useAutoRefresh } from '../../lib/useAutoRefresh'
 import { Alert } from '../../components/ui/Alert'
@@ -13,13 +13,6 @@ import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from '../students/labels'
 const selectClass =
   'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
-function startOfWeek(date) {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)) // lundi
-  return d
-}
-const addDays = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days)
-const sameDay = (a, b) => a.toDateString() === b.toDateString()
 const time = (value) =>
   new Date(value).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 
@@ -98,8 +91,8 @@ function SessionCard({ session, compact = false }) {
 
 export function Planning() {
   const [view, setView] = useState('semaine')
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
-  const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  // Periode affichee par le calendrier (communiquee via onRangeChange).
+  const [range, setRange] = useState(null)
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -107,15 +100,9 @@ export function Planning() {
   const [studentFilter, setStudentFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
-  const range = useMemo(() => {
-    if (view === 'semaine') return { from: weekStart, to: addDays(weekStart, 7) }
-    // Mois affiche + debordement de la grille (semaines completes).
-    const first = startOfWeek(month)
-    return { from: first, to: addDays(first, 42) }
-  }, [view, weekStart, month])
-
   const load = useCallback(
     () =>
+      range &&
       api
         .get(`/planning?from=${range.from.toISOString()}&to=${range.to.toISOString()}`)
         .then((data) => {
@@ -163,13 +150,6 @@ export function Planning() {
     annulee: visible.filter((s) => s.status === 'annulee').length,
   }
 
-  const today = new Date()
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-  const periodLabel =
-    view === 'semaine'
-      ? `${weekStart.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – ${addDays(weekStart, 6).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`
-      : null
-
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -194,34 +174,6 @@ export function Planning() {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {view === 'semaine' && (
-          <div className="mr-2 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setWeekStart((w) => addDays(w, -7))}
-              aria-label="Semaine précédente"
-              className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setWeekStart(startOfWeek(new Date()))}
-              className="rounded-full px-3 py-1 text-sm font-medium text-navy hover:bg-navy/5"
-            >
-              Aujourd'hui
-            </button>
-            <button
-              type="button"
-              onClick={() => setWeekStart((w) => addDays(w, 7))}
-              aria-label="Semaine suivante"
-              className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100"
-            >
-              <ChevronRight size={18} />
-            </button>
-            <span className="ml-1 text-sm font-medium text-gray-700">{periodLabel}</span>
-          </div>
-        )}
         <select value={teacherFilter} onChange={(e) => setTeacherFilter(e.target.value)} className={selectClass}>
           <option value="">Tous les enseignants</option>
           {teachers.map((t) => (
@@ -260,41 +212,20 @@ export function Planning() {
 
       {error && <Alert>{error}</Alert>}
 
-      {view === 'semaine' ? (
-        <div className="grid gap-3 md:grid-cols-7">
-          {days.map((day) => {
-            const daySessions = visible.filter((s) => sameDay(new Date(s.date), day))
-            const isToday = sameDay(day, today)
-            return (
-              <div key={day.toISOString()} className="min-w-0">
-                <div
-                  className={`mb-2 rounded-lg px-2 py-1.5 text-center ${
-                    isToday ? 'bg-navy text-white' : 'bg-white text-gray-700 shadow-sm'
-                  }`}
-                >
-                  <p className="text-[11px] font-medium uppercase tracking-wide opacity-70">
-                    {day.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}
-                  </p>
-                  <p className="text-lg font-bold leading-tight">{day.getDate()}</p>
-                </div>
-                <div className="space-y-2">
-                  {loading && sessions.length === 0 ? null : daySessions.length === 0 ? (
-                    <p className="py-3 text-center text-xs text-gray-300">—</p>
-                  ) : (
-                    daySessions.map((session) => <SessionCard key={session.id} session={session} compact />)
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <PlanningCalendar
-          sessions={visible}
-          onMonthChange={(m) => setMonth((current) => (current.getTime() === m.getTime() ? current : m))}
-          renderSession={(session) => <SessionCard session={session} />}
-        />
-      )}
+      {/* Meme calendrier en vue Semaine et Mois : seule la grille change. */}
+      <PlanningCalendar
+        key={view}
+        mode={view === 'semaine' ? 'week' : 'month'}
+        sessions={visible}
+        onRangeChange={(from, to) =>
+          setRange((current) =>
+            current && current.from.getTime() === from.getTime() && current.to.getTime() === to.getTime()
+              ? current
+              : { from, to },
+          )
+        }
+        renderSession={(session) => <SessionCard session={session} />}
+      />
 
       {!loading && visible.length === 0 && (
         <Card className="mt-4 p-6 text-center text-sm text-gray-500">

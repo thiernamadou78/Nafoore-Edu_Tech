@@ -8,6 +8,12 @@ const dayKey = (date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
 const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1)
+const startOfWeek = (date) => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)) // lundi
+  return d
+}
+const addDays = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days)
 
 function dotColor(session) {
   if (session.status === 'annulee') return 'bg-red-500'
@@ -16,18 +22,16 @@ function dotColor(session) {
   return 'bg-blue-500'
 }
 
-// Grille du mois façon agenda de téléphone : pastilles colorées sous les
-// jours qui ont des séances, et un clic sur un jour affiche l'agenda du jour.
-export function PlanningCalendar({ sessions, renderSession, onMonthChange }) {
+// Grille façon agenda de téléphone : pastilles colorées sous les jours qui
+// ont des séances, et un clic sur un jour affiche l'agenda du jour.
+// mode="month" (par défaut) ou "week" : même présentation, la vue semaine
+// n'affiche que la ligne des 7 jours et navigue de semaine en semaine.
+export function PlanningCalendar({ sessions, renderSession, mode = 'month', onRangeChange }) {
   const today = new Date()
-  const [month, setMonth] = useState(startOfMonth(today))
+  const isWeek = mode === 'week'
+  // Debut de la periode affichee : 1er du mois, ou lundi de la semaine.
+  const [month, setMonth] = useState(isWeek ? startOfWeek(today) : startOfMonth(today))
   const [selected, setSelected] = useState(today)
-
-  // Permet au parent de charger les seances du mois affiche (planning global).
-  useEffect(() => {
-    onMonthChange?.(month)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month])
 
   const byDay = useMemo(() => {
     const map = new Map()
@@ -44,21 +48,37 @@ export function PlanningCalendar({ sessions, renderSession, onMonthChange }) {
 
   // Semaine commençant le lundi : on complète avec les jours des mois voisins.
   const cells = useMemo(() => {
+    if (isWeek) return Array.from({ length: 7 }, (_, i) => addDays(month, i))
     const first = startOfMonth(month)
     const offset = (first.getDay() + 6) % 7
     const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
     const total = Math.ceil((offset + daysInMonth) / 7) * 7
     return Array.from({ length: total }, (_, i) => new Date(first.getFullYear(), first.getMonth(), i - offset + 1))
-  }, [month])
+  }, [month, isWeek])
 
-  const goToMonth = (delta) => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
+  // Permet au parent de charger les seances de la periode affichee.
+  useEffect(() => {
+    onRangeChange?.(cells[0], addDays(cells[cells.length - 1], 1))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cells])
+
+  const goToMonth = (delta) => {
+    if (isWeek) {
+      setMonth((m) => addDays(m, delta * 7))
+      setSelected((d) => addDays(d, delta * 7))
+    } else {
+      setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
+    }
+  }
   const goToToday = () => {
-    setMonth(startOfMonth(new Date()))
+    setMonth(isWeek ? startOfWeek(new Date()) : startOfMonth(new Date()))
     setSelected(new Date())
   }
 
   const selectedSessions = byDay.get(dayKey(selected)) ?? []
-  const monthLabel = month.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+  const monthLabel = isWeek
+    ? `${cells[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – ${cells[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`
+    : month.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
   const selectedLabel = selected.toLocaleDateString('fr-FR', {
     weekday: 'long',
     day: 'numeric',
@@ -81,7 +101,7 @@ export function PlanningCalendar({ sessions, renderSession, onMonthChange }) {
             <button
               type="button"
               onClick={() => goToMonth(-1)}
-              aria-label="Mois précédent"
+              aria-label={isWeek ? 'Semaine précédente' : 'Mois précédent'}
               className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100"
             >
               <ChevronLeft size={18} />
@@ -89,7 +109,7 @@ export function PlanningCalendar({ sessions, renderSession, onMonthChange }) {
             <button
               type="button"
               onClick={() => goToMonth(1)}
-              aria-label="Mois suivant"
+              aria-label={isWeek ? 'Semaine suivante' : 'Mois suivant'}
               className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100"
             >
               <ChevronRight size={18} />
@@ -109,7 +129,7 @@ export function PlanningCalendar({ sessions, renderSession, onMonthChange }) {
           {cells.map((date) => {
             const key = dayKey(date)
             const daySessions = byDay.get(key) ?? []
-            const inMonth = date.getMonth() === month.getMonth()
+            const inMonth = isWeek || date.getMonth() === month.getMonth()
             const isToday = key === dayKey(today)
             const isSelected = key === dayKey(selected)
             return (
