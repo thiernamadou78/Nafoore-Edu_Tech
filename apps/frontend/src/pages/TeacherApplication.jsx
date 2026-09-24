@@ -500,7 +500,23 @@ export default function TeacherApplication() {
                   />
                 </div>
 
-                <div className="grid grid-cols-[1fr_110px] gap-3 mb-4">
+                <div className="grid grid-cols-[110px_1fr] gap-3 mb-4">
+                  <div>
+                    <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                      Code postal <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      name="postalCode"
+                      value={form.postalCode}
+                      onChange={handleChange}
+                      required
+                      pattern="\d{5}"
+                      maxLength={5}
+                      inputMode="numeric"
+                      placeholder="94550"
+                      className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
+                    />
+                  </div>
                   <div>
                     <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
                       Ville / Commune <span className="text-red-400">*</span>
@@ -521,22 +537,6 @@ export default function TeacherApplication() {
                         <option key={name} value={name} />
                       ))}
                     </datalist>
-                  </div>
-                  <div>
-                    <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                      Code postal <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      name="postalCode"
-                      value={form.postalCode}
-                      onChange={handleChange}
-                      required
-                      pattern="\d{5}"
-                      maxLength={5}
-                      inputMode="numeric"
-                      placeholder="94550"
-                      className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
-                    />
                   </div>
                 </div>
 
