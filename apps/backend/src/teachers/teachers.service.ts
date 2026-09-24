@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizeLevels } from '../common/levels';
 import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
 import { ZoneService } from '../auth/zone.service';
 import { PhotosService } from '../photos/photos.service';
@@ -7,6 +8,15 @@ import { GeocodingService } from '../geocoding/geocoding.service';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { ListTeachersQueryDto } from './dto/list-teachers-query.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
+
+// Niveaux/classes envoyes (meme partiellement) : on les nettoie ensemble.
+export function levelsUpdate(
+  dto: { levels?: string[]; classes?: string[] },
+  current: { levels: string[]; classes: string[] },
+) {
+  if (dto.levels === undefined && dto.classes === undefined) return {};
+  return normalizeLevels(dto.levels ?? current.levels, dto.classes ?? current.classes);
+}
 
 @Injectable()
 export class TeachersService {
@@ -33,6 +43,8 @@ export class TeachersService {
       id: teacher.id,
       name: teacher.name,
       subjects: teacher.subjects,
+      levels: teacher.levels,
+      classes: teacher.classes,
       verified: teacher.verified,
       bio: teacher.bio,
       address: teacher.address,
@@ -97,6 +109,7 @@ export class TeachersService {
         name: dto.name,
         gender: dto.gender,
         subjects: dto.subjects ?? [],
+        ...normalizeLevels(dto.levels ?? [], dto.classes ?? []),
         bio: dto.bio,
         address: dto.address,
         postalCode: dto.postalCode,
@@ -112,8 +125,11 @@ export class TeachersService {
   }
 
   async update(id: string, dto: UpdateTeacherDto) {
-    await this.findOneRaw(id);
-    const teacher = await this.prisma.teacher.update({ where: { id }, data: dto });
+    const current = await this.findOneRaw(id);
+    const teacher = await this.prisma.teacher.update({
+      where: { id },
+      data: { ...dto, ...levelsUpdate(dto, current) },
+    });
     if (dto.address) this.geocodeAndSave(id, dto.address, dto.postalCode);
     return teacher;
   }

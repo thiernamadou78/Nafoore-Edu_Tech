@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { levelsUpdate } from '../teachers/teachers.service';
 import { PhotosService } from '../photos/photos.service';
 import { EmailService } from '../email/email.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
@@ -105,6 +106,8 @@ export class TeacherService {
         phone: true,
         bio: true,
         subjects: true,
+        levels: true,
+        classes: true,
         photoPath: true,
       },
     });
@@ -117,9 +120,13 @@ export class TeacherService {
     if (!teacherAccount.teacherId) {
       throw new NotFoundException('Profil enseignant introuvable');
     }
+    const current = await this.prisma.teacher.findUniqueOrThrow({
+      where: { id: teacherAccount.teacherId },
+      select: { levels: true, classes: true },
+    });
     const updated = await this.prisma.teacher.update({
       where: { id: teacherAccount.teacherId },
-      data: dto,
+      data: { ...dto, ...levelsUpdate(dto, current) },
       select: {
         name: true,
         gender: true,
@@ -131,6 +138,8 @@ export class TeacherService {
         phone: true,
         bio: true,
         subjects: true,
+        levels: true,
+        classes: true,
         photoPath: true,
       },
     });

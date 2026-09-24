@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { matchLevel } from '../common/levels';
 import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
 import { ZoneService } from '../auth/zone.service';
 import { EmailService } from '../email/email.service';
@@ -723,7 +724,7 @@ export class TeacherRequestsService {
 
     const teacher = await this.prisma.teacher.findUnique({
       where: { id: teacherId },
-      select: { subjects: true },
+      select: { subjects: true, levels: true, classes: true },
     });
     if (!teacher || teacher.subjects.length === 0) return [];
 
@@ -751,8 +752,14 @@ export class TeacherRequestsService {
       orderBy: { createdAt: 'desc' },
     });
 
+    // Meme matiere ne suffit pas : Maths en 5e ne concerne pas un prof qui
+    // n'enseigne qu'en 6e (voir matchLevel).
+    const compatible = requests.filter(
+      (request) => matchLevel(teacher, request.student) === 'match',
+    );
+
     return Promise.all(
-      requests.map(async ({ interests, student, ...request }) => ({
+      compatible.map(async ({ interests, student, ...request }) => ({
         ...request,
         level: student.level,
         classe: student.classe,

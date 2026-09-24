@@ -1,6 +1,7 @@
 import { DAYS_OF_WEEK } from '../../common/days';
 import { ArrayMinSize, IsArray, IsEmail, IsIn, IsOptional, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
 import { IsKnownSubject } from '../../common/subjects';
+import { CLASSE_OPTIONS, LEVEL_OPTIONS } from '../../common/levels';
 import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
 // PATCH generique (partiel) : @IsOptional() partout pour permettre de ne
@@ -22,6 +23,17 @@ export class UpdateTeacherDto {
   @ArrayMinSize(1, { message: 'Au moins une matière est requise' })
   @IsKnownSubject({ each: true })
   subjects?: string[];
+
+  // Niveaux et classes enseignes (voir common/levels.ts).
+  @IsOptional()
+  @IsArray()
+  @IsIn(LEVEL_OPTIONS, { each: true, message: 'Niveau inconnu' })
+  levels?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(CLASSE_OPTIONS, { each: true, message: 'Classe inconnue' })
+  classes?: string[];
 
   @IsOptional()
   @Length(20, 2000, {

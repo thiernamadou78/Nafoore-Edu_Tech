@@ -132,6 +132,10 @@ model Teacher {
   name        String
   gender      String?                // homme | femme
   subjects    String[]
+  // Niveaux (primaire | college | lycee) et classes (cp…terminale)
+  // enseignes : affichage admin et matching avec les demandes des familles.
+  levels      String[]  @default([])
+  classes     String[]  @default([])
   verified    Boolean                @default(false)
   bio         String?
   // Adresse (ex-"zone") : le prof se déplace pour un cours en présentiel, ce

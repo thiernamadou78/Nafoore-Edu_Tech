@@ -229,6 +229,8 @@ export class TeacherApplicationsService {
             name: existing.candidateName,
             gender: existing.gender,
             subjects: existing.subjects,
+            levels: existing.levels,
+            classes: existing.classes,
             bio: existing.bio,
             photoPath: existing.photoPath,
             email: existing.candidateEmail,

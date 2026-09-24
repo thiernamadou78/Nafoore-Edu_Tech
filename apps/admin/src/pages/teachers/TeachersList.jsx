@@ -13,6 +13,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import { SubjectPicker } from './SubjectPicker'
 import { SUBJECT_CATEGORY_LABELS, useSubjects } from '../../lib/useSubjects'
+import { formatLevels } from '../../lib/levels'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -38,7 +39,7 @@ const PROFILE_FILTERS = [
 // Export tableur de la banque (separateur ";" + BOM : ouverture directe dans
 // Excel en francais).
 function exportCsv(rows, isPro) {
-  const header = ['Nom', 'Email', 'Téléphone', 'Ville', 'Code postal', 'Soutien scolaire', 'Domaines professionnels', 'Statut']
+  const header = ['Nom', 'Email', 'Téléphone', 'Ville', 'Code postal', 'Soutien scolaire', 'Niveaux', 'Domaines professionnels', 'Statut']
   const cell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`
   const lines = rows.map((t) =>
     [
@@ -48,6 +49,7 @@ function exportCsv(rows, isPro) {
       t.city,
       t.postalCode,
       t.subjects.filter((s) => !isPro(s)).join(', '),
+      formatLevels(t.levels, t.classes),
       t.subjects.filter(isPro).join(', '),
       t.verified ? 'Actif' : 'Inactif',
     ]
@@ -345,6 +347,9 @@ export function TeachersList() {
                           </span>
                         ))}
                     </div>
+                  )}
+                  {formatLevels(teacher.levels, teacher.classes) && (
+                    <p className="mt-1 text-xs text-gray-500">{formatLevels(teacher.levels, teacher.classes)}</p>
                   )}
                 </Td>
                 <Td className="whitespace-nowrap text-gray-600">

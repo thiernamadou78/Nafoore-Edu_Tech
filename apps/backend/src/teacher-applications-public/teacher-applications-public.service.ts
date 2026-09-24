@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { CLASSES_BY_LEVEL } from '../common/levels';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
 import { EmailService } from '../email/email.service';
 import { PhotosService } from '../photos/photos.service';
@@ -14,13 +15,6 @@ import { UpdateCompletionProfileDto } from './dto/update-completion-profile.dto'
 
 const BUCKET = 'teacher-application-documents';
 
-// Classes valides par niveau — sert a verifier qu'un niveau coche a bien au
-// moins une classe precisee (voir create()).
-const CLASSES_BY_LEVEL: Record<string, string[]> = {
-  primaire: ['cp', 'ce1', 'ce2', 'cm1', 'cm2'],
-  college: ['6e', '5e', '4e', '3e'],
-  lycee: ['2nde', '1re', 'terminale'],
-};
 
 export interface TeacherApplicationUploadedFiles {
   cv?: Express.Multer.File[];

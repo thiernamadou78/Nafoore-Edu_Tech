@@ -16,6 +16,7 @@ import {
 } from './labels'
 
 import { CLASSE_LABELS } from '../students/labels'
+import { formatLevels, matchLevel } from '../../lib/levels'
 
 const CLOSED_STATUSES = ['acceptee', 'annulee']
 
@@ -71,10 +72,25 @@ export function TeacherRequestDetail() {
   // Une seule liste, filtree sur la matiere demandee : proposer un prof de
   // maths pour une demande de francais n'a pas de sens. Les interesses
   // remontent en tete plutot que d'avoir une liste separee.
-  const matchingTeachers = teachers
-    .filter((t) => t.subjects.includes(request.subject))
-    .map((t) => ({ ...t, interested: interestedIds.has(t.id), declined: declinedIds.has(t.id) }))
-    .sort((a, b) => Number(b.interested) - Number(a.interested) || a.name.localeCompare(b.name))
+  // Meme matiere ET meme niveau/classe que l'eleve (Maths 5e ne concerne pas
+  // un prof qui n'enseigne qu'en 6e). Les profs sans niveau renseigne restent
+  // proposables mais sont signales, en fin de liste.
+  const sameSubject = teachers.filter((t) => t.subjects.includes(request.subject))
+  const matchingTeachers = sameSubject
+    .map((t) => ({
+      ...t,
+      levelMatch: matchLevel(t, request.student),
+      interested: interestedIds.has(t.id),
+      declined: declinedIds.has(t.id),
+    }))
+    .filter((t) => t.levelMatch !== 'no')
+    .sort(
+      (a, b) =>
+        Number(a.levelMatch === 'unknown') - Number(b.levelMatch === 'unknown') ||
+        Number(b.interested) - Number(a.interested) ||
+        a.name.localeCompare(b.name),
+    )
+  const otherLevelCount = sameSubject.length - matchingTeachers.length
 
   return (
     <div className="max-w-3xl">
@@ -151,11 +167,13 @@ export function TeacherRequestDetail() {
         <p className="mb-3 text-sm text-gray-500">
           Enseignants vérifiés qui donnent des cours de {request.subject}
           {matchingTeachers.some((t) => t.interested) && ' — les intéressés remontent en tête.'}
+          {otherLevelCount > 0 &&
+            ` ${otherLevelCount} enseignant${otherLevelCount > 1 ? 's' : ''} de cette matière masqué${otherLevelCount > 1 ? 's' : ''} (autre niveau).`}
         </p>
         {!canPropose && <p className="text-sm text-gray-500">Cette demande est clôturée.</p>}
         {canPropose && matchingTeachers.length === 0 ? (
           <p className="text-sm text-gray-500">
-            Aucun enseignant vérifié ne donne cette matière pour l'instant.
+            Aucun enseignant vérifié ne donne cette matière à ce niveau pour l'instant.
           </p>
         ) : (
           <ul className="divide-y divide-gray-100">
@@ -172,8 +190,12 @@ export function TeacherRequestDetail() {
                         </Badge>
                       )}
                       {teacher.declined && <Badge tone="gray">Pas intéressé</Badge>}
+                      {teacher.levelMatch === 'unknown' && <Badge tone="amber">Niveau non renseigné</Badge>}
                     </p>
-                    <p className="truncate text-xs text-gray-400">{teacher.subjects.join(', ')}</p>
+                    <p className="truncate text-xs text-gray-400">
+                      {formatLevels(teacher.levels, teacher.classes) || 'Niveaux non renseignés'} ·{' '}
+                      {teacher.subjects.join(', ')}
+                    </p>
                   </div>
                   {alreadyProposed ? (
                     <Badge tone="gray">Déjà proposé</Badge>

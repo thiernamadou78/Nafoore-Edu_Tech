@@ -16,6 +16,8 @@ import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { usePagination } from '../../lib/usePagination'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from '../students/labels'
 import { SubjectPicker } from './SubjectPicker'
+import { LevelPicker } from '../../components/LevelPicker'
+import { formatLevels } from '../../lib/levels'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -47,6 +49,8 @@ export function TeacherDetail() {
     name: '',
     gender: '',
     subjects: [],
+    levels: [],
+    classes: [],
     bio: '',
     address: '',
     postalCode: '',
@@ -65,6 +69,8 @@ export function TeacherDetail() {
         name: data.name,
         gender: data.gender ?? '',
         subjects: data.subjects,
+        levels: data.levels ?? [],
+        classes: data.classes ?? [],
         bio: data.bio ?? '',
         address: data.address ?? '',
         postalCode: data.postalCode ?? '',
@@ -114,6 +120,18 @@ export function TeacherDetail() {
         <Badge tone={teacher.verified ? 'green' : 'gray'}>
           {teacher.verified ? 'Actif' : 'Inactif'}
         </Badge>
+      </div>
+      <div className="-mt-4 mb-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+        <span>
+          <span className="text-gray-400">Matières : </span>
+          {teacher.subjects.join(', ') || '—'}
+        </span>
+        <span>
+          <span className="text-gray-400">Niveaux : </span>
+          {formatLevels(teacher.levels, teacher.classes) || (
+            <span className="text-amber-700">non renseignés (l'enseignant ne recevra aucune demande)</span>
+          )}
+        </span>
       </div>
 
       {error && <Alert>{error}</Alert>}
@@ -215,6 +233,20 @@ export function TeacherDetail() {
             />
           </div>
           <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Niveaux et classes enseignés
+            </label>
+            <p className="mb-2 text-xs text-gray-500">
+              Utilisés pour proposer les demandes des familles : un prof de 6e ne reçoit pas les
+              demandes de 5e.
+            </p>
+            <LevelPicker
+              levels={form.levels}
+              classes={form.classes}
+              onChange={({ levels, classes }) => setForm((f) => ({ ...f, levels, classes }))}
+            />
+          </div>
+          <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium text-gray-700">Bio *</label>
             <textarea
               rows={3}
@@ -253,6 +285,8 @@ export function TeacherDetail() {
                   name: form.name,
                   gender: form.gender,
                   subjects: form.subjects,
+                  levels: form.levels,
+                  classes: form.classes,
                   bio: form.bio.trim(),
                   address: form.address,
                   postalCode: form.postalCode,

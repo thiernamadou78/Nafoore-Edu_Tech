@@ -48,6 +48,7 @@ import {
   VERIFICATION_STATUS_TONES,
 } from './labels'
 import { PassEducatifCard } from './PassEducatifCard'
+import { matchLevel } from '../../lib/levels'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -320,7 +321,13 @@ function AssignTeacherCard({ student, teachers, onAssigned }) {
   const [error, setError] = useState(null)
   const [done, setDone] = useState(null)
 
-  const candidates = teachers.filter((t) => subject && t.subjects.includes(subject))
+  // Meme matiere ET niveau/classe de l'eleve ; profs sans niveau renseigne
+  // en fin de liste, signales.
+  const candidates = teachers
+    .filter((t) => subject && t.subjects.includes(subject))
+    .map((t) => ({ ...t, levelMatch: matchLevel(t, student) }))
+    .filter((t) => t.levelMatch !== 'no')
+    .sort((a, b) => Number(a.levelMatch === 'unknown') - Number(b.levelMatch === 'unknown'))
 
   const submit = async (event) => {
     event.preventDefault()
@@ -386,12 +393,13 @@ function AssignTeacherCard({ student, teachers, onAssigned }) {
             {subject
               ? candidates.length
                 ? 'Enseignant…'
-                : 'Aucun enseignant vérifié pour cette matière'
+                : 'Aucun enseignant pour cette matière à ce niveau'
               : "Choisis d'abord la matière"}
           </option>
           {candidates.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
+              {t.levelMatch === 'unknown' ? ' (niveau non renseigné)' : ''}
             </option>
           ))}
         </select>

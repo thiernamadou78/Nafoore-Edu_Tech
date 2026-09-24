@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
 import { SUBJECT_CATEGORY_LABELS, useSubjects } from '../lib/useSubjects'
+import { LevelPicker } from '../components/LevelPicker'
 
 const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
@@ -161,6 +162,8 @@ export function Profil() {
           phone: data.phone ?? '',
           bio: data.bio ?? '',
           subjects: data.subjects ?? [],
+          levels: data.levels ?? [],
+          classes: data.classes ?? [],
           photoUrl: data.photoUrl ?? null,
         }),
       )
@@ -218,7 +221,9 @@ export function Profil() {
     setSaving(true)
     setError(null)
     try {
-      const updated = await api.patch('/teacher/me/profile', form)
+      // photoUrl est en lecture seule (la photo a sa propre route d'envoi).
+      const { photoUrl: _photoUrl, ...payload } = form
+      const updated = await api.patch('/teacher/me/profile', payload)
       setForm((f) => ({ ...f, ...updated }))
       setSaved(true)
     } catch (err) {
@@ -413,6 +418,19 @@ export function Profil() {
           <SubjectQuickAdd
             selected={form.subjects}
             onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
+          />
+        </Card>
+
+        <Card className="mb-6 p-6">
+          <p className="text-sm font-medium text-gray-700">Niveaux et classes enseignés</p>
+          <p className="mb-3 mt-0.5 text-xs text-gray-500">
+            Vous ne recevez que les demandes des élèves de ces classes. Un niveau sans classe
+            cochée = toutes les classes du niveau.
+          </p>
+          <LevelPicker
+            levels={form.levels}
+            classes={form.classes}
+            onChange={({ levels, classes }) => setForm((f) => ({ ...f, levels, classes }))}
           />
         </Card>
 
