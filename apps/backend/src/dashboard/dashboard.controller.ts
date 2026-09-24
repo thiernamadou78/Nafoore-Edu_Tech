@@ -4,11 +4,15 @@ import { RolesGuard } from '../auth/roles.guard';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { DashboardService } from './dashboard.service';
+import { CockpitService } from './cockpit.service';
 
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardService: DashboardService,
+    private readonly cockpit: CockpitService,
+  ) {}
 
   @Permission('dashboard')
   @Get()
@@ -20,6 +24,12 @@ export class DashboardController {
   @Get('notifications')
   getNotifications(@CurrentAdmin() admin: AuthenticatedAdmin) {
     return this.dashboardService.getNotifications(admin);
+  }
+
+  @Permission('dashboard')
+  @Get('cockpit')
+  getCockpit(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.cockpit.get(admin);
   }
 
   @Permission('dashboard')
