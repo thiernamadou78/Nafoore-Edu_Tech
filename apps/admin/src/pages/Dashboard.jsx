@@ -36,7 +36,7 @@ function Sparkline({ values, color = '#1E3A8A' }) {
   const line = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
   const area = `0,${height} ${line} ${width},${height}`
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-9 w-full" preserveAspectRatio="none" aria-hidden="true">
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-8 w-full" preserveAspectRatio="none" aria-hidden="true">
       <defs>
         <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.25" />
@@ -68,19 +68,19 @@ function Trend({ value, previous }) {
 
 function KpiCard({ icon: Icon, label, value, suffix, children, footer }) {
   return (
-    <Card className="flex flex-col p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy/5 text-navy">
-          <Icon size={16} />
-        </span>
+    <Card className="flex items-center gap-3 px-4 py-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-navy/5 text-navy">
+        <Icon size={17} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[11px] font-medium uppercase tracking-wide text-gray-500">{label}</p>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-xl font-bold tracking-tight text-gray-900">{value}</span>
+          {suffix && <span className="text-xs text-gray-400">{suffix}</span>}
+        </div>
+        {footer && <div className="truncate text-[11px] text-gray-500">{footer}</div>}
       </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-bold tracking-tight text-gray-900">{value}</span>
-        {suffix && <span className="text-sm text-gray-400">{suffix}</span>}
-      </div>
-      {footer && <div className="mt-1 text-xs text-gray-500">{footer}</div>}
-      {children && <div className="mt-auto pt-3">{children}</div>}
+      {children && <div className="w-16 shrink-0">{children}</div>}
     </Card>
   )
 }
@@ -90,7 +90,7 @@ function ConversionRing({ rate }) {
   const radius = 16
   const circumference = 2 * Math.PI * radius
   return (
-    <svg viewBox="0 0 40 40" className="h-10 w-10 -rotate-90" aria-hidden="true">
+    <svg viewBox="0 0 40 40" className="ml-auto h-9 w-9 -rotate-90" aria-hidden="true">
       <circle cx="20" cy="20" r={radius} fill="none" stroke="#E5E7EB" strokeWidth="5" />
       <circle
         cx="20"
@@ -133,7 +133,7 @@ function TodayCard({ sessions }) {
       {sorted.length === 0 ? (
         <p className="py-6 text-center text-sm text-gray-400">Aucune séance prévue aujourd'hui.</p>
       ) : (
-        <ul className="-mx-2 max-h-80 space-y-1 overflow-y-auto">
+        <ul className="-mx-2 max-h-52 space-y-0.5 overflow-y-auto">
           {sorted.map((s) => {
             const live = LIVE[s.live]
             return (
@@ -271,7 +271,7 @@ export function Dashboard() {
   const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm capitalize text-gray-500">{today}</p>
@@ -285,7 +285,7 @@ export function Dashboard() {
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard
           icon={Users}
           label="Élèves actifs"
@@ -301,7 +301,7 @@ export function Dashboard() {
           footer={
             <span className="flex items-center gap-1.5">
               <Trend value={kpis.hoursMonth.value} previous={kpis.hoursMonth.previous} />
-              <span>vs mois dernier à date</span>
+              <span>vs mois dernier</span>
             </span>
           }
         >
@@ -314,29 +314,29 @@ export function Dashboard() {
           footer={
             <span className="flex items-center gap-1.5">
               <Trend value={kpis.leadsMonth.value} previous={kpis.leadsMonth.previous} />
-              <span>vs mois dernier à date</span>
+              <span>vs mois dernier</span>
             </span>
           }
         >
           <Sparkline values={kpis.leadsMonth.series} color="#EAB308" />
         </KpiCard>
-        <KpiCard icon={Target} label="Conversion" value={`${Math.round(kpis.conversionRate * 100)} %`} footer="Leads devenus inscriptions">
+        <KpiCard icon={Target} label="Conversion" value={`${Math.round(kpis.conversionRate * 100)} %`} footer="leads → inscriptions">
           <ConversionRing rate={kpis.conversionRate} />
         </KpiCard>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <TodayCard sessions={data.today} />
+      {/* Carte visible sans defiler, a cote de la journee et des taches. */}
+      <div className="grid gap-4 xl:grid-cols-5">
+        <div className="xl:col-span-3">
+          <DashboardMap height={430} className="h-full" />
         </div>
-        <div className="lg:col-span-2">
+        <div className="flex flex-col gap-4 xl:col-span-2">
+          <TodayCard sessions={data.today} />
           <TodoCard items={data.todo} />
         </div>
       </div>
 
       <HoursChart weeks={data.hoursByWeek} />
-
-      <DashboardMap />
     </div>
   )
 }

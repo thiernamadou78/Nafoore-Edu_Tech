@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MessageSquareQuote, Plus, Star, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, MessageSquareQuote, Plus, Star, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
@@ -196,6 +196,22 @@ function TestimonialsCard() {
 
   const load = () => api.get('/admin/testimonials').then(setTestimonials)
 
+  // Monte / descend un temoignage d'un cran : on envoie l'ordre complet,
+  // renumerote cote serveur (1, 2, 3…).
+  const move = async (index, delta) => {
+    const target = index + delta
+    if (target < 0 || target >= testimonials.length) return
+    const next = [...testimonials]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    setTestimonials(next)
+    try {
+      setTestimonials(await api.patch('/admin/testimonials/reorder', { ids: next.map((t) => t.id) }))
+    } catch (err) {
+      setError(err.message)
+      await load()
+    }
+  }
+
   useEffect(() => {
     load()
       .catch((err) => setError(err.message))
@@ -219,7 +235,9 @@ function TestimonialsCard() {
     setSubmitting('form')
     setError(null)
     try {
-      const payload = { ...form, rating: Number(form.rating), order: Number(form.order) }
+      // L'ordre se regle avec les fleches de la liste, pas dans le formulaire.
+      const { order: _order, ...rest } = form
+      const payload = { ...rest, rating: Number(form.rating) }
       if (editingId) {
         await api.patch(`/admin/testimonials/${editingId}`, payload)
       } else {
@@ -298,13 +316,13 @@ function TestimonialsCard() {
                 <th className="px-4 py-3 font-medium">Rôle</th>
                 <th className="px-4 py-3 font-medium">Extrait</th>
                 <th className="px-4 py-3 font-medium">Note</th>
-                <th className="px-4 py-3 font-medium">Ordre</th>
+                <th className="px-4 py-3 font-medium">Position</th>
                 <th className="px-4 py-3 font-medium">Statut</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {testimonials.map((testimonial) => (
+              {testimonials.map((testimonial, index) => (
                 <tr key={testimonial.id} className="hover:bg-gray-50">
                   <td className="px-6 py-3 font-medium text-gray-900">{testimonial.author}</td>
                   <td className="px-4 py-3 text-gray-700">{testimonial.role}</td>
@@ -315,7 +333,29 @@ function TestimonialsCard() {
                       {testimonial.rating}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-700">{testimonial.order}</td>
+                  <td className="px-4 py-3 text-gray-700">
+                    <div className="flex items-center gap-1">
+                      <span className="w-5 text-center font-semibold tabular-nums">{index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => move(index, -1)}
+                        disabled={index === 0}
+                        title="Monter"
+                        className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-navy disabled:opacity-30"
+                      >
+                        <ArrowUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => move(index, 1)}
+                        disabled={index === testimonials.length - 1}
+                        title="Descendre"
+                        className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-navy disabled:opacity-30"
+                      >
+                        <ArrowDown size={14} />
+                      </button>
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
                     <button
                       type="button"
@@ -402,15 +442,6 @@ function TestimonialsCard() {
                 required
                 value={form.rating}
                 onChange={(e) => setForm((f) => ({ ...f, rating: e.target.value }))}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Ordre</label>
-              <input
-                type="number"
-                value={form.order}
-                onChange={(e) => setForm((f) => ({ ...f, order: e.target.value }))}
                 className={inputClass}
               />
             </div>

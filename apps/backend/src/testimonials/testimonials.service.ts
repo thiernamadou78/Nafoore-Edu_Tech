@@ -20,8 +20,29 @@ export class TestimonialsService {
     });
   }
 
-  create(dto: CreateTestimonialDto) {
-    return this.prisma.testimonial.create({ data: dto });
+  // Un nouveau temoignage se place a la fin de la liste.
+  async create(dto: CreateTestimonialDto) {
+    const last = await this.prisma.testimonial.aggregate({ _max: { order: true } });
+    return this.prisma.testimonial.create({
+      data: { ...dto, order: (last._max.order ?? 0) + 1 },
+    });
+  }
+
+  // Nouvel ordre complet (liste des ids du 1er au dernier) : positions
+  // renumerotees 1, 2, 3… — plus d'egalites possibles entre temoignages.
+  async reorder(ids: string[]) {
+    const existing = await this.prisma.testimonial.findMany({ select: { id: true } });
+    const known = new Set(existing.map((t) => t.id));
+    const ordered = [
+      ...ids.filter((id) => known.has(id)),
+      ...existing.map((t) => t.id).filter((id) => !ids.includes(id)),
+    ];
+    await this.prisma.$transaction(
+      ordered.map((id, index) =>
+        this.prisma.testimonial.update({ where: { id }, data: { order: index + 1 } }),
+      ),
+    );
+    return this.listAll();
   }
 
   async update(id: string, dto: UpdateTestimonialDto) {

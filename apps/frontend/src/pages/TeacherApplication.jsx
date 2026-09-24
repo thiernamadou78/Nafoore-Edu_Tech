@@ -487,39 +487,40 @@ export default function TeacherApplication() {
 
                 <div className="mb-4">
                   <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                    Ville / Commune <span className="text-red-400">*</span>
+                    Adresse <span className="text-red-400">*</span>
                   </label>
                   <input
-                    name="city"
-                    list={cityListId}
-                    value={form.city}
+                    name="zone"
+                    value={form.zone}
                     onChange={handleChange}
                     required
-                    minLength={2}
-                    maxLength={100}
-                    placeholder="Ex : Chevilly-Larue"
+                    autoComplete="street-address"
+                    placeholder="Ex : 3 rue de la République"
                     className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                   />
-                  <datalist id={cityListId}>
-                    {cityOptions.map((name) => (
-                      <option key={name} value={name} />
-                    ))}
-                  </datalist>
                 </div>
 
                 <div className="grid grid-cols-[1fr_110px] gap-3 mb-4">
                   <div>
                     <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                      Adresse <span className="text-red-400">*</span>
+                      Ville / Commune <span className="text-red-400">*</span>
                     </label>
                     <input
-                      name="zone"
-                      value={form.zone}
+                      name="city"
+                      list={cityListId}
+                      value={form.city}
                       onChange={handleChange}
                       required
-                      placeholder="Paris, Île-de-France"
+                      minLength={2}
+                      maxLength={100}
+                      placeholder="Ex : Chevilly-Larue"
                       className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                     />
+                    <datalist id={cityListId}>
+                      {cityOptions.map((name) => (
+                        <option key={name} value={name} />
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
@@ -532,7 +533,8 @@ export default function TeacherApplication() {
                       required
                       pattern="\d{5}"
                       maxLength={5}
-                      placeholder="75015"
+                      inputMode="numeric"
+                      placeholder="94550"
                       className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                     />
                   </div>

@@ -69,7 +69,7 @@ function zoneBounds({ latitude, longitude, radiusKm }) {
 const STUDENT_ICON = pinIcon('#1E3A8A')
 const TEACHER_ICON = pinIcon('#EAB308')
 
-export function DashboardMap() {
+export function DashboardMap({ height = 420, className = 'mb-6' }) {
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
@@ -87,8 +87,8 @@ export function DashboardMap() {
   const isEmpty = data && studentCount === 0 && teacherCount === 0 && !zone
 
   return (
-    <Card className="mb-6 overflow-hidden p-0">
-      <div className="flex items-center justify-between p-6 pb-0">
+    <Card className={`flex flex-col overflow-hidden p-0 ${className}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4">
         <h2 className="flex items-center gap-2 font-semibold text-gray-900">
           <MapPin size={16} className="text-navy" />
           Carte des élèves et enseignants
@@ -110,7 +110,7 @@ export function DashboardMap() {
         </div>
       </div>
 
-      <div className="p-6 pt-4">
+      <div className="flex-1 p-5 pt-3">
         {error ? (
           <p className="text-sm text-red-600">{error}</p>
         ) : !data ? (
@@ -121,7 +121,7 @@ export function DashboardMap() {
             enseignants auront une adresse renseignée.
           </p>
         ) : (
-          <div className="h-[420px] overflow-hidden rounded-xl border border-gray-100">
+          <div className="overflow-hidden rounded-xl border border-gray-100" style={{ height }}>
             <MapContainer
               {...(zone
                 ? { bounds: zoneBounds(zone) }
