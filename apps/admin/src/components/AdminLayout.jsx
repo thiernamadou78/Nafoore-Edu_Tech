@@ -1,11 +1,45 @@
-import { Eye, LogOut } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, Eye, LogOut } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { NAV_ITEMS } from '../config/navigation'
+import { NAV_GROUPS, NAV_ITEMS } from '../config/navigation'
 import { ROLE_LABELS } from '../config/roles'
 import { initials } from '../lib/initials'
 import { NotificationBell } from './NotificationBell'
 import logoSrc from './IMG/Logo.png'
+
+// Au-dela de ce nombre d'entrees, le menu est range en sections repliables ;
+// en dessous (delegue avec peu de droits), une liste simple suffit.
+const GROUPED_MENU_MIN_ITEMS = 7
+const COLLAPSED_STORAGE_KEY = 'nafoore-admin-menu-collapsed'
+
+function readCollapsed() {
+  try {
+    return JSON.parse(localStorage.getItem(COLLAPSED_STORAGE_KEY) ?? '[]')
+  } catch {
+    return []
+  }
+}
+
+function NavItem({ item }) {
+  const Icon = item.icon
+  return (
+    <NavLink
+      to={item.path}
+      end={item.path === '/'}
+      className={({ isActive }) =>
+        `flex items-center gap-3 rounded-lg border-l-2 px-3 py-1.5 text-sm transition-colors ${
+          isActive
+            ? 'border-gold-400 bg-white/10 font-medium text-white'
+            : 'border-transparent text-white/70 hover:bg-white/5 hover:text-white'
+        }`
+      }
+    >
+      <Icon size={17} strokeWidth={2} />
+      {item.label}
+    </NavLink>
+  )
+}
 
 export function AdminLayout() {
   const { adminAccount, signOut, can, isSuperAdmin } = useAuth()
@@ -23,32 +57,66 @@ export function AdminLayout() {
     )
   const readOnly = currentItem?.module && can(currentItem.module) && !can(currentItem.module, 'edit')
 
+  const [collapsed, setCollapsed] = useState(readCollapsed)
+  const toggleGroup = (key) => {
+    setCollapsed((current) => {
+      const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key]
+      try {
+        localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // stockage indisponible : l'etat reste valable pour la session
+      }
+      return next
+    })
+  }
+  const grouped = visibleItems.length >= GROUPED_MENU_MIN_ITEMS
+  const topItems = grouped ? visibleItems.filter((item) => !item.group) : visibleItems
+  const sections = grouped
+    ? NAV_GROUPS.map((group) => ({
+        ...group,
+        items: visibleItems.filter((item) => item.group === group.key),
+      })).filter((group) => group.items.length > 0)
+    : []
+
   return (
     <div className="min-h-screen flex bg-gray-50">
-      <aside className="w-64 shrink-0 bg-navy text-white flex flex-col">
+      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-navy text-white">
         <div className="flex items-center gap-2.5 p-5">
           <img src={logoSrc} alt="Nafoore Education" className="h-9 w-9 object-contain drop-shadow-md" />
           <span className="font-sans text-base font-semibold">Nafoore Education Admin</span>
         </div>
-        <nav className="flex-1 px-3 space-y-1">
-          {visibleItems.map((item) => {
-            const Icon = item.icon
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-3">
+          {topItems.map((item) => (
+            <NavItem key={item.path} item={item} />
+          ))}
+          {sections.map((section) => {
+            // La section de la page ouverte reste toujours depliee.
+            const containsActive = section.items.some((item) => item.path === currentItem?.path)
+            const open = containsActive || !collapsed.includes(section.key)
             return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.path === '/'}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm transition-colors ${
-                    isActive
-                      ? 'border-gold-400 bg-white/10 font-medium text-white'
-                      : 'border-transparent text-white/70 hover:bg-white/5 hover:text-white'
-                  }`
-                }
-              >
-                <Icon size={18} strokeWidth={2} />
-                {item.label}
-              </NavLink>
+              <div key={section.key} className="pt-3">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(section.key)}
+                  disabled={containsActive}
+                  className="flex w-full items-center justify-between px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40 transition-colors hover:text-white/70 disabled:cursor-default disabled:hover:text-white/40"
+                >
+                  {section.label}
+                  {!containsActive && (
+                    <ChevronDown
+                      size={13}
+                      className={`transition-transform ${open ? '' : '-rotate-90'}`}
+                    />
+                  )}
+                </button>
+                {open && (
+                  <div className="space-y-0.5">
+                    {section.items.map((item) => (
+                      <NavItem key={item.path} item={item} />
+                    ))}
+                  </div>
+                )}
+              </div>
             )
           })}
         </nav>
