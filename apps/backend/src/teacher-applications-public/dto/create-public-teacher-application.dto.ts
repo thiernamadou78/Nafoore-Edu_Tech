@@ -1,10 +1,21 @@
 import { Transform } from 'class-transformer';
 import { ArrayMinSize, IsArray, IsEmail, IsIn, IsNotEmpty, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
-import { SUBJECT_OPTIONS } from '../../common/subjects';
+import { IsKnownSubject } from '../../common/subjects';
 import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
+// Accepte un tableau, un tableau JSON ('["a","b"]' — le formulaire envoie
+// ce format car un nom de matiere peut contenir une virgule) ou, pour
+// compatibilite, une liste separee par des virgules.
 function toArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String);
+  if (typeof value === 'string' && value.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch {
+      // format invalide : on retombe sur le decoupage par virgules
+    }
+  }
   if (typeof value === 'string') {
     return value
       .split(',')
@@ -33,22 +44,21 @@ export class CreatePublicTeacherApplicationDto {
   @Transform(({ value }) => toArray(value))
   @IsArray({ message: 'Au moins une matière est requise' })
   @ArrayMinSize(1, { message: 'Au moins une matière est requise' })
-  @IsIn(SUBJECT_OPTIONS, { each: true, message: 'Matière inconnue' })
+  @IsKnownSubject({ each: true })
   subjects: string[];
 
+  // Niveaux et classes (soutien scolaire). Facultatifs pour un formateur qui
+  // ne propose que des domaines professionnels : le service exige un niveau
+  // des qu'une matiere scolaire est choisie, et une classe par niveau coche.
   @Transform(({ value }) => toArray(value))
   @IsArray()
-  @ArrayMinSize(1, { message: 'Au moins un niveau est requis' })
   @IsString({ each: true })
-  levels: string[];
+  levels: string[] = [];
 
-  // Classes precises enseignees (ex: cm2, 6e, 1re) — obligatoire, et le
-  // service verifie qu'il y en a bien au moins une par niveau coche.
   @Transform(({ value }) => toArray(value))
   @IsArray()
-  @ArrayMinSize(1, { message: 'Précisez au moins une classe' })
   @IsString({ each: true })
-  classes: string[];
+  classes: string[] = [];
 
   @IsString()
   @MinLength(2)

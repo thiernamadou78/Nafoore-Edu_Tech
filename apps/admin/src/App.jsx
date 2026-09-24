@@ -17,6 +17,7 @@ import { TeacherDetail } from './pages/teachers/TeacherDetail'
 import { RecruitmentList } from './pages/recruitment/RecruitmentList'
 import { RecruitmentDetail } from './pages/recruitment/RecruitmentDetail'
 import { AdminAccounts } from './pages/AdminAccounts'
+import { Subjects } from './pages/Subjects'
 import { TeacherRequestsList } from './pages/teacher-requests/TeacherRequestsList'
 import { TeacherRequestDetail } from './pages/teacher-requests/TeacherRequestDetail'
 import { RenewalsList } from './pages/renewals/RenewalsList'
@@ -90,6 +91,7 @@ export default function App() {
             </Route>
             <Route element={<ProtectedRoute superAdminOnly />}>
               <Route path="/comptes" element={<AdminAccounts />} />
+              <Route path="/matieres" element={<Subjects />} />
             </Route>
           </Route>
         </Route>

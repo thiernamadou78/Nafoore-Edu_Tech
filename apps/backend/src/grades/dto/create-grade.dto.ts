@@ -1,11 +1,11 @@
 import { Type } from 'class-transformer';
 import { IsDateString, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import { SUBJECT_OPTIONS } from '../../common/subjects';
+import { IsKnownSubject } from '../../common/subjects';
 
 export const GRADE_KINDS = ['depart', 'suivi'] as const;
 
 export class CreateGradeDto {
-  @IsIn(SUBJECT_OPTIONS, { message: 'Matière inconnue' })
+  @IsKnownSubject()
   subject: string;
 
   @IsIn(GRADE_KINDS, { message: 'Le type doit être "depart" ou "suivi"' })

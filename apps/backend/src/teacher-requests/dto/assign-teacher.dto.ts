@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsNumber, IsString, Max, Min } from 'class-validator';
-import { SUBJECT_OPTIONS } from '../../common/subjects';
+import { IsKnownSubject } from '../../common/subjects';
 import { TEACHER_REQUEST_PERIODS } from './create-teacher-request.dto';
 
 // Assignation directe par l'admin : pas de demande de la famille, pas de
@@ -12,7 +12,7 @@ export class AssignTeacherDto {
   @IsString()
   teacherId: string;
 
-  @IsIn(SUBJECT_OPTIONS, { message: 'Matière inconnue' })
+  @IsKnownSubject()
   subject: string;
 
   @Type(() => Number)

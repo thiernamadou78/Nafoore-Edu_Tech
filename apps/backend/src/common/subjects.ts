@@ -1,34 +1,35 @@
-// Liste canonique des matières (union du programme primaire/collège/lycée
-// défini côté famille dans apps/famille/src/pages/curriculum.js). Utilisée
-// pour valider Teacher.subjects, TeacherApplication.subjects et
-// TeacherRequest.subject afin qu'ils partagent le même vocabulaire — sans
-// ça, faire correspondre une demande famille aux matières d'un prof serait
-// impossible (comparaison de texte libre non fiable).
-export const SUBJECT_OPTIONS = [
-  'Français',
-  'Mathématiques',
-  'Questionner le monde',
-  'Histoire-Géographie',
-  'Anglais',
-  'Arts plastiques',
-  'Éducation musicale',
-  'EPS',
-  'Éducation morale et civique',
-  'Sciences de la Vie et de la Terre (SVT)',
-  'Physique-Chimie',
-  'Technologie',
-  'Espagnol',
-  'Allemand',
-  'Latin',
-  'Philosophie',
-  'Enseignement scientifique',
-  'SES',
-  'Numérique et Sciences Informatiques (NSI)',
-  'Histoire-Géo, Géopolitique et Sciences Politiques',
-  'Humanités, Littérature et Philosophie',
-  'Langues, Littératures et Cultures Étrangères',
-  "Sciences de l'Ingénieur",
-  'Arts',
-] as const;
+import { ValidationOptions, registerDecorator } from 'class-validator';
 
-export type Subject = (typeof SUBJECT_OPTIONS)[number];
+// Catalogue des matieres connues (table `subjects`, gere par le Super Admin).
+// Utilise pour valider Teacher.subjects, TeacherApplication.subjects,
+// TeacherRequest.subject… afin qu'ils partagent le meme vocabulaire — sans
+// ca, faire correspondre une demande famille aux matieres d'un prof serait
+// impossible (comparaison de texte libre non fiable).
+//
+// Garde en memoire (la validation class-validator est synchrone) et tenu a
+// jour par SubjectsService : au demarrage, a chaque modification, puis
+// toutes les minutes. Les matieres masquees restent valides (donnees
+// existantes) ; seules les listes de choix les cachent.
+const catalog = new Set<string>();
+
+export function setSubjectCatalog(names: string[]) {
+  catalog.clear();
+  for (const name of names) catalog.add(name);
+}
+
+export function isKnownSubject(value: unknown): boolean {
+  return typeof value === 'string' && catalog.has(value);
+}
+
+// @IsKnownSubject() / @IsKnownSubject({ each: true }) : remplace
+// @IsIn(SUBJECT_OPTIONS) depuis que la liste est dynamique.
+export function IsKnownSubject(options?: ValidationOptions) {
+  return (object: object, propertyName: string) =>
+    registerDecorator({
+      name: 'isKnownSubject',
+      target: object.constructor,
+      propertyName,
+      options: { message: 'Matière inconnue', ...options },
+      validator: { validate: (value: unknown) => isKnownSubject(value) },
+    });
+}

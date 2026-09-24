@@ -1,6 +1,6 @@
 import { DAYS_OF_WEEK } from '../../common/days';
 import { ArrayMinSize, IsArray, IsEmail, IsIn, IsOptional, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
-import { SUBJECT_OPTIONS } from '../../common/subjects';
+import { IsKnownSubject } from '../../common/subjects';
 import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
 // PATCH generique (partiel) : @IsOptional() partout pour permettre de ne
@@ -20,7 +20,7 @@ export class UpdateTeacherDto {
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1, { message: 'Au moins une matière est requise' })
-  @IsIn(SUBJECT_OPTIONS, { each: true, message: 'Matière inconnue' })
+  @IsKnownSubject({ each: true })
   subjects?: string[];
 
   @IsOptional()

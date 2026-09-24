@@ -36,6 +36,8 @@ export class TeachersService {
       verified: teacher.verified,
       bio: teacher.bio,
       address: teacher.address,
+      city: teacher.city,
+      postalCode: teacher.postalCode,
       email: teacher.email,
       phone: teacher.phone,
       photoUrl: teacher.photoPath ? (photoUrls.get(teacher.photoPath) ?? null) : null,

@@ -124,6 +124,14 @@ export class TeacherApplicationsPublicService {
 
   async create(dto: CreatePublicTeacherApplicationDto, files: TeacherApplicationUploadedFiles) {
     const uploads = this.checkUploads(files);
+    const schoolSubjects = await this.prisma.subject.count({
+      where: { name: { in: dto.subjects }, category: 'scolaire' },
+    });
+    if (schoolSubjects > 0 && dto.levels.length === 0) {
+      throw new BadRequestException(
+        'Choisissez au moins un niveau (primaire, collège, lycée) pour les matières scolaires',
+      );
+    }
     for (const level of dto.levels) {
       const validClasses = CLASSES_BY_LEVEL[level] ?? [];
       if (!dto.classes.some((classe) => validClasses.includes(classe))) {

@@ -1,3 +1,4 @@
+import { IsKnownSubject } from '../../common/subjects';
 import {
   ArrayMinSize,
   IsArray,
@@ -19,7 +20,7 @@ export class CreateTeacherApplicationDto {
 
   @IsArray()
   @ArrayMinSize(1, { message: 'Au moins une matière est requise' })
-  @IsString({ each: true })
+  @IsKnownSubject({ each: true })
   subjects: string[];
 
   @IsString()

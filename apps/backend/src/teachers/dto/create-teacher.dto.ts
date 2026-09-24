@@ -1,6 +1,6 @@
 import { DAYS_OF_WEEK } from '../../common/days';
 import { ArrayMinSize, IsArray, IsEmail, IsIn, IsOptional, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
-import { SUBJECT_OPTIONS } from '../../common/subjects';
+import { IsKnownSubject } from '../../common/subjects';
 import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
 // Un enseignant créé directement par l'admin doit avoir un dossier aussi
@@ -17,7 +17,7 @@ export class CreateTeacherDto {
 
   @IsArray()
   @ArrayMinSize(1, { message: 'Au moins une matière est requise' })
-  @IsIn(SUBJECT_OPTIONS, { each: true, message: 'Matière inconnue' })
+  @IsKnownSubject({ each: true })
   subjects: string[];
 
   @Length(20, 2000, {

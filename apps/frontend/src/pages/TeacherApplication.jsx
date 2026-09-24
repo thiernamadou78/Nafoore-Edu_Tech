@@ -1,35 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { validateUploads } from '../lib/fileValidation'
-
-// Liste fermée (pas de saisie libre) : indispensable pour que les demandes
-// des familles puissent être comparées automatiquement aux matières
-// enseignées par un prof (cf. onglet "Demandes" côté enseignant).
-const SUBJECT_OPTIONS = [
-  'Français',
-  'Mathématiques',
-  'Questionner le monde',
-  'Histoire-Géographie',
-  'Anglais',
-  'Arts plastiques',
-  'Éducation musicale',
-  'EPS',
-  'Éducation morale et civique',
-  'Sciences de la Vie et de la Terre (SVT)',
-  'Physique-Chimie',
-  'Technologie',
-  'Espagnol',
-  'Allemand',
-  'Latin',
-  'Philosophie',
-  'Enseignement scientifique',
-  'SES',
-  'Numérique et Sciences Informatiques (NSI)',
-  'Histoire-Géo, Géopolitique et Sciences Politiques',
-  'Humanités, Littérature et Philosophie',
-  'Langues, Littératures et Cultures Étrangères',
-  "Sciences de l'Ingénieur",
-  'Arts',
-]
 
 const LEVELS = [
   { value: 'primaire', label: 'Primaire' },
@@ -92,9 +62,35 @@ const DEFAULT_FORM = {
   availabilityDays: [],
 }
 
+const CATEGORY_LABELS = {
+  scolaire: 'Soutien scolaire',
+  professionnel: 'Formation professionnelle',
+}
+
+// Recherche insensible aux accents et a la casse ("powe" -> "Power BI").
+const normalize = (value) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+// Liste fermee (pas de saisie libre) chargee depuis le catalogue gere par le
+// Super Admin : indispensable pour que les demandes des familles (et les
+// besoins des entreprises) puissent etre comparees aux matieres d'un prof.
+function useSubjectCatalog() {
+  const [catalog, setCatalog] = useState([])
+  useEffect(() => {
+    fetch(`${API_URL}/subjects`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setCatalog)
+      .catch(() => setCatalog([]))
+  }, [])
+  return catalog
+}
+
 // Pastilles + recherche au clic (meme pattern que "Mon profil" cote enseignant) :
 // evite d'afficher les 24 matieres d'un coup et allonger le formulaire.
-function SubjectQuickAdd({ selected, onChange }) {
+function SubjectQuickAdd({ catalog, selected, onChange }) {
   // Champ visible par defaut ; une fois une matiere choisie il se replie et
   // laisse la place au bouton "+ Ajouter".
   const [open, setOpen] = useState(true)
@@ -102,10 +98,18 @@ function SubjectQuickAdd({ selected, onChange }) {
   const [query, setQuery] = useState('')
   const inputRef = useRef(null)
 
-  const normalizedQuery = query.trim().toLowerCase()
-  const filtered = SUBJECT_OPTIONS.filter(
-    (subject) => !selected.includes(subject) && subject.toLowerCase().startsWith(normalizedQuery),
-  )
+  const normalizedQuery = normalize(query.trim())
+  const filtered = catalog
+    .filter(({ name }) => !selected.includes(name) && normalize(name).includes(normalizedQuery))
+    .map(({ name }) => name)
+  const groups = ['scolaire', 'professionnel']
+    .map((category) => ({
+      category,
+      names: catalog
+        .filter((subject) => subject.category === category && filtered.includes(subject.name))
+        .map((subject) => subject.name),
+    }))
+    .filter((group) => group.names.length > 0)
 
   const addSubject = (subject) => {
     onChange([...selected, subject])
@@ -170,26 +174,33 @@ function SubjectQuickAdd({ selected, onChange }) {
               }
               if (e.key === 'Escape') inputRef.current?.blur()
             }}
-            placeholder="Rechercher une matière (ex : Ma pour Mathématiques)…"
+            placeholder="Rechercher (ex : Maths, Power BI, Gestion de projet)…"
             className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
           />
           {focused && (
           <div
             onMouseDown={(e) => e.preventDefault()}
-            className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg"
+            className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg"
           >
-            {filtered.length === 0 ? (
+            {groups.length === 0 ? (
               <p className="px-3 py-2 font-sans text-sm text-gray-400">Aucune matière trouvée.</p>
             ) : (
-              filtered.map((subject) => (
-                <button
-                  key={subject}
-                  type="button"
-                  onClick={() => addSubject(subject)}
-                  className="block w-full px-3 py-2 text-left font-sans text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  {subject}
-                </button>
+              groups.map((group) => (
+                <div key={group.category}>
+                  <p className="sticky top-0 bg-gray-50 px-3 py-1.5 font-sans text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    {CATEGORY_LABELS[group.category]}
+                  </p>
+                  {group.names.map((subject) => (
+                    <button
+                      key={subject}
+                      type="button"
+                      onClick={() => addSubject(subject)}
+                      className="block w-full px-3 py-2 text-left font-sans text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      {subject}
+                    </button>
+                  ))}
+                </div>
               ))
             )}
           </div>
@@ -211,6 +222,12 @@ export default function TeacherApplication() {
   const [fileErrors, setFileErrors] = useState({})
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
+  const subjectCatalog = useSubjectCatalog()
+  // Niveaux/classes : seulement pour les matieres de soutien scolaire (un
+  // formateur qui ne propose que des domaines pro n'en a pas).
+  const needsLevels = form.subjects.some(
+    (name) => subjectCatalog.find((subject) => subject.name === name)?.category !== 'professionnel',
+  )
 
   const toggleLevel = (value) => {
     setForm((f) => {
@@ -258,9 +275,9 @@ export default function TeacherApplication() {
       setErrorMsg('Choisissez au moins une matière.')
       return
     }
-    if (form.levels.length === 0) {
+    if (needsLevels && form.levels.length === 0) {
       setStatus('error')
-      setErrorMsg('Choisissez au moins un niveau.')
+      setErrorMsg('Choisissez au moins un niveau pour les matières scolaires.')
       return
     }
     if (form.availabilityDays.length === 0) {
@@ -291,9 +308,10 @@ export default function TeacherApplication() {
       formData.append('candidateName', form.candidateName)
       formData.append('candidateEmail', form.candidateEmail)
       formData.append('phone', form.phone)
-      formData.append('subjects', form.subjects.join(','))
-      formData.append('levels', form.levels.join(','))
-      formData.append('classes', form.classes.join(','))
+      // JSON : un nom de matiere peut contenir une virgule.
+      formData.append('subjects', JSON.stringify(form.subjects))
+      formData.append('levels', JSON.stringify(form.levels))
+      formData.append('classes', JSON.stringify(form.classes))
       formData.append('zone', form.zone)
       formData.append('postalCode', form.postalCode)
       formData.append('city', form.city.trim())
@@ -508,9 +526,13 @@ export default function TeacherApplication() {
 
                 <div className="mb-4">
                   <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                    Matières enseignées <span className="text-red-400">*</span>
+                    Matières / domaines enseignés <span className="text-red-400">*</span>
                   </label>
+                  <p className="mb-2 font-sans text-xs text-gray-400">
+                    Soutien scolaire et/ou domaines professionnels (formations en entreprise).
+                  </p>
                   <SubjectQuickAdd
+                    catalog={subjectCatalog}
                     selected={form.subjects}
                     onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
                   />
@@ -518,7 +540,14 @@ export default function TeacherApplication() {
 
                 <div className="mb-4">
                   <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                    Niveaux <span className="text-red-400">*</span>
+                    Niveaux scolaires{' '}
+                    {needsLevels ? (
+                      <span className="text-red-400">*</span>
+                    ) : (
+                      <span className="normal-case tracking-normal text-gray-300">
+                        (facultatif pour les domaines professionnels)
+                      </span>
+                    )}
                   </label>
                   <div className="flex gap-2">
                     {LEVELS.map(({ value, label }) => (

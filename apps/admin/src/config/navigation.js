@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Building2,
   Contact2,
   Globe,
@@ -68,5 +69,6 @@ export const NAV_ITEMS = [
     module: 'site',
     icon: Globe,
   },
+  { label: 'Matières', path: '/matieres', superAdminOnly: true, icon: BookOpen },
   { label: 'Comptes admin', path: '/comptes', superAdminOnly: true, icon: ShieldCheck },
 ]

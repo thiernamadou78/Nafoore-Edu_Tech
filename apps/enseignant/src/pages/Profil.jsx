@@ -6,7 +6,7 @@ import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
-import { SUBJECT_OPTIONS } from './subjects'
+import { SUBJECT_CATEGORY_LABELS, useSubjects } from '../lib/useSubjects'
 
 const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
@@ -35,10 +35,14 @@ function SubjectQuickAdd({ selected, onChange }) {
     if (open) inputRef.current?.focus()
   }, [open])
 
-  const normalizedQuery = query.trim().toLowerCase()
-  const filtered = SUBJECT_OPTIONS.filter(
-    (subject) => !selected.includes(subject) && subject.toLowerCase().startsWith(normalizedQuery),
-  )
+  const catalog = useSubjects()
+  // Recherche insensible aux accents et a la casse ("powe" -> "Power BI").
+  const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const normalizedQuery = normalize(query.trim())
+  const filtered = catalog
+    .filter(({ name }) => !selected.includes(name) && normalize(name).includes(normalizedQuery))
+    .map(({ name }) => name)
+  const categoryOf = (name) => catalog.find((s) => s.name === name)?.category
 
   const addSubject = (subject) => {
     onChange([...selected, subject])
@@ -94,26 +98,37 @@ function SubjectQuickAdd({ selected, onChange }) {
               }
               if (e.key === 'Escape') setOpen(false)
             }}
-            placeholder="Rechercher (ex : Ma pour Mathématiques)…"
+            placeholder="Rechercher (ex : Maths, Power BI…)"
             className={inputClass}
           />
           <div
             onMouseDown={(e) => e.preventDefault()}
-            className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+            className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
           >
             {filtered.length === 0 ? (
               <p className="px-3 py-2 text-sm text-gray-400">Aucune matière trouvée.</p>
             ) : (
-              filtered.map((subject) => (
-                <button
-                  key={subject}
-                  type="button"
-                  onClick={() => addSubject(subject)}
-                  className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  {subject}
-                </button>
-              ))
+              ['scolaire', 'professionnel'].map((category) => {
+                const names = filtered.filter((name) => categoryOf(name) === category)
+                if (names.length === 0) return null
+                return (
+                  <div key={category}>
+                    <p className="sticky top-0 bg-gray-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                      {SUBJECT_CATEGORY_LABELS[category]}
+                    </p>
+                    {names.map((subject) => (
+                      <button
+                        key={subject}
+                        type="button"
+                        onClick={() => addSubject(subject)}
+                        className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        {subject}
+                      </button>
+                    ))}
+                  </div>
+                )
+              })
             )}
           </div>
         </div>

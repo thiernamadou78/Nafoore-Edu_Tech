@@ -976,3 +976,19 @@ model Grade {
   @@index([studentId, subject])
   @@map("grades")
 }
+
+// ─────────────────────────────────────────────
+// Catalogue des matieres (gere par le Super Admin)
+// ─────────────────────────────────────────────
+
+model Subject {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  // Nom stocke tel quel dans Teacher.subjects, TeacherApplication.subjects…
+  // (jamais renomme : masquer ou supprimer).
+  name      String   @unique
+  category  String   // scolaire | professionnel
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("subjects")
+}

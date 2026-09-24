@@ -25,7 +25,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { PaginationControls } from '../../components/ui/PaginationControls'
 import { PlanningCalendar } from '../../components/ui/PlanningCalendar'
-import { SUBJECT_OPTIONS } from '../teachers/subjects'
+import { useSubjects } from '../../lib/useSubjects'
 import { StudentProgressCard } from '../../components/StudentProgressCard'
 import { SessionReport } from '../../components/SessionReport'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
@@ -310,7 +310,8 @@ function TeacherRatesCard({ studentId, assignments, onSaved }) {
 // Assignation directe : l'admin choisit matiere, prof, tarif et periode ; la
 // famille n'a rien a confirmer et recoit seulement un email.
 function AssignTeacherCard({ student, teachers, onAssigned }) {
-  const subjectChoices = student.subjects?.length ? student.subjects : SUBJECT_OPTIONS
+  const catalog = useSubjects()
+  const subjectChoices = student.subjects?.length ? student.subjects : catalog.map((s) => s.name)
   const [subject, setSubject] = useState('')
   const [teacherId, setTeacherId] = useState('')
   const [hourlyRate, setHourlyRate] = useState('')
