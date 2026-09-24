@@ -14,6 +14,7 @@ export const ADMIN_MODULES = [
   'messaging',
   'support',
   'attendance',
+  'planning',
   'enterprises',
   'formulas',
   'site',

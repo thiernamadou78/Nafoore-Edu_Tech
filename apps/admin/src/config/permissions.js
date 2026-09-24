@@ -11,6 +11,7 @@ export const ADMIN_MODULES = [
   { key: 'messaging', label: 'Conversations', hint: 'Modération des messages' },
   { key: 'support', label: 'Support', hint: 'Tickets des familles et enseignants' },
   { key: 'attendance', label: 'Suivi des pointages', hint: 'Alertes de présence' },
+  { key: 'planning', label: 'Planning', hint: 'Toutes les séances, par semaine ou par mois' },
   { key: 'enterprises', label: 'Entreprises', hint: 'Entreprises, contrats, comptes RH' },
   { key: 'formulas', label: 'Formules', hint: 'Offres et tarifs' },
   { key: 'site', label: 'Site vitrine', hint: 'Témoignages et réglages du site' },

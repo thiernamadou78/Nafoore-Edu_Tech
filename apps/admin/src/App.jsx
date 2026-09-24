@@ -30,6 +30,7 @@ import { EnterpriseImport } from './pages/entreprises/EnterpriseImport'
 import { FormulasList } from './pages/formules/FormulasList'
 import { SiteVitrine } from './pages/site-vitrine/SiteVitrine'
 import { AttendanceAlerts } from './pages/attendance/AttendanceAlerts'
+import { Planning } from './pages/planning/Planning'
 
 export default function App() {
   return (
@@ -71,6 +72,9 @@ export default function App() {
             <Route element={<ProtectedRoute module="messaging" />}>
               <Route path="/conversations" element={<ConversationsList />} />
               <Route path="/conversations/:id" element={<ConversationDetail />} />
+            </Route>
+            <Route element={<ProtectedRoute module="planning" />}>
+              <Route path="/planning" element={<Planning />} />
             </Route>
             <Route element={<ProtectedRoute module="attendance" />}>
               <Route path="/pointages" element={<AttendanceAlerts />} />

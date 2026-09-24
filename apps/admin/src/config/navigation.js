@@ -1,6 +1,7 @@
 import {
   BookOpen,
   Building2,
+  CalendarDays,
   Contact2,
   Globe,
   GraduationCap,
@@ -44,6 +45,7 @@ export const NAV_ITEMS = [
   { group: 'enseignants', label: 'Enseignants', path: '/enseignants', module: 'teachers', icon: Contact2 },
   { group: 'enseignants', label: 'Candidatures', path: '/recrutement', module: 'recruitment', icon: GraduationCap },
 
+  { group: 'suivi', label: 'Planning', path: '/planning', module: 'planning', icon: CalendarDays },
   { group: 'suivi', label: 'Conversations', path: '/conversations', module: 'messaging', icon: MessageSquare },
   { group: 'suivi', label: 'Pointages', path: '/pointages', module: 'attendance', icon: RadioTower },
   { group: 'suivi', label: 'Support', path: '/support-tickets', module: 'support', icon: LifeBuoy },

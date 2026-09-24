@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card } from './Card'
 
@@ -18,10 +18,16 @@ function dotColor(session) {
 
 // Grille du mois façon agenda de téléphone : pastilles colorées sous les
 // jours qui ont des séances, et un clic sur un jour affiche l'agenda du jour.
-export function PlanningCalendar({ sessions, renderSession }) {
+export function PlanningCalendar({ sessions, renderSession, onMonthChange }) {
   const today = new Date()
   const [month, setMonth] = useState(startOfMonth(today))
   const [selected, setSelected] = useState(today)
+
+  // Permet au parent de charger les seances du mois affiche (planning global).
+  useEffect(() => {
+    onMonthChange?.(month)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month])
 
   const byDay = useMemo(() => {
     const map = new Map()
