@@ -14,6 +14,7 @@ import { Table, Thead, Th, Tbody, Tr, Td } from '../../components/ui/Table'
 import { SubjectPicker } from './SubjectPicker'
 import { SUBJECT_CATEGORY_LABELS, useSubjects } from '../../lib/useSubjects'
 import { CLASS_LABELS, LEVELS, formatLevels, matchLevel } from '../../lib/levels'
+import { useCitySuggestions } from '../../lib/useCitySuggestions'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -86,6 +87,12 @@ export function TeachersList() {
   const isPro = useCallback((name) => proSubjects.has(name), [proSubjects])
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  // Ville proposee / remplie a partir du code postal.
+  const { listId: cityListId, options: cityOptions } = useCitySuggestions(
+    form?.postalCode,
+    form?.city,
+    (city) => setForm((f) => (f ? { ...f, city } : f)),
+  )
   const [diplomaFiles, setDiplomaFiles] = useState([])
   const [criminalRecordFile, setCriminalRecordFile] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -488,11 +495,17 @@ export function TeachersList() {
               <input
                 required
                 minLength={2}
+                list={cityListId}
                 value={form.city}
                 onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
                 placeholder="Ex : Chevilly-Larue"
                 className={inputClass}
               />
+              <datalist id={cityListId}>
+                {cityOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </div>
             <div className="grid grid-cols-[1fr_130px] gap-3">
               <div>

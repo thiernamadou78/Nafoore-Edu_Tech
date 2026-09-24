@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useCitySuggestions } from '../lib/useCitySuggestions'
 
 const PROFILES = [
   { value: 'famille', label: 'Famille', icon: '👨‍👩‍👧' },
@@ -46,6 +47,12 @@ export default function ContactForm() {
     desiredStartDate: '',
     childrenCount: '',
   })
+  // Ville proposee / remplie a partir du code postal.
+  const { listId: cityListId, options: cityOptions } = useCitySuggestions(
+    form?.postalCode,
+    form?.city,
+    (city) => setForm((f) => (f ? { ...f, city } : f)),
+  )
   const [status, setStatus] = useState('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -317,6 +324,7 @@ export default function ContactForm() {
                   </label>
                   <input
                     name="city"
+                    list={cityListId}
                     value={form.city}
                     onChange={handleChange}
                     required
@@ -325,6 +333,11 @@ export default function ContactForm() {
                     placeholder="Ex : Chevilly-Larue"
                     className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                   />
+                  <datalist id={cityListId}>
+                    {cityOptions.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
                 </div>
 
                 {/* Adresse + code postal (famille) : indispensable pour proposer un enseignant proche du domicile */}

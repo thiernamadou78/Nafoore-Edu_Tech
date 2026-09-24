@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { validateUploads } from '../lib/fileValidation'
+import { useCitySuggestions } from '../lib/useCitySuggestions'
 
 const LEVELS = [
   { value: 'primaire', label: 'Primaire' },
@@ -213,6 +214,12 @@ function SubjectQuickAdd({ catalog, selected, onChange }) {
 
 export default function TeacherApplication() {
   const [form, setForm] = useState(DEFAULT_FORM)
+  // Ville proposee / remplie a partir du code postal.
+  const { listId: cityListId, options: cityOptions } = useCitySuggestions(
+    form?.postalCode,
+    form?.city,
+    (city) => setForm((f) => (f ? { ...f, city } : f)),
+  )
   const [cv, setCv] = useState(null)
   const [identityDocument, setIdentityDocument] = useState(null)
   const [diplomas, setDiplomas] = useState([])
@@ -484,6 +491,7 @@ export default function TeacherApplication() {
                   </label>
                   <input
                     name="city"
+                    list={cityListId}
                     value={form.city}
                     onChange={handleChange}
                     required
@@ -492,6 +500,11 @@ export default function TeacherApplication() {
                     placeholder="Ex : Chevilly-Larue"
                     className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                   />
+                  <datalist id={cityListId}>
+                    {cityOptions.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div className="grid grid-cols-[1fr_110px] gap-3 mb-4">

@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
 import { SUBJECT_CATEGORY_LABELS, useSubjects } from '../lib/useSubjects'
 import { LevelPicker } from '../components/LevelPicker'
+import { useCitySuggestions } from '../lib/useCitySuggestions'
 
 const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
@@ -142,6 +143,12 @@ export function Profil() {
   const { refreshAccount } = useAuth()
   const photoInputRef = useRef(null)
   const [form, setForm] = useState(null)
+  // Ville proposee / remplie a partir du code postal.
+  const { listId: cityListId, options: cityOptions } = useCitySuggestions(
+    form?.postalCode,
+    form?.city,
+    (city) => setForm((f) => (f ? { ...f, city } : f)),
+  )
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -306,11 +313,17 @@ export function Profil() {
               <input
                 required
                 minLength={2}
+                list={cityListId}
                 value={form.city}
                 onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
                 placeholder="Ex : Chevilly-Larue"
                 className={inputClass}
               />
+              <datalist id={cityListId}>
+                {cityOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </div>
 
             <div className="grid grid-cols-[1fr_130px] gap-3 sm:col-span-2">

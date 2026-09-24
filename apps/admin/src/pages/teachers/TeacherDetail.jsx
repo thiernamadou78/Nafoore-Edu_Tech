@@ -19,6 +19,7 @@ import { SubjectPicker } from './SubjectPicker'
 import { LevelPicker } from '../../components/LevelPicker'
 import { formatLevels } from '../../lib/levels'
 import { DocumentViewer } from '../../components/DocumentViewer'
+import { useCitySuggestions } from '../../lib/useCitySuggestions'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -60,6 +61,12 @@ export function TeacherDetail() {
     email: '',
     phone: '',
   })
+  // Ville proposee / remplie a partir du code postal.
+  const { listId: cityListId, options: cityOptions } = useCitySuggestions(
+    form?.postalCode,
+    form?.city,
+    (city) => setForm((f) => (f ? { ...f, city } : f)),
+  )
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
   const [documentForm, setDocumentForm] = useState({ file: null, type: 'diplome' })
@@ -176,11 +183,17 @@ export function TeacherDetail() {
             <input
               required
               minLength={2}
+              list={cityListId}
               value={form.city}
               onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
               placeholder="Ex : Chevilly-Larue"
               className={inputClass}
             />
+            <datalist id={cityListId}>
+              {cityOptions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>

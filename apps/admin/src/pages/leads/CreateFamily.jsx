@@ -6,6 +6,7 @@ import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { SERVICE_LABELS } from './statusLabels'
+import { useCitySuggestions } from '../../lib/useCitySuggestions'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -33,6 +34,12 @@ const DEFAULT_FORM = {
 export function CreateFamily() {
   const navigate = useNavigate()
   const [form, setForm] = useState(DEFAULT_FORM)
+  // Ville proposee / remplie a partir du code postal.
+  const { listId: cityListId, options: cityOptions } = useCitySuggestions(
+    form?.postalCode,
+    form?.city,
+    (city) => setForm((f) => (f ? { ...f, city } : f)),
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
@@ -186,11 +193,17 @@ export function CreateFamily() {
               type="text"
               required
               minLength={2}
+              list={cityListId}
               value={form.city}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
               placeholder="Ex : Chevilly-Larue"
               className={inputClass}
             />
+            <datalist id={cityListId}>
+              {cityOptions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
           </div>
 
           <div className="grid grid-cols-[1fr_130px] gap-3">

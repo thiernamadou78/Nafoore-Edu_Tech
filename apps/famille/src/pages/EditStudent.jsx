@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
 import { CLASSE_LABELS } from './labels'
 import { CLASSE_OPTIONS_BY_LEVEL, SUBJECTS_BY_LEVEL } from './curriculum'
+import { useCitySuggestions } from '../lib/useCitySuggestions'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -43,6 +44,12 @@ export function EditStudent() {
   const { refresh } = useStudents()
   const photoInputRef = useRef(null)
   const [form, setForm] = useState(null)
+  // Ville proposee / remplie a partir du code postal.
+  const { listId: cityListId, options: cityOptions } = useCitySuggestions(
+    form?.postalCode,
+    form?.city,
+    (city) => setForm((f) => (f ? { ...f, city } : f)),
+  )
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -273,10 +280,16 @@ export function EditStudent() {
               type="text"
               required
               minLength={2}
+              list={cityListId}
               value={form.city}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
               className={inputClass}
             />
+            <datalist id={cityListId}>
+              {cityOptions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
           </div>
 
           <div className="grid grid-cols-[1fr_130px] gap-3">
