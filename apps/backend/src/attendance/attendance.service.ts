@@ -6,6 +6,9 @@ import { ConfirmEarlyCheckoutDto } from './dto/confirm-early-checkout.dto';
 
 const SCAN_WINDOW_MINUTES = 30;
 const SESSION_LOOKUP_WINDOW_HOURS = 6;
+// Une seance dont l'arrivee a ete scannee peut etre cloturee jusqu'a ce delai
+// apres l'arrivee, meme hors de la fenetre de scan (check-out tardif).
+const OPEN_CHECKIN_MAX_HOURS = 12;
 // En dessous de ce seuil entre check-in et re-scan, on considère que c'est la
 // même caméra qui a recapturé le QR par accident (famille pas encore rangé le
 // pass) plutôt qu'un vrai check-out — évite de clôturer une séance de 1 minute.
@@ -26,6 +29,21 @@ export interface ScanResult {
   nearestSessionAt?: Date | null;
   remainingMinutes?: number;
   sessionId?: string;
+}
+
+// Duree retenue pour une presence. Un check-out fait bien apres la fin prevue
+// (fenetre de scan depassee) est un oubli de pointage : on retient alors la
+// duree prevue, pour ne pas gonfler les heures facturees / remunerees.
+function presenceMinutes(
+  session: { date: Date; durationMinutes: number },
+  checkinAt: Date,
+  checkoutAt: Date,
+): number {
+  const scheduledEnd = session.date.getTime() + session.durationMinutes * 60_000;
+  if (checkoutAt.getTime() > scheduledEnd + SCAN_WINDOW_MINUTES * 60_000) {
+    return session.durationMinutes;
+  }
+  return Math.max(1, Math.round((checkoutAt.getTime() - checkinAt.getTime()) / 60000));
 }
 
 @Injectable()
@@ -51,7 +69,11 @@ export class AttendanceService {
       return { verificationStatus: 'funding_expired', action: null, student: studentSummary };
     }
 
-    const session = await this.findMatchingSession(student.id, teacherId);
+    // Arrivee deja scannee et pas encore de fin : c'est le check-out de CETTE
+    // seance, meme si le prof scanne longtemps apres l'horaire prevu.
+    const session =
+      (await this.findSessionWithOpenCheckin(student.id, teacherId)) ??
+      (await this.findMatchingSession(student.id, teacherId));
     if (!session) {
       await this.logBlocked(student.id, teacherId, 'no_session_found');
       const nearest = await this.findNearestSessionToday(student.id, teacherId);
@@ -118,10 +140,7 @@ export class AttendanceService {
       where: { id: openLog.id },
       data: { checkoutAt },
     });
-    const durationMinutes = Math.max(
-      1,
-      Math.round((checkoutAt.getTime() - (openLog.checkinAt as Date).getTime()) / 60000),
-    );
+    const durationMinutes = presenceMinutes(session, openLog.checkinAt as Date, checkoutAt);
     // Le pointage clôture la PRÉSENCE (attendanceLog), pas la séance : le
     // statut ne passe à "realisee" qu'une fois le compte-rendu soumis (voir
     // TeacherService.updateSession) — sinon une séance pointée sans jamais
@@ -201,6 +220,22 @@ export class AttendanceService {
         "Le pointage manuel n'est possible que dans les heures qui entourent l'horaire prévu de la séance",
       );
     }
+    // Arrivee deja scannee par QR : le pointage manuel sert alors a clore
+    // cette presence (sinon elle resterait ouverte a cote d'un 2e pointage).
+    const openLog = await this.prisma.attendanceLog.findFirst({
+      where: { sessionId: session.id, checkoutAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (openLog) {
+      const durationMinutes = presenceMinutes(session, openLog.checkinAt as Date, now);
+      const closed = await this.prisma.attendanceLog.update({
+        where: { id: openLog.id },
+        data: { checkoutAt: now, manualReason: dto.manualReason },
+      });
+      await this.prisma.session.update({ where: { id: session.id }, data: { durationMinutes } });
+      return closed;
+    }
+
     // Comme pour le scan QR, le pointage manuel clôture la présence mais pas
     // la séance : le compte-rendu reste requis pour passer en "realisee".
     return this.prisma.attendanceLog.create({
@@ -236,6 +271,21 @@ export class AttendanceService {
     if (employees.length === 0) return false;
 
     return employees.every((employee) => ['expire', 'resilie'].includes(employee.contract.statut));
+  }
+
+  private async findSessionWithOpenCheckin(studentId: string, teacherId: string) {
+    const openLog = await this.prisma.attendanceLog.findFirst({
+      where: {
+        studentId,
+        teacherId,
+        checkoutAt: null,
+        checkinAt: { gte: new Date(Date.now() - OPEN_CHECKIN_MAX_HOURS * 3_600_000) },
+        session: { status: { in: ['planifiee', 'confirmee'] } },
+      },
+      orderBy: { checkinAt: 'desc' },
+      include: { session: true },
+    });
+    return openLog?.session ?? null;
   }
 
   private async findMatchingSession(studentId: string, teacherId: string) {

@@ -17,6 +17,10 @@ const REMINDER_WINDOW_MINUTES = 10;
 // relance tant que la séance reste "en cours" (pas de check-out), au lieu de
 // n'envoyer qu'un seul rappel jamais répété.
 const CHECKOUT_REMINDER_REPEAT_MINUTES = 30;
+// Au-dela, on arrete de relancer le prof : la seance reste signalee a l'admin
+// dans "Suivi des pointages" (sinon un vieux pointage oublie declenchait un
+// rappel toutes les 30 min, indefiniment).
+const CHECKOUT_REMINDER_MAX_HOURS_AFTER_END = 3;
 // Rappel par email ~5h avant le début — fenêtre de capture large (10 min)
 // autour de la marque des 5h pour ne rien manquer si le cron rate un tick.
 const EMAIL_REMINDER_HOURS_BEFORE = 5;
@@ -77,7 +81,14 @@ export class SessionReminderService {
     const repeatThreshold = new Date(now.getTime() - CHECKOUT_REMINDER_REPEAT_MINUTES * 60_000);
 
     const openLogs = await this.prisma.attendanceLog.findMany({
-      where: { checkoutAt: null, sessionId: { not: null } },
+      where: {
+        checkoutAt: null,
+        sessionId: { not: null },
+        // Pre-filtre large (seances de moins de 24 h + duree) ; la borne
+        // exacte est verifiee plus bas.
+        checkinAt: { gte: new Date(now.getTime() - 24 * 3_600_000) },
+        session: { status: { not: 'annulee' } },
+      },
       include: {
         session: { include: { student: { select: { name: true } } } },
       },
@@ -97,6 +108,7 @@ export class SessionReminderService {
       const scheduledEnd = new Date(session.date.getTime() + session.durationMinutes * 60_000);
       const minutesUntilEnd = (scheduledEnd.getTime() - now.getTime()) / 60_000;
       if (minutesUntilEnd > REMINDER_WINDOW_MINUTES) continue;
+      if (minutesUntilEnd < -CHECKOUT_REMINDER_MAX_HOURS_AFTER_END * 60) continue;
 
       const body =
         minutesUntilEnd > 0
