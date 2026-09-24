@@ -54,7 +54,15 @@ export class FamilyService {
             date: true,
             durationMinutes: true,
             subject: true,
+            notes: true,
             teacher: { select: { name: true } },
+            // Pointage retenu (le dernier cloture) : heures d'arrivee/depart.
+            attendanceLogs: {
+              where: { checkoutAt: { not: null } },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { checkinAt: true, checkoutAt: true, method: true },
+            },
           },
           orderBy: { date: 'desc' },
         },
@@ -74,6 +82,10 @@ export class FamilyService {
         subject: session.subject ?? 'Non précisé',
         teacherName: session.teacher?.name ?? 'Enseignant',
         minutes: session.durationMinutes,
+        checkinAt: session.attendanceLogs[0]?.checkinAt ?? null,
+        checkoutAt: session.attendanceLogs[0]?.checkoutAt ?? null,
+        pointage: session.attendanceLogs[0]?.method === 'manuel' ? 'manuel' : 'qr',
+        hasReport: Boolean(session.notes?.trim()),
       })),
     }));
 
