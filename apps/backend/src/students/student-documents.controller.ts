@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -13,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { Permission } from '../auth/permissions';
 import { ZoneParams } from '../auth/zone.service';
@@ -26,7 +28,10 @@ import { StudentDocumentsService } from './student-documents.service';
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('students/:studentId/documents')
 export class StudentDocumentsController {
-  constructor(private readonly studentDocumentsService: StudentDocumentsService) {}
+  constructor(
+    private readonly studentDocumentsService: StudentDocumentsService,
+    private readonly activityLog: ActivityLogService,
+  ) {}
 
   @Get()
   list(@Param('studentId') studentId: string) {
@@ -45,12 +50,17 @@ export class StudentDocumentsController {
     return this.studentDocumentsService.upload(studentId, file, dto, admin.id);
   }
 
-  @Get(':documentId/download')
-  getDownloadUrl(
+  // Consultation a l'ecran (plus de lien de telechargement), tracee.
+  @Get(':documentId/view')
+  @Header('Cache-Control', 'no-store, private')
+  async viewDocument(
     @Param('studentId') studentId: string,
     @Param('documentId') documentId: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
-    return this.studentDocumentsService.getDownloadUrl(studentId, documentId);
+    const file = await this.studentDocumentsService.getFileForView(studentId, documentId);
+    await this.activityLog.log(admin.id, 'view_document', 'student_documents', documentId);
+    return file;
   }
 
   @Delete(':documentId')

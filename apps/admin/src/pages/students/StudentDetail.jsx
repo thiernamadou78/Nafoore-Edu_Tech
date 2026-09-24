@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Ban,
   CalendarPlus,
-  Download,
   FileText,
   History,
   Power,
@@ -16,6 +15,7 @@ import {
   Trash2,
   Upload,
   UserCheck,
+  Eye,
 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { formatDate, formatDateTime } from '../../lib/format'
@@ -49,6 +49,7 @@ import {
 } from './labels'
 import { PassEducatifCard } from './PassEducatifCard'
 import { matchLevel } from '../../lib/levels'
+import { DocumentViewer } from '../../components/DocumentViewer'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -495,6 +496,7 @@ function SessionsByStatusBoard({ sessions, onSave }) {
 
 export function StudentDetail() {
   const { id } = useParams()
+  const [viewing, setViewing] = useState(null) // document ouvert dans le lecteur
   const [student, setStudent] = useState(null)
   const [teachers, setTeachers] = useState([])
   const [tab, setTab] = useState('fiche')
@@ -1138,20 +1140,11 @@ export function StudentDetail() {
                       </div>
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={async () => {
-                            try {
-                              const { url } = await api.get(
-                                `/students/${id}/documents/${doc.id}/download`,
-                              )
-                              window.open(url, '_blank', 'noopener')
-                            } catch (err) {
-                              setError(err.message)
-                            }
-                          }}
+                          onClick={() => setViewing({ path: `/students/${id}/documents/${doc.id}/view`, fileName: doc.fileName })}
                           className="inline-flex items-center gap-1 text-navy hover:underline"
                         >
-                          <Download size={14} />
-                          Télécharger
+                          <Eye size={14} />
+                          Voir
                         </button>
                         <button
                           onClick={() => {
@@ -1187,6 +1180,7 @@ export function StudentDetail() {
                   <label className="mb-1 block text-xs text-gray-500">Fichier</label>
                   <input
                     type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
                     onChange={(e) =>
                       setDocumentForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))
                     }
@@ -1214,6 +1208,13 @@ export function StudentDetail() {
           )}
         </div>
       </div>
+      {viewing && (
+        <DocumentViewer
+          path={viewing.path}
+          fileName={viewing.fileName}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
   )
 }

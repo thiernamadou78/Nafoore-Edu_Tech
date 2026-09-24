@@ -39,6 +39,22 @@ function jsonRequest(path, options = {}) {
   })
 }
 
+// Fichier binaire (consultation d'un document) : renvoye en Blob, jamais
+// ouvert via une URL partageable.
+async function fetchBlob(path) {
+  const { data } = await authClient.auth.getSession()
+  const token = data.session?.access_token
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    cache: 'no-store',
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.message || `Erreur ${response.status}`)
+  }
+  return response.blob()
+}
+
 export const api = {
   get: (path) => jsonRequest(path),
   post: (path, body) => jsonRequest(path, { method: 'POST', body: JSON.stringify(body) }),
@@ -47,4 +63,5 @@ export const api = {
   del: (path) => jsonRequest(path, { method: 'DELETE' }),
   // Pas de Content-Type ici : le navigateur doit fixer le boundary multipart lui-même.
   upload: (path, formData) => send(path, { method: 'POST', body: formData }),
+  blob: fetchBlob,
 }

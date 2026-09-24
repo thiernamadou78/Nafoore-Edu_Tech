@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Calendar,
   Check,
-  Download,
   FileWarning,
   KeyRound,
   MessageSquarePlus,
@@ -13,6 +12,7 @@ import {
   Trash2,
   UserPlus,
   X,
+  Eye,
 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { formatDate } from '../../lib/format'
@@ -24,6 +24,7 @@ import { Card } from '../../components/ui/Card'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { STATUS_LABELS, STATUS_TONES } from './statusLabels'
 import { CLASSE_LABELS, LEVEL_LABELS } from '../students/labels'
+import { DocumentViewer } from '../../components/DocumentViewer'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -52,6 +53,7 @@ export function RecruitmentDetail() {
   const { id } = useParams()
   const { can } = useAuth()
   const canAccessDocuments = can('recruitment')
+  const [viewing, setViewing] = useState(null) // document ouvert dans le lecteur
   const [application, setApplication] = useState(null)
   const [tab, setTab] = useState('documents')
   const [interviewDate, setInterviewDate] = useState('')
@@ -347,20 +349,11 @@ export function RecruitmentDetail() {
                       </div>
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={async () => {
-                            try {
-                              const { url } = await api.get(
-                                `/teacher-applications/${id}/documents/${doc.id}/download`,
-                              )
-                              window.open(url, '_blank', 'noopener')
-                            } catch (err) {
-                              setError(err.message)
-                            }
-                          }}
+                          onClick={() => setViewing({ path: `/teacher-applications/${id}/documents/${doc.id}/view`, fileName: doc.fileName })}
                           className="inline-flex items-center gap-1 text-navy hover:underline"
                         >
-                          <Download size={14} />
-                          Télécharger
+                          <Eye size={14} />
+                          Voir
                         </button>
                         <button
                           onClick={() => {
@@ -476,6 +469,13 @@ export function RecruitmentDetail() {
           )}
         </div>
       </div>
+      {viewing && (
+        <DocumentViewer
+          path={viewing.path}
+          fileName={viewing.fileName}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -15,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { Permission } from '../auth/permissions';
 import { ZoneParams } from '../auth/zone.service';
@@ -36,6 +38,7 @@ import { TeacherApplicationsService } from './teacher-applications.service';
 @Controller('teacher-applications')
 export class TeacherApplicationsController {
   constructor(
+    private readonly activityLog: ActivityLogService,
     private readonly teacherApplicationsService: TeacherApplicationsService,
     private readonly teacherApplicationDocumentsService: TeacherApplicationDocumentsService,
     private readonly teacherOnboardingService: TeacherOnboardingService,
@@ -117,12 +120,17 @@ export class TeacherApplicationsController {
     return this.teacherApplicationsService.decide(id, dto.status, admin.id);
   }
 
-  @Get(':id/documents/:documentId/download')
-  downloadDocument(
+  // Consultation a l'ecran (plus de lien de telechargement), tracee.
+  @Get(':id/documents/:documentId/view')
+  @Header('Cache-Control', 'no-store, private')
+  async viewDocument(
     @Param('id') id: string,
     @Param('documentId') documentId: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
-    return this.teacherApplicationDocumentsService.getDownloadUrl(id, documentId);
+    const file = await this.teacherApplicationDocumentsService.getFileForView(id, documentId);
+    await this.activityLog.log(admin.id, 'view_document', 'teacher_application_documents', documentId);
+    return file;
   }
 
   @Delete(':id/documents/:documentId')

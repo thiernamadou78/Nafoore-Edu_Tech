@@ -2,10 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
+import { loadDocumentForView } from '../common/document-view';
+import { assertFileSignature, DOCUMENT_MIME_TYPES, safeFileName } from '../common/file-signature';
 import { CreateDocumentDto } from './dto/create-document.dto';
 
 const BUCKET = 'student-documents';
-const DOWNLOAD_URL_TTL_SECONDS = 60 * 5;
 
 const uploaderSelect = { uploadedBy: { select: { id: true, name: true } } };
 
@@ -30,11 +31,14 @@ export class StudentDocumentsService {
     dto: CreateDocumentDto,
     actorId: string,
   ) {
-    const filePath = `${studentId}/${randomUUID()}-${file.originalname}`;
+    // Documents consultables a l'ecran : PDF, JPG ou PNG verifies sur leur
+    // contenu reel (pas seulement l'extension).
+    const contentType = assertFileSignature(file, DOCUMENT_MIME_TYPES, 'PDF, JPG ou PNG');
+    const filePath = `${studentId}/${randomUUID()}-${safeFileName(file.originalname)}`;
 
     const { error } = await this.supabaseAdmin.client.storage
       .from(BUCKET)
-      .upload(filePath, file.buffer, { contentType: file.mimetype });
+      .upload(filePath, file.buffer, { contentType });
     if (error) {
       throw error;
     }
@@ -51,17 +55,15 @@ export class StudentDocumentsService {
     });
   }
 
-  async getDownloadUrl(studentId: string, documentId: string) {
+  // Consultation a l'ecran uniquement (voir common/document-view.ts).
+  async getFileForView(studentId: string, documentId: string) {
     const document = await this.findOwned(studentId, documentId);
-
-    const { data, error } = await this.supabaseAdmin.client.storage
-      .from(BUCKET)
-      .createSignedUrl(document.filePath, DOWNLOAD_URL_TTL_SECONDS);
-    if (error || !data) {
-      throw error ?? new Error('Échec de génération du lien de téléchargement');
-    }
-
-    return { url: data.signedUrl };
+    return loadDocumentForView(
+      this.supabaseAdmin.client,
+      BUCKET,
+      document.filePath,
+      document.fileName,
+    );
   }
 
   async remove(studentId: string, documentId: string) {

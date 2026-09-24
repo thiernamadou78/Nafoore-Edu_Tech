@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, CalendarClock, Download, FileText, Power, Save, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, CalendarClock, FileText, Power, Save, Trash2, Upload, Eye } from 'lucide-react'
 import { api } from '../../lib/api'
 import { formatDate, formatDateTime } from '../../lib/format'
 import { Alert } from '../../components/ui/Alert'
@@ -18,6 +18,7 @@ import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from '../students/labels'
 import { SubjectPicker } from './SubjectPicker'
 import { LevelPicker } from '../../components/LevelPicker'
 import { formatLevels } from '../../lib/levels'
+import { DocumentViewer } from '../../components/DocumentViewer'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -44,6 +45,7 @@ function pointageLabel(session) {
 
 export function TeacherDetail() {
   const { id } = useParams()
+  const [viewing, setViewing] = useState(null) // document ouvert dans le lecteur
   const [teacher, setTeacher] = useState(null)
   const [form, setForm] = useState({
     name: '',
@@ -330,20 +332,11 @@ export function TeacherDetail() {
                 </div>
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={async () => {
-                      try {
-                        const { url } = await api.get(
-                          `/teachers/${id}/documents/${doc.id}/download`,
-                        )
-                        window.open(url, '_blank', 'noopener')
-                      } catch (err) {
-                        setError(err.message)
-                      }
-                    }}
+                    onClick={() => setViewing({ path: `/teachers/${id}/documents/${doc.id}/view`, fileName: doc.fileName })}
                     className="inline-flex items-center gap-1 text-navy hover:underline"
                   >
-                    <Download size={14} />
-                    Télécharger
+                    <Eye size={14} />
+                    Voir
                   </button>
                   <button
                     onClick={() => {
@@ -379,6 +372,7 @@ export function TeacherDetail() {
             <label className="mb-1 block text-xs text-gray-500">Fichier</label>
             <input
               type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
               onChange={(e) =>
                 setDocumentForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))
               }
@@ -511,6 +505,13 @@ export function TeacherDetail() {
           className="px-4 pb-4 pt-1"
         />}
       </Card>
+      {viewing && (
+        <DocumentViewer
+          path={viewing.path}
+          fileName={viewing.fileName}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
   )
 }

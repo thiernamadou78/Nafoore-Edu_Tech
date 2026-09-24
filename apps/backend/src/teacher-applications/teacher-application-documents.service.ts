@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
+import { loadDocumentForView } from '../common/document-view';
 
 const BUCKET = 'teacher-application-documents';
-const DOWNLOAD_URL_TTL_SECONDS = 60 * 5;
 
 @Injectable()
 export class TeacherApplicationDocumentsService {
@@ -22,17 +22,10 @@ export class TeacherApplicationDocumentsService {
     return document;
   }
 
-  async getDownloadUrl(applicationId: string, documentId: string) {
+  // Consultation a l'ecran uniquement (voir common/document-view.ts).
+  async getFileForView(applicationId: string, documentId: string) {
     const document = await this.findOwned(applicationId, documentId);
-
-    const { data, error } = await this.supabaseAdmin.client.storage
-      .from(BUCKET)
-      .createSignedUrl(document.filePath, DOWNLOAD_URL_TTL_SECONDS);
-    if (error || !data) {
-      throw error ?? new Error('Échec de génération du lien de téléchargement');
-    }
-
-    return { url: data.signedUrl };
+    return loadDocumentForView(this.supabaseAdmin.client, BUCKET, document.filePath, document.fileName);
   }
 
   // Suppression definitive (fichier + ligne) : laissee a l'appreciation de
