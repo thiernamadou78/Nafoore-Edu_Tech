@@ -33,9 +33,11 @@ export class FamilyService {
     private readonly geocoding: GeocodingService,
   ) {}
 
-  // Heures cumulees par enfant (seances realisees et pointees, checkout
-  // clos) + total pour toute la famille — memes criteres que la remuneration
-  // du prof et le calendrier, pour rester coherent partout.
+  // Consommation par enfant : seances realisees et pointees (checkout clos),
+  // valorisees au tarif horaire de l'enseignant — memes criteres et meme tarif
+  // que la page Remuneration du prof, pour que les deux restent coherentes :
+  // tarif fige a la cloture de la seance, sinon tarif actuel de
+  // l'accompagnement (eleve + matiere, puis eleve seul).
   async getHours(portalAccount: AuthenticatedPortalAccount) {
     const students = await this.prisma.student.findMany({
       where: { parentLeadId: portalAccount.leadId },
@@ -43,36 +45,63 @@ export class FamilyService {
         id: true,
         name: true,
         photoPath: true,
+        teachers: { select: { teacherId: true, subject: true, hourlyRate: true } },
         sessions: {
           where: {
             status: 'realisee',
             attendanceLogs: { some: { checkoutAt: { not: null } } },
           },
-          select: { durationMinutes: true, subject: true },
+          select: {
+            id: true,
+            date: true,
+            durationMinutes: true,
+            subject: true,
+            hourlyRate: true,
+            teacherId: true,
+            teacher: { select: { name: true } },
+          },
+          orderBy: { date: 'desc' },
         },
       },
       orderBy: { name: 'asc' },
     });
 
+    const round2 = (value: number) => Math.round(value * 100) / 100;
     const photoUrls = await this.photos.signUrls(students.map((s) => s.photoPath));
-    const children = students.map(({ sessions, photoPath, ...student }) => {
-      const bySubject = new Map<string, number>();
-      for (const session of sessions) {
-        const key = session.subject ?? 'Non précisé';
-        bySubject.set(key, (bySubject.get(key) ?? 0) + session.durationMinutes);
-      }
+    const children = students.map(({ sessions, teachers, photoPath, ...student }) => {
+      const liveRate = (teacherId: string | null, subject: string | null) =>
+        teachers.find((a) => a.teacherId === teacherId && a.subject === subject && a.hourlyRate)
+          ?.hourlyRate ??
+        teachers.find((a) => a.teacherId === teacherId && a.hourlyRate)?.hourlyRate ??
+        null;
+
+      const rows = sessions.map((session) => {
+        const hourlyRate = session.hourlyRate ?? liveRate(session.teacherId, session.subject);
+        return {
+          id: session.id,
+          date: session.date,
+          subject: session.subject ?? 'Non précisé',
+          teacherName: session.teacher?.name ?? 'Enseignant',
+          minutes: session.durationMinutes,
+          hourlyRate,
+          amount: hourlyRate ? round2((session.durationMinutes / 60) * hourlyRate) : null,
+        };
+      });
+
       return {
         ...student,
         photoUrl: photoPath ? (photoUrls.get(photoPath) ?? null) : null,
-        totalMinutes: sessions.reduce((sum, s) => sum + s.durationMinutes, 0),
-        sessionsCount: sessions.length,
-        bySubject: [...bySubject.entries()].map(([subject, minutes]) => ({ subject, minutes })),
+        totalMinutes: rows.reduce((sum, r) => sum + r.minutes, 0),
+        totalAmount: round2(rows.reduce((sum, r) => sum + (r.amount ?? 0), 0)),
+        sessionsCount: rows.length,
+        sessions: rows,
       };
     });
 
     return {
       children,
       totalMinutes: children.reduce((sum, c) => sum + c.totalMinutes, 0),
+      totalAmount: round2(children.reduce((sum, c) => sum + c.totalAmount, 0)),
     };
   }
 
