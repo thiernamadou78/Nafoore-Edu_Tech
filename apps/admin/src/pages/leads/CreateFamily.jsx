@@ -188,36 +188,18 @@ export function CreateFamily() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Ville / Commune</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
             <input
               type="text"
               required
-              minLength={2}
-              list={cityListId}
-              value={form.city}
-              onChange={(e) => setForm({ ...form, city: e.target.value })}
-              placeholder="Ex : Chevilly-Larue"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="Ex : 3 rue de la République"
               className={inputClass}
             />
-            <datalist id={cityListId}>
-              {cityOptions.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
           </div>
 
-          <div className="grid grid-cols-[1fr_130px] gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
-              <input
-                type="text"
-                required
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="Quartier, commune, ville…"
-                className={inputClass}
-              />
-            </div>
+          <div className="grid grid-cols-[130px_1fr] gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Code postal</label>
               <input
@@ -230,6 +212,24 @@ export function CreateFamily() {
                 placeholder="75015"
                 className={inputClass}
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Ville / Commune</label>
+              <input
+                type="text"
+                required
+                minLength={2}
+                list={cityListId}
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                placeholder="Ex : Chevilly-Larue"
+                className={inputClass}
+              />
+              <datalist id={cityListId}>
+                {cityOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </div>
           </div>
           <p className="-mt-2 text-xs text-gray-400">

@@ -317,46 +317,28 @@ export default function ContactForm() {
                   </p>
                 </div>
 
-                {/* Ville / commune (tous les profils) */}
-                <div className="mb-4">
-                  <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                    Ville / Commune <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    name="city"
-                    list={cityListId}
-                    value={form.city}
-                    onChange={handleChange}
-                    required
-                    minLength={2}
-                    maxLength={100}
-                    placeholder="Ex : Chevilly-Larue"
-                    className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
-                  />
-                  <datalist id={cityListId}>
-                    {cityOptions.map((name) => (
-                      <option key={name} value={name} />
-                    ))}
-                  </datalist>
-                </div>
-
-                {/* Adresse + code postal (famille) : indispensable pour proposer un enseignant proche du domicile */}
+                {/* Adresse, code postal puis ville. Adresse et code postal : famille
+                    seulement (pour proposer un enseignant proche du domicile). */}
                 {form.profile === 'famille' && (
                   <div className="mb-4">
-                    <div className="grid grid-cols-[1fr_120px] gap-3">
-                      <div>
-                        <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                          Adresse <span className="text-red-400">*</span>
-                        </label>
-                        <input
-                          name="address"
-                          value={form.address}
-                          onChange={handleChange}
-                          required
-                          placeholder="Quartier, commune, ville…"
-                          className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
-                        />
-                      </div>
+                    <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                      Adresse <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      name="address"
+                      value={form.address}
+                      onChange={handleChange}
+                      required
+                      autoComplete="street-address"
+                      placeholder="Ex : 3 rue de la République"
+                      className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
+                    />
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <div className={form.profile === 'famille' ? 'grid grid-cols-[120px_1fr] gap-3' : ''}>
+                    {form.profile === 'famille' && (
                       <div>
                         <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
                           Code postal <span className="text-red-400">*</span>
@@ -368,16 +350,40 @@ export default function ContactForm() {
                           required
                           pattern="\d{5}"
                           maxLength={5}
-                          placeholder="75015"
+                          inputMode="numeric"
+                          placeholder="94550"
                           className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
                         />
                       </div>
+                    )}
+                    <div>
+                    <label className="block font-sans text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                      Ville / Commune <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      name="city"
+                      list={cityListId}
+                      value={form.city}
+                      onChange={handleChange}
+                      required
+                      minLength={2}
+                      maxLength={100}
+                      placeholder="Ex : Chevilly-Larue"
+                      className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors"
+                    />
+                    <datalist id={cityListId}>
+                      {cityOptions.map((name) => (
+                        <option key={name} value={name} />
+                      ))}
+                    </datalist>
                     </div>
+                  </div>
+                  {form.profile === 'famille' && (
                     <p className="mt-1 font-sans text-[11px] text-gray-400">
                       Nous permet de vous proposer un enseignant à la fois expérimenté et proche de chez vous.
                     </p>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Date de début souhaitée + nombre d'enfants (famille) */}
                 <div className={`grid gap-4 mb-4 ${form.profile === 'famille' ? 'sm:grid-cols-2' : ''}`}>
