@@ -19,6 +19,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Timeline } from '../../components/ui/Timeline'
 import { LEAD_STATUS_LABELS, LEAD_STATUS_TONES, PROFILE_LABELS, SERVICE_LABELS } from './statusLabels'
 import { CLASSE_LABELS, LEVEL_LABELS } from '../students/labels'
+import { useCitySuggestions } from '../../lib/useCitySuggestions'
 
 const VALIDATABLE_STATUSES = ['en_verification', 'valide']
 
@@ -36,6 +37,12 @@ export function LeadDetail() {
   const [editingAddress, setEditingAddress] = useState(false)
   const [addressDraft, setAddressDraft] = useState('')
   const [postalCodeDraft, setPostalCodeDraft] = useState('')
+  const [cityDraft, setCityDraft] = useState('')
+  const { listId: cityListId, options: cityOptions } = useCitySuggestions(
+    postalCodeDraft,
+    cityDraft,
+    setCityDraft,
+  )
 
   const load = () => api.get(`/leads/${id}`).then(setLead)
 
@@ -79,6 +86,7 @@ export function LeadDetail() {
   const startEditingAddress = () => {
     setAddressDraft(lead.address ?? '')
     setPostalCodeDraft(lead.postalCode ?? '')
+    setCityDraft(lead.city ?? '')
     setEditingAddress(true)
   }
 
@@ -87,6 +95,7 @@ export function LeadDetail() {
       const updated = await api.patch(`/leads/${id}/address`, {
         address: addressDraft,
         postalCode: postalCodeDraft,
+        city: cityDraft,
       })
       setLead((prev) => ({ ...prev, ...updated }))
       setEditingAddress(false)
@@ -136,17 +145,32 @@ export function LeadDetail() {
                       autoFocus
                       value={addressDraft}
                       onChange={(e) => setAddressDraft(e.target.value)}
-                      placeholder="Quartier, commune, ville…"
+                      placeholder="Ex : 3 rue de la République"
                       className={inputClass}
                     />
-                    <input
-                      value={postalCodeDraft}
-                      onChange={(e) => setPostalCodeDraft(e.target.value)}
-                      placeholder="Code postal (75015)"
-                      pattern="\d{5}"
-                      maxLength={5}
-                      className={inputClass}
-                    />
+                    <div className="grid grid-cols-[110px_1fr] gap-2">
+                      <input
+                        value={postalCodeDraft}
+                        onChange={(e) => setPostalCodeDraft(e.target.value)}
+                        placeholder="Code postal"
+                        pattern="\d{5}"
+                        maxLength={5}
+                        inputMode="numeric"
+                        className={inputClass}
+                      />
+                      <input
+                        value={cityDraft}
+                        onChange={(e) => setCityDraft(e.target.value)}
+                        list={cityListId}
+                        placeholder="Ville / Commune"
+                        className={inputClass}
+                      />
+                      <datalist id={cityListId}>
+                        {cityOptions.map((name) => (
+                          <option key={name} value={name} />
+                        ))}
+                      </datalist>
+                    </div>
                     <div className="flex gap-2">
                       <Button
                         loading={savingAction === 'address'}
@@ -171,7 +195,8 @@ export function LeadDetail() {
                       <MapPin size={15} className="mt-0.5 shrink-0 text-gray-400" />
                       <span>
                         {lead.address}
-                        {lead.postalCode && ` (${lead.postalCode})`}
+                        {(lead.postalCode || lead.city) &&
+                          ` — ${[lead.postalCode, lead.city].filter(Boolean).join(' ')}`}
                       </span>
                     </div>
                     <button

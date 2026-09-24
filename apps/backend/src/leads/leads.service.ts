@@ -127,13 +127,19 @@ export class LeadsService {
     // d'afficher un pin a l'ancienne position si l'adresse a change.
     const lead = await this.prisma.lead.update({
       where: { id },
-      data: { address: dto.address, postalCode: dto.postalCode, latitude: null, longitude: null },
+      data: {
+        address: dto.address,
+        postalCode: dto.postalCode,
+        ...(dto.city?.trim() ? { city: dto.city.trim() } : {}),
+        latitude: null,
+        longitude: null,
+      },
     });
 
     await this.activityLog.log(actorId, 'update_lead_address', 'leads', id);
 
     this.geocoding
-      .geocode(dto.address, dto.postalCode)
+      .geocode([dto.address, lead.city].filter(Boolean).join(', '), dto.postalCode)
       .then((coords) => {
         if (!coords) return;
         return this.prisma.lead.update({ where: { id }, data: coords });

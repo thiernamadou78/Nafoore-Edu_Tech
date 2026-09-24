@@ -1,4 +1,4 @@
-import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateLeadAddressDto {
   @IsString()
@@ -10,4 +10,9 @@ export class UpdateLeadAddressDto {
   @IsString()
   @Matches(/^\d{5}$/, { message: 'Le code postal doit contenir 5 chiffres' })
   postalCode: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
 }
