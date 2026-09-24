@@ -33,11 +33,10 @@ export class FamilyService {
     private readonly geocoding: GeocodingService,
   ) {}
 
-  // Consommation par enfant : seances realisees et pointees (checkout clos),
-  // valorisees au tarif horaire de l'enseignant — memes criteres et meme tarif
-  // que la page Remuneration du prof, pour que les deux restent coherentes :
-  // tarif fige a la cloture de la seance, sinon tarif actuel de
-  // l'accompagnement (eleve + matiere, puis eleve seul).
+  // Heures consommees par enfant : seances realisees et pointees (checkout
+  // clos) — memes criteres que la remuneration du prof et le calendrier.
+  // Aucun tarif ici : ce que paie la famille n'est pas ce que touche le prof
+  // (commission Nafoore), le tarif du prof ne doit jamais sortir cote famille.
   async getHours(portalAccount: AuthenticatedPortalAccount) {
     const students = await this.prisma.student.findMany({
       where: { parentLeadId: portalAccount.leadId },
@@ -45,7 +44,6 @@ export class FamilyService {
         id: true,
         name: true,
         photoPath: true,
-        teachers: { select: { teacherId: true, subject: true, hourlyRate: true } },
         sessions: {
           where: {
             status: 'realisee',
@@ -56,8 +54,6 @@ export class FamilyService {
             date: true,
             durationMinutes: true,
             subject: true,
-            hourlyRate: true,
-            teacherId: true,
             teacher: { select: { name: true } },
           },
           orderBy: { date: 'desc' },
@@ -66,42 +62,24 @@ export class FamilyService {
       orderBy: { name: 'asc' },
     });
 
-    const round2 = (value: number) => Math.round(value * 100) / 100;
     const photoUrls = await this.photos.signUrls(students.map((s) => s.photoPath));
-    const children = students.map(({ sessions, teachers, photoPath, ...student }) => {
-      const liveRate = (teacherId: string | null, subject: string | null) =>
-        teachers.find((a) => a.teacherId === teacherId && a.subject === subject && a.hourlyRate)
-          ?.hourlyRate ??
-        teachers.find((a) => a.teacherId === teacherId && a.hourlyRate)?.hourlyRate ??
-        null;
-
-      const rows = sessions.map((session) => {
-        const hourlyRate = session.hourlyRate ?? liveRate(session.teacherId, session.subject);
-        return {
-          id: session.id,
-          date: session.date,
-          subject: session.subject ?? 'Non précisé',
-          teacherName: session.teacher?.name ?? 'Enseignant',
-          minutes: session.durationMinutes,
-          hourlyRate,
-          amount: hourlyRate ? round2((session.durationMinutes / 60) * hourlyRate) : null,
-        };
-      });
-
-      return {
-        ...student,
-        photoUrl: photoPath ? (photoUrls.get(photoPath) ?? null) : null,
-        totalMinutes: rows.reduce((sum, r) => sum + r.minutes, 0),
-        totalAmount: round2(rows.reduce((sum, r) => sum + (r.amount ?? 0), 0)),
-        sessionsCount: rows.length,
-        sessions: rows,
-      };
-    });
+    const children = students.map(({ sessions, photoPath, ...student }) => ({
+      ...student,
+      photoUrl: photoPath ? (photoUrls.get(photoPath) ?? null) : null,
+      totalMinutes: sessions.reduce((sum, s) => sum + s.durationMinutes, 0),
+      sessionsCount: sessions.length,
+      sessions: sessions.map((session) => ({
+        id: session.id,
+        date: session.date,
+        subject: session.subject ?? 'Non précisé',
+        teacherName: session.teacher?.name ?? 'Enseignant',
+        minutes: session.durationMinutes,
+      })),
+    }));
 
     return {
       children,
       totalMinutes: children.reduce((sum, c) => sum + c.totalMinutes, 0),
-      totalAmount: round2(children.reduce((sum, c) => sum + c.totalAmount, 0)),
     };
   }
 
