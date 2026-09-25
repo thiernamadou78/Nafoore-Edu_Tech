@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from './email.service';
 import { resolvePortalUrl } from './portal-url.util';
 import { renderNoticeEmail } from './templates/notice.template';
+import { getPlatformTimezone } from '../common/timezone';
 
 @Injectable()
 export class SessionNotifierService {
@@ -47,7 +48,7 @@ export class SessionNotifierService {
     const recipient = lead?.portalAccount?.email ?? lead?.email;
     if (!session || !lead || !recipient) return;
 
-    const when = session.date.toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' });
+    const when = session.date.toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short', timeZone: getPlatformTimezone() });
     const teacher = session.teacher ? ` avec ${session.teacher.name}` : '';
     const subject = session.subject ? ` de ${session.subject}` : '';
 

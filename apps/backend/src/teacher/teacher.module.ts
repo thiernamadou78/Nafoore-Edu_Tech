@@ -7,5 +7,6 @@ import { AvailabilityService } from './availability.service';
 @Module({
   controllers: [TeacherController],
   providers: [TeacherService, RecurringScheduleService, AvailabilityService],
+  exports: [RecurringScheduleService],
 })
 export class TeacherModule {}

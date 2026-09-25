@@ -8,6 +8,7 @@ import {
 } from '../email/templates/session-upcoming.template';
 import { resolvePortalUrl } from '../email/portal-url.util';
 import { PushService } from './push.service';
+import { getPlatformTimezone } from '../common/timezone';
 
 // Fenêtre avant le début/la fin prévue d'une séance pendant laquelle on
 // envoie le rappel — un cron qui tourne chaque minute laisse largement le
@@ -172,6 +173,7 @@ export class SessionReminderService {
     let sent = 0;
     for (const session of sessions) {
       const sessionDate = session.date.toLocaleString('fr-FR', {
+        timeZone: getPlatformTimezone(),
         dateStyle: 'full',
         timeStyle: 'short',
       });

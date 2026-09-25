@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ManualAttendanceDto } from './dto/manual-attendance.dto';
 import { ScanAttendanceDto } from './dto/scan-attendance.dto';
 import { ConfirmEarlyCheckoutDto } from './dto/confirm-early-checkout.dto';
+import { startOfZonedDay } from '../common/timezone';
 
 const SCAN_WINDOW_MINUTES = 30;
 const SESSION_LOOKUP_WINDOW_HOURS = 6;
@@ -316,10 +317,8 @@ export class AttendanceService {
 
   private findNearestSessionToday(studentId: string, teacherId: string) {
     const now = new Date();
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(now);
-    endOfDay.setHours(23, 59, 59, 999);
+    const startOfDay = startOfZonedDay(now);
+    const endOfDay = new Date(startOfZonedDay(now, 1).getTime() - 1);
 
     return this.prisma.session.findFirst({
       where: {

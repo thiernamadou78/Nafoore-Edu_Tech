@@ -1,4 +1,5 @@
 import { salutation } from '../salutation.util';
+import { getPlatformTimezone } from '../../common/timezone';
 
 export interface InterviewScheduledEmailInput {
   gender?: string | null;
@@ -12,6 +13,7 @@ export function renderInterviewScheduledEmail({
   interviewDate,
 }: InterviewScheduledEmailInput): string {
   const formattedDate = interviewDate.toLocaleString('fr-FR', {
+    timeZone: getPlatformTimezone(),
     dateStyle: 'full',
     timeStyle: 'short',
   });

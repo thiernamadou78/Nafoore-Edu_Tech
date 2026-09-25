@@ -5,6 +5,7 @@ import { EmailService } from '../email/email.service';
 import { AdminNotificationService } from '../email/admin-notification.service';
 import { resolvePortalUrl } from '../email/portal-url.util';
 import { renderNoticeEmail } from '../email/templates/notice.template';
+import { getPlatformTimezone } from '../common/timezone';
 
 // En dessous de ce delai avant la seance, une annulation / un report est
 // signale comme tardif dans les emails.
@@ -51,7 +52,7 @@ function formatDateTime(date: Date) {
     month: 'long',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'Europe/Paris',
+    timeZone: getPlatformTimezone(),
   });
 }
 

@@ -27,6 +27,7 @@ import { redactRemovedMessage, countUnread } from '../common/redact-message.util
 import { RecurringScheduleService } from './recurring-schedule.service';
 import { AvailabilityService } from './availability.service';
 import { SessionNotifierService } from '../email/session-notifier.service';
+import { getPlatformTimezone, zonedParts } from '../common/timezone';
 
 interface SessionReport {
   chapter: string | null;
@@ -451,9 +452,12 @@ export class TeacherService {
     const durationMinutes = dto.durationMinutes ?? 60;
     const startsAt = new Date(dto.date);
     const teacherId = teacherAccount.teacherId as string;
+    // Creneau hebdomadaire exprime dans le fuseau de la plateforme (et non
+    // celui du serveur), comme les programmes.
+    const local = zonedParts(startsAt);
     const slot = {
-      dayOfWeek: startsAt.getDay() === 0 ? 7 : startsAt.getDay(),
-      time: `${String(startsAt.getHours()).padStart(2, '0')}:${String(startsAt.getMinutes()).padStart(2, '0')}`,
+      dayOfWeek: local.weekday,
+      time: `${String(local.hour).padStart(2, '0')}:${String(local.minute).padStart(2, '0')}`,
     };
 
     // Controle (non bloquant) des disponibilites de la famille et du prof.
@@ -978,7 +982,7 @@ export class TeacherService {
             gender: session.teacher?.gender,
             fullName: session.teacher?.name ?? '',
             studentName: session.student.name,
-            sessionDate: session.date.toLocaleDateString('fr-FR', { dateStyle: 'medium' }),
+            sessionDate: session.date.toLocaleDateString('fr-FR', { dateStyle: 'medium', timeZone: getPlatformTimezone() }),
             portalUrl: resolvePortalUrl('teacher'),
           }),
         });

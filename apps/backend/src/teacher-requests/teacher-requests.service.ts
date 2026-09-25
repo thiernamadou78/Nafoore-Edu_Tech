@@ -27,6 +27,7 @@ import { renderNoticeEmail } from '../email/templates/notice.template';
 import { ProposeMatchingDto } from './dto/propose-matching.dto';
 import { RefuseMatchingDto } from './dto/refuse-matching.dto';
 import { ListTeacherRequestsQueryDto } from './dto/list-teacher-requests-query.dto';
+import { getPlatformTimezone } from '../common/timezone';
 
 const adminMatchingSelect = {
   id: true,
@@ -184,7 +185,7 @@ export class TeacherRequestsService {
       });
     });
 
-    const endLabel = endsAt.toLocaleDateString('fr-FR', { dateStyle: 'long' });
+    const endLabel = endsAt.toLocaleDateString('fr-FR', { dateStyle: 'long', timeZone: getPlatformTimezone() });
     const lead = student.parentLead;
     const familyEmail = lead?.portalAccount?.email ?? lead?.email;
     if (familyEmail && lead) {

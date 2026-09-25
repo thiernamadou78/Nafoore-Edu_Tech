@@ -13,6 +13,7 @@ import { resolvePortalUrl } from '../email/portal-url.util';
 import { renderNoticeEmail } from '../email/templates/notice.template';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
 import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
+import { getPlatformTimezone } from '../common/timezone';
 
 // Le renouvellement n'est propose que dans les jours qui precedent la fin de
 // la periode (ou apres), pas des le premier jour.
@@ -303,7 +304,7 @@ export class RenewalsService {
 
     const studentName = studentTeacher.student.name;
     const subject = studentTeacher.subject ?? 'soutien scolaire';
-    const endLabel = newEnd.toLocaleDateString('fr-FR', { dateStyle: 'long' });
+    const endLabel = newEnd.toLocaleDateString('fr-FR', { dateStyle: 'long', timeZone: getPlatformTimezone() });
     const family = studentTeacher.student.parentLead?.portalAccount;
     if (family?.email) {
       this.sendNotice({

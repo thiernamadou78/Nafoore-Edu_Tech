@@ -16,6 +16,7 @@ import { UpsertRecurringScheduleDto } from './dto/upsert-recurring-schedule.dto'
 import { nextOccurrences, ScheduleSlot, slotsOverlap } from './recurring-schedule.util';
 import { AvailabilityService } from './availability.service';
 import { SessionChangesService } from '../session-changes/session-changes.service';
+import { getPlatformTimezone } from '../common/timezone';
 
 // Fenêtre glissante : combien de semaines de séances réelles sont
 // matérialisées à l'avance à partir du planning récurrent. Le pointage QR
@@ -197,11 +198,37 @@ export class RecurringScheduleService {
         });
         if (conflict) {
           throw new ConflictException(
-            `Créneau déjà pris le ${occurrence.toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })} par une séance avec ${conflict.student.name}`,
+            `Créneau déjà pris le ${occurrence.toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: getPlatformTimezone() })} par une séance avec ${conflict.student.name}`,
           );
         }
       }
     }
+  }
+
+  // Recale les seances a venir de tous les programmes actifs (ex. apres un
+  // changement de fuseau horaire). Ne touche ni aux seances deplacees a la
+  // main, ni a celles deja pointees, a replanifier ou annulees.
+  async realignAll() {
+    const schedules = await this.prisma.recurringSchedule.findMany({
+      where: { active: true },
+      select: { id: true },
+    });
+    let removed = 0;
+    let created = 0;
+    for (const { id } of schedules) {
+      const { count } = await this.prisma.session.deleteMany({
+        where: {
+          scheduleId: id,
+          date: { gt: new Date() },
+          status: { in: ['planifiee', 'confirmee'] },
+          rescheduledFrom: null,
+          attendanceLogs: { none: {} },
+        },
+      });
+      removed += count;
+      created += await this.generateSessionsForSchedule(id);
+    }
+    return { schedules: schedules.length, removed, created };
   }
 
   private async generateSessionsForSchedule(scheduleId: string): Promise<number> {
@@ -228,18 +255,30 @@ export class RecurringScheduleService {
     // Sessions déjà générées dans la fenêtre à venir, pour ne pas dupliquer
     // en cas d'exécution répétée (upsert + cron de rattrapage).
     const existing = await this.prisma.session.findMany({
-      where: { scheduleId, OR: [{ date: { gt: now } }, { rescheduledFrom: { gt: now } }] },
+      where: {
+        scheduleId,
+        OR: [
+          { date: { gt: new Date(now.getTime() - 3 * 3_600_000) } },
+          { rescheduledFrom: { gt: new Date(now.getTime() - 3 * 3_600_000) } },
+        ],
+      },
       select: { date: true, rescheduledFrom: true },
     });
-    // Une seance deplacee "occupe" encore son creneau d'origine : sans ca,
-    // elle serait recreee a l'ancienne date au prochain passage.
-    const existingKeys = new Set(
-      existing.flatMap((s) => [s.date.toISOString(), s.rescheduledFrom?.toISOString()]).filter(Boolean),
+    // Une occurrence est deja couverte si une seance du programme existe a
+    // moins de 3 h (ou y existait avant d'etre deplacee). La tolerance evite
+    // les doublons quand l'heure calculee change (ex. changement de fuseau
+    // horaire de la plateforme : 18:00 UTC -> 18:00 Paris) ; une seance
+    // deplacee "occupe" toujours son creneau d'origine.
+    const DUPLICATE_TOLERANCE_MS = 3 * 3_600_000;
+    const occupied = existing.flatMap((s) => [s.date.getTime(), s.rescheduledFrom?.getTime()]).filter(
+      (t): t is number => typeof t === 'number',
     );
+    const isCovered = (date: Date) =>
+      occupied.some((t) => Math.abs(t - date.getTime()) < DUPLICATE_TOLERANCE_MS);
 
     const toCreate = slots
       .flatMap((slot) => nextOccurrences(slot, WEEKS_AHEAD, from))
-      .filter((date) => !existingKeys.has(date.toISOString()) && (!until || date <= until))
+      .filter((date) => !isCovered(date) && (!until || date <= until))
       .map((date) => ({
         studentId: schedule.studentId,
         teacherId: schedule.teacherId,

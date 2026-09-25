@@ -1,3 +1,5 @@
+import { getPlatformTimezone } from '../../common/timezone';
+
 export interface ContractExpiryAlertEmailInput {
   enterpriseName: string;
   formulaName: string;
@@ -14,6 +16,7 @@ export function renderContractExpiryAlertEmail({
   adminUrl,
 }: ContractExpiryAlertEmailInput): string {
   const dateLabel = dateExpiration.toLocaleDateString('fr-FR', {
+    timeZone: getPlatformTimezone(),
     day: 'numeric',
     month: 'long',
     year: 'numeric',

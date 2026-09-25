@@ -1,3 +1,5 @@
+import { getPlatformTimezone, zonedParts, zonedTimeToUtc } from '../common/timezone';
+
 export interface ScheduleSlot {
   dayOfWeek: number; // ISO : 1 = lundi ... 7 = dimanche
   time: string; // "HH:mm"
@@ -31,23 +33,28 @@ export function slotsOverlap(
  * Prochaines occurrences d'un créneau hebdomadaire à partir de `from`
  * (incluse si l'heure n'est pas encore passée). Utilisé pour matérialiser
  * un planning récurrent en vraies Session sur une fenêtre glissante.
+ *
+ * Le créneau ("mardi 18:00") est lu dans le fuseau de la plateforme (réglage
+ * Super Admin), pas dans celui du serveur : sinon un cours à 18:00 à Paris
+ * était créé à 18:00 UTC (20:00 à Paris). Heure d'été / d'hiver comprises.
  */
-export function nextOccurrences(slot: ScheduleSlot, weeksAhead: number, from: Date): Date[] {
+export function nextOccurrences(
+  slot: ScheduleSlot,
+  weeksAhead: number,
+  from: Date,
+  tz = getPlatformTimezone(),
+): Date[] {
   const [hours, minutes] = slot.time.split(':').map(Number);
-  const jsDay = slot.dayOfWeek === 7 ? 0 : slot.dayOfWeek;
-
-  const cursor = new Date(from);
-  cursor.setHours(hours, minutes, 0, 0);
-  const diff = (jsDay - cursor.getDay() + 7) % 7;
-  cursor.setDate(cursor.getDate() + diff);
-  if (cursor.getTime() < from.getTime()) {
-    cursor.setDate(cursor.getDate() + 7);
+  const today = zonedParts(from, tz);
+  // Premier jour (dans le fuseau) qui tombe sur le bon jour de semaine.
+  let offset = (slot.dayOfWeek - today.weekday + 7) % 7;
+  if (zonedTimeToUtc(today.year, today.month, today.day + offset, hours, minutes, tz) < from) {
+    offset += 7;
   }
 
   const dates: Date[] = [];
   for (let i = 0; i < weeksAhead; i++) {
-    dates.push(new Date(cursor));
-    cursor.setDate(cursor.getDate() + 7);
+    dates.push(zonedTimeToUtc(today.year, today.month, today.day + offset + i * 7, hours, minutes, tz));
   }
   return dates;
 }
