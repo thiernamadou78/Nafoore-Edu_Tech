@@ -45,6 +45,103 @@ function formatTimeRange(date, durationMinutes) {
   return `${dateLabel}, ${startLabel} – ${endLabel}`
 }
 
+const todayIso = () => new Date().toISOString().slice(0, 10)
+
+// 1re seance : apres le compte-rendu, la carte bascule sur la saisie des
+// notes de depart (necessaires pour mesurer la progression), puis la seance
+// est cloturee automatiquement — plus d'aller-retour vers la fiche eleve.
+function BaselineGradesForm({ session, onDone, onCancel }) {
+  const [value, setValue] = useState('')
+  const [scale, setScale] = useState(20)
+  const [evaluatedAt, setEvaluatedAt] = useState(todayIso())
+  const [comment, setComment] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const numeric = Number(value.toString().replace(',', '.'))
+  const valid = value !== '' && !Number.isNaN(numeric) && numeric >= 0 && numeric <= Number(scale)
+
+  const submit = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      await api.post(`/teacher/students/${session.studentId}/grades`, {
+        subject: session.subject,
+        kind: 'depart',
+        value: numeric,
+        scale: Number(scale),
+        evaluatedAt,
+        comment: comment.trim() || undefined,
+      })
+      await onDone()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+      <div className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
+        Compte-rendu enregistré. Dernière étape pour clôturer cette première séance : la note de
+        départ de l'élève en <strong>{session.subject}</strong> (sa note avant l'accompagnement, ex.
+        relevée sur Pronote).
+      </div>
+      <div className="grid grid-cols-[1fr_90px_1fr] gap-2">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            Note <span className="text-red-500">*</span>
+          </label>
+          <input
+            inputMode="decimal"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Ex : 11,5"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">Sur</label>
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={scale}
+            onChange={(e) => setScale(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">Date de l'évaluation</label>
+          <input
+            type="date"
+            value={evaluatedAt}
+            max={todayIso()}
+            onChange={(e) => setEvaluatedAt(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <input
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        maxLength={300}
+        placeholder="Commentaire (facultatif) : contrôle, devoir maison…"
+        className={inputClass}
+      />
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex gap-2">
+        <Button loading={saving} disabled={!valid} onClick={submit}>
+          Enregistrer et clôturer la séance
+        </Button>
+        <Button variant="secondary" onClick={onCancel}>
+          Plus tard
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function ReportForm({ session, onCancel, onSave, saving, notice }) {
   const blocked = session.baselineMissing
   const [attended, setAttended] = useState(session.attended ?? true)
@@ -61,12 +158,8 @@ function ReportForm({ session, onCancel, onSave, saving, notice }) {
     <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
       {blocked && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Ton compte-rendu sera enregistré, mais la séance ne sera clôturée qu'une fois les notes de
-          départ de l'élève en {session.subject} saisies :{' '}
-          <Link to={`/eleves/${session.studentId}#notes`} className="font-medium underline">
-            ouvrir « Notes et progression »
-          </Link>
-          .
+          Première séance en {session.subject} : après le compte-rendu, on te demandera la note de
+          départ de l'élève, juste ici, pour clôturer la séance.
         </p>
       )}
       {session.notes && !session.chapter && !session.topics && (
@@ -348,6 +441,9 @@ function SessionRow({
   const isClosed = session.status === 'realisee'
   const hasReport = Boolean(session.notes) || (isClosed && session.attended !== null)
   const [reportNotice, setReportNotice] = useState(null)
+  // Compte-rendu en attente des notes de depart : on garde les donnees pour
+  // cloturer la seance des que la note est saisie.
+  const [pendingReport, setPendingReport] = useState(null)
   const isPast = new Date(session.date) < new Date()
   // Reflete cote client la fenetre appliquee par le backend
   // (attendance.service.ts) : le pointage manuel est un secours ponctuel,
@@ -499,20 +595,33 @@ function SessionRow({
         />
       )}
 
-      {hasReport && !isClosed && !reportOpen && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Compte-rendu enregistré, séance pas encore clôturée.
+      {hasReport && !isClosed && !reportOpen && !pendingReport && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <span>
+            Compte-rendu enregistré, séance pas encore clôturée
+            {session.baselineMissing ? ' : il manque la note de départ.' : '.'}
+          </span>
           {session.baselineMissing && (
-            <>
-              {' '}
-              Saisis d'abord les notes de départ :{' '}
-              <Link to={`/eleves/${session.studentId}#notes`} className="font-medium underline">
-                ouvrir « Notes et progression »
-              </Link>
-              .
-            </>
+            <button
+              type="button"
+              onClick={() =>
+                setPendingReport({
+                  attended: session.attended ?? true,
+                  chapter: session.chapter ?? '',
+                  topics: session.topics ?? '',
+                  understanding: session.understanding,
+                  participation: session.participation,
+                  difficulties: session.difficulties ?? '',
+                  homework: session.homework ?? '',
+                  status: 'realisee',
+                })
+              }
+              className="rounded-full bg-amber-600 px-3 py-1 font-semibold text-white hover:bg-amber-700"
+            >
+              Saisir la note de départ
+            </button>
           )}
-        </p>
+        </div>
       )}
 
       {reportOpen && (
@@ -529,13 +638,28 @@ function SessionRow({
             return onSaveReport(session.id, data)
               .then((result) => {
                 if (result?.pendingBaseline) {
-                  setReportNotice({ tone: 'amber', text: result.message })
+                  // Bascule directe sur la saisie des notes de depart.
+                  setPendingReport(data)
+                  setReportOpen(false)
                 } else {
                   setReportOpen(false)
                 }
               })
               .catch((err) => setReportNotice({ tone: 'red', text: err.message }))
           }}
+        />
+      )}
+
+      {pendingReport && (
+        <BaselineGradesForm
+          session={session}
+          onCancel={() => setPendingReport(null)}
+          onDone={() =>
+            onSaveReport(session.id, pendingReport).then((result) => {
+              if (result?.pendingBaseline) throw new Error(result.message)
+              setPendingReport(null)
+            })
+          }
         />
       )}
 

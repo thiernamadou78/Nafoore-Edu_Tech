@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
 import {
   AlertTriangle,
@@ -124,7 +124,19 @@ function describeResult(result) {
   }
 }
 
+// Arret de la camera sans jamais planter : html5-qrcode peut lever une
+// erreur synchrone si le lecteur n'est pas (ou plus) en cours d'analyse.
+function safeStop(scanner) {
+  try {
+    const pending = scanner?.stop()
+    pending?.catch?.(() => {})
+  } catch {
+    // deja arrete
+  }
+}
+
 export function Pointage() {
+  const navigate = useNavigate()
   const scannerRef = useRef(null)
   const scanningRef = useRef(true)
   const [cameraError, setCameraError] = useState(null)
@@ -163,9 +175,7 @@ export function Pointage() {
 
   useEffect(() => {
     startCamera()
-    return () => {
-      scannerRef.current?.stop().catch(() => {})
-    }
+    return () => safeStop(scannerRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -173,11 +183,17 @@ export function Pointage() {
   // visuellement) tant qu'on n'a pas explicitement clique sur Annuler —
   // sinon elle continuerait de tourner en arriere-plan indefiniment.
   const stopCamera = () => {
-    scannerRef.current?.stop().catch(() => {})
+    safeStop(scannerRef.current)
     scanningRef.current = false
     setCameraStopped(true)
     setPaused(false)
     setResult(null)
+  }
+
+  // "Terminer" apres un pointage reussi : camera coupee, retour au tableau de bord.
+  const finish = () => {
+    stopCamera()
+    navigate('/')
   }
 
   const restartCamera = () => {
@@ -352,7 +368,7 @@ export function Pointage() {
           ) : (
             <button
               type="button"
-              onClick={feedback.variant === 'success' ? stopCamera : resumeScanning}
+              onClick={feedback.variant === 'success' ? finish : resumeScanning}
               className="block w-full border-t border-white/20 bg-black/10 py-3 text-center text-sm font-bold tracking-wide hover:bg-black/20"
             >
               {feedback.variant === 'success' ? 'Terminer' : 'Réessayer'}

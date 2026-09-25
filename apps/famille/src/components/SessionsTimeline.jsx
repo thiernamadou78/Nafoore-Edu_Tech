@@ -4,6 +4,7 @@ import { Badge } from './ui/Badge'
 import { SessionReport, hasStructuredReport } from './SessionReport'
 import { SessionActions, SessionChangeNote } from './SessionActions'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from '../pages/labels'
+import { subjectPalette } from '../lib/subjectColors'
 
 const PAGE = 6
 
@@ -31,7 +32,7 @@ function timeRange(session) {
 
 // Une ligne = une seance : quand, quoi, avec qui, puis juste dessous ce qui
 // s'est passe (compte-rendu, annulation, report…).
-function SessionLine({ session, onChanged, upcoming }) {
+function SessionLine({ session, onChanged, upcoming, color }) {
   const hasReport = hasStructuredReport(session) || Boolean(session.notes)
   const isPast = new Date(session.date) < new Date()
   const awaitingReport =
@@ -42,7 +43,8 @@ function SessionLine({ session, onChanged, upcoming }) {
       <DateBlock date={session.date} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-gray-900">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+            {color && <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${color.dot}`} />}
             {session.subject ?? 'Séance'}
             <span className="ml-2 font-normal text-gray-500">{timeRange(session)}</span>
           </p>
@@ -73,8 +75,16 @@ function SessionLine({ session, onChanged, upcoming }) {
 // Seances d'un enfant, lues ligne par ligne : a venir en haut (dans l'ordre),
 // puis l'historique (le plus recent d'abord) avec chaque compte-rendu sous
 // sa seance.
-export function SessionsTimeline({ sessions, onSessionChanged }) {
+export function SessionsTimeline({ sessions: allSessions, onSessionChanged }) {
   const [shown, setShown] = useState(PAGE)
+  // Classement par matiere : une matiere a la fois (ou toutes), meme couleur
+  // que sa carte de progression.
+  const [subject, setSubject] = useState('all')
+  const colorOf = subjectPalette(allSessions.map((s) => s.subject))
+  const subjects = [...new Set(allSessions.map((s) => s.subject).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, 'fr'),
+  )
+  const sessions = subject === 'all' ? allSessions : allSessions.filter((s) => s.subject === subject)
   const now = Date.now()
   const upcoming = sessions
     .filter((s) => new Date(s.date).getTime() >= now && s.status !== 'annulee' && s.status !== 'realisee')
@@ -85,12 +95,40 @@ export function SessionsTimeline({ sessions, onSessionChanged }) {
     .filter((s) => !upcomingIds.has(s.id))
     .sort((a, b) => new Date(b.date) - new Date(a.date))
 
-  if (sessions.length === 0) {
+  if (allSessions.length === 0) {
     return <p className="text-sm text-gray-500">Aucune séance pour l'instant.</p>
   }
 
   return (
     <div className="space-y-5">
+      {subjects.length > 1 && (
+        <div className="flex flex-wrap gap-1.5">
+          {[{ key: 'all', label: 'Toutes les matières' }, ...subjects.map((s) => ({ key: s, label: s }))].map(
+            (item) => {
+              const active = subject === item.key
+              const count =
+                item.key === 'all' ? allSessions.length : allSessions.filter((s) => s.subject === item.key).length
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => {
+                    setSubject(item.key)
+                    setShown(PAGE)
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    active ? 'bg-navy text-white' : 'border border-gray-200 bg-white text-gray-600 hover:border-navy/30'
+                  }`}
+                >
+                  {item.key !== 'all' && <span className={`h-2 w-2 rounded-full ${colorOf(item.key).dot}`} />}
+                  {item.label}
+                  <span className={active ? 'text-white/70' : 'text-gray-400'}>{count}</span>
+                </button>
+              )
+            },
+          )}
+        </div>
+      )}
       <section>
         <h3 className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
           <CalendarClock size={14} className="text-navy" />
@@ -102,7 +140,7 @@ export function SessionsTimeline({ sessions, onSessionChanged }) {
         ) : (
           <ul className="divide-y divide-gray-100">
             {upcoming.map((session) => (
-              <SessionLine key={session.id} session={session} onChanged={onSessionChanged} upcoming />
+              <SessionLine key={session.id} session={session} onChanged={onSessionChanged} upcoming color={colorOf(session.subject)} />
             ))}
           </ul>
         )}
@@ -117,7 +155,7 @@ export function SessionsTimeline({ sessions, onSessionChanged }) {
           </h3>
           <ul className="divide-y divide-gray-100">
             {history.slice(0, shown).map((session) => (
-              <SessionLine key={session.id} session={session} />
+              <SessionLine key={session.id} session={session} color={colorOf(session.subject)} />
             ))}
           </ul>
           {history.length > shown && (

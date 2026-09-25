@@ -267,7 +267,7 @@ export function StudentDetail() {
         />
       </Card>
 
-      <ProgressCard studentId={student.id} />
+      <ProgressCard studentId={student.id} sessions={sessions} />
 
     </div>
   )

@@ -2,10 +2,15 @@ import { useEffect, useState } from 'react'
 import { LineChart } from 'lucide-react'
 import { api } from '../lib/api'
 import { Card } from './ui/Card'
+import { subjectPalette } from '../lib/subjectColors'
 
 // Carte "Progression par matiere" : moyenne des notes avant l'accompagnement
 // (barree) -> moyenne du dernier mois, sur 20. Notes saisies par l'enseignant.
-export function ProgressCard({ studentId, endpoint = `/family/students/${studentId}/progress` }) {
+export function ProgressCard({
+  studentId,
+  endpoint = `/family/students/${studentId}/progress`,
+  sessions = [],
+}) {
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
 
@@ -17,6 +22,10 @@ export function ProgressCard({ studentId, endpoint = `/family/students/${student
   }, [endpoint])
 
   const subjects = (progress?.subjects ?? []).filter((s) => s.baselineAverage !== null)
+  // Meme couleur par matiere que dans la liste des seances.
+  const colorOf = subjectPalette([...sessions.map((s) => s.subject), ...subjects.map((s) => s.subject)])
+  const doneBySubject = (subject) =>
+    sessions.filter((s) => s.subject === subject && s.status === 'realisee').length
 
   return (
     <Card className="mb-6 p-5">
@@ -38,10 +47,58 @@ export function ProgressCard({ studentId, endpoint = `/family/students/${student
         </p>
       )}
 
+
+      {/* Une petite carte par matiere, chacune avec sa couleur */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {subjects.map((subject) => {
+          const color = colorOf(subject.subject)
+          const done = doneBySubject(subject.subject)
+          const current = subject.latestAverage ?? subject.baselineAverage
+          return (
+            <div key={subject.subject} className={`rounded-xl border border-gray-100 p-3 ${color.soft}`}>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-900">
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${color.dot}`} />
+                  <span className="truncate">{subject.subject}</span>
+                </span>
+                {subject.delta !== null && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                      subject.delta >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}
+                  >
+                    {subject.delta >= 0 ? '↑' : '↓'} {Math.abs(subject.delta)} pts
+                  </span>
+                )}
+              </div>
+              <div className="mb-1.5 flex items-baseline gap-2">
+                <span className="text-xs text-gray-400 line-through">{subject.baselineAverage}</span>
+                {subject.latestAverage !== null ? (
+                  <span className={`text-xl font-bold ${color.text}`}>
+                    {subject.latestAverage}
+                    <span className="text-xs font-normal text-gray-400">/20</span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-400">en attente d'évaluation</span>
+                )}
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white">
+                <div className={`h-full rounded-full ${color.bar}`} style={{ width: `${(current / 20) * 100}%` }} />
+              </div>
+              {done > 0 && (
+                <p className="mt-1.5 text-[11px] text-gray-500">
+                  {done} séance{done > 1 ? 's' : ''} réalisée{done > 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
       {progress?.overall && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl bg-navy px-4 py-3 text-white">
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-navy px-4 py-3 text-white">
           <div>
-            <p className="text-xs text-white/60">Moyenne générale</p>
+            <p className="text-xs text-white/60">Synthèse — moyenne générale, toutes matières</p>
             <p className="text-lg font-bold">
               <span className="mr-2 text-sm font-normal text-white/50 line-through">
                 {progress.overall.baselineAverage}
@@ -58,40 +115,6 @@ export function ProgressCard({ studentId, endpoint = `/family/students/${student
           </span>
         </div>
       )}
-
-      <div className="space-y-3">
-        {subjects.map((subject) => (
-          <div key={subject.subject}>
-            <div className="mb-1 flex items-center justify-between gap-2 text-sm">
-              <span className="font-medium text-gray-800">{subject.subject}</span>
-              <span className="flex items-center gap-2">
-                <span className="text-xs text-gray-300 line-through">{subject.baselineAverage}</span>
-                {subject.latestAverage !== null ? (
-                  <>
-                    <span className="text-xs font-bold text-gray-700">{subject.latestAverage}/20</span>
-                    <span
-                      className={`text-[11px] font-bold ${
-                        subject.delta >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {subject.delta >= 0 ? '↑' : '↓'}
-                      {Math.abs(subject.delta)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-xs text-gray-400">en attente d'évaluation</span>
-                )}
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-gold-500"
-                style={{ width: `${((subject.latestAverage ?? subject.baselineAverage) / 20) * 100}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
 
       {progress?.engagement?.length > 0 && (
         <div className="mt-4 rounded-xl border border-gray-100 p-3">

@@ -105,7 +105,101 @@ export class TeacherRequestsService {
       path: `/demandes-professeur/${created.id}`,
     });
 
+    this.notifyMatchingTeachers(created.id).catch((error) =>
+      this.logger.error(`Notification des enseignants pour la demande ${created.id} échouée`, error),
+    );
+
     return created;
+  }
+
+  // Enseignants concernes par une nouvelle demande : actifs, meme matiere,
+  // classe / niveau de l'eleve (matchLevel) et, pour un cours en presentiel,
+  // a moins de PRESENTIAL_RADIUS_KM (profs non localises inclus).
+  private async notifyMatchingTeachers(requestId: string) {
+    const PRESENTIAL_RADIUS_KM = 50;
+    const request = await this.prisma.teacherRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        student: {
+          select: { level: true, classe: true, city: true, postalCode: true, latitude: true, longitude: true },
+        },
+      },
+    });
+    if (!request) return;
+    const teachers = await this.prisma.teacher.findMany({
+      where: { verified: true, subjects: { has: request.subject } },
+      select: {
+        id: true,
+        name: true,
+        gender: true,
+        email: true,
+        levels: true,
+        classes: true,
+        latitude: true,
+        longitude: true,
+        account: { select: { email: true, status: true } },
+      },
+    });
+    const { student } = request;
+    const distanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+      const r = Math.PI / 180;
+      const a =
+        Math.sin(((lat2 - lat1) * r) / 2) ** 2 +
+        Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(((lon2 - lon1) * r) / 2) ** 2;
+      return 6371 * 2 * Math.asin(Math.sqrt(a));
+    };
+    const recipients = teachers.filter((t) => {
+      if (!t.account || t.account.status === 'suspendu') return false;
+      if (matchLevel(t, student) !== 'match') return false;
+      if (
+        request.format === 'presentiel' &&
+        student.latitude != null && student.longitude != null &&
+        t.latitude != null && t.longitude != null &&
+        distanceKm(student.latitude, student.longitude, t.latitude, t.longitude) > PRESENTIAL_RADIUS_KM
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    const FORMAT_LABELS: Record<string, string> = {
+      presentiel: 'En présentiel',
+      distanciel: 'À distance',
+      hybride: 'Présentiel et à distance',
+    };
+    const classLabel = student.classe ?? student.level;
+    const place = [student.postalCode, student.city].filter(Boolean).join(' ');
+    for (const teacher of recipients) {
+      const to = teacher.account?.email ?? teacher.email;
+      if (!to) continue;
+      this.emailService
+        .send({
+          to,
+          subject: `Nafoore Education — Nouvelle demande en ${request.subject} (${classLabel})`,
+          html: renderNoticeEmail({
+            fullName: teacher.name,
+            gender: teacher.gender,
+            label: 'Nouvelle demande',
+            paragraphs: [
+              `Une famille recherche un enseignant en ${request.subject} pour un élève de ${classLabel}${place ? `, secteur ${place}` : ''}.`,
+              [
+                FORMAT_LABELS[request.format] ?? request.format,
+                request.frequency,
+                request.durationMinutes ? `séances de ${request.durationMinutes} min` : null,
+                request.periodMonths ? `sur ${request.periodMonths} mois` : null,
+              ]
+                .filter(Boolean)
+                .join(' · '),
+              ...(request.availability ? [`Disponibilités de la famille : ${request.availability}`] : []),
+              'Si cette demande vous intéresse, indiquez-le depuis votre espace : l’équipe Nafoore reviendra vers vous.',
+            ],
+            ctaUrl: `${resolvePortalUrl('teacher')}/demandes`,
+            ctaLabel: 'Voir la demande →',
+          }),
+        })
+        .catch((error) => this.logger.error(`Email de nouvelle demande à ${to} échoué`, error));
+    }
+    this.logger.log(`Demande ${requestId} : ${recipients.length} enseignant(s) prévenu(s)`);
   }
 
   // Assignation directe : l'admin choisit le prof, le tarif et la periode ; la
