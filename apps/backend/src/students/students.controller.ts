@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -15,6 +16,8 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { PrismaService } from '../prisma/prisma.service';
+import { SessionChangesService } from '../session-changes/session-changes.service';
 import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { Permission } from '../auth/permissions';
 import { ZoneParams } from '../auth/zone.service';
@@ -34,7 +37,11 @@ import { StudentsService } from './students.service';
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('students')
 export class StudentsController {
-  constructor(private readonly studentsService: StudentsService) {}
+  constructor(
+    private readonly studentsService: StudentsService,
+    private readonly prisma: PrismaService,
+    private readonly sessionChanges: SessionChangesService,
+  ) {}
 
   @Get()
   list(@Query() query: ListStudentsQueryDto, @CurrentAdmin() admin: AuthenticatedAdmin) {
@@ -97,6 +104,20 @@ export class StudentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   removePhoto(@Param('id') id: string) {
     return this.studentsService.removePhoto(id);
+  }
+
+  // Arret d'un programme hebdomadaire par l'admin (motif obligatoire) :
+  // seances a venir retirees, famille et enseignant prevenus.
+  @Delete(':id/schedules/:scheduleId')
+  async stopSchedule(
+    @Param('id') id: string,
+    @Param('scheduleId') scheduleId: string,
+    @Query('reason') reason: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    const schedule = await this.prisma.recurringSchedule.findFirst({ where: { id: scheduleId, studentId: id } });
+    if (!schedule) throw new NotFoundException('Programme introuvable');
+    return this.sessionChanges.stopProgram(scheduleId, { kind: 'admin', name: admin.name }, reason);
   }
 
   @Post(':id/qr/regenerate')

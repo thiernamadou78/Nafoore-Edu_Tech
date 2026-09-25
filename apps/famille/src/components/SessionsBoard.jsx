@@ -3,10 +3,11 @@ import { PaginationControls } from './ui/PaginationControls'
 import { usePagination } from '../lib/usePagination'
 import { formatDateTime } from '../lib/format'
 import { SessionReport } from './SessionReport'
+import { SessionActions, SessionChangeNote } from './SessionActions'
 
 // Grille 3 colonnes (À venir / Réalisées / Rejetées), même logique que côté
 // admin/prof — réutilisée sur la fiche élève et sur l'onglet Planning.
-export function SessionsBoard({ sessions }) {
+export function SessionsBoard({ sessions, onSessionChanged }) {
   const upcomingSessions = [...sessions]
     .filter((s) => s.status !== 'realisee' && s.status !== 'annulee')
     .sort((a, b) => new Date(a.date) - new Date(b.date))
@@ -62,9 +63,13 @@ export function SessionsBoard({ sessions }) {
                       {session.teacher && (
                         <p className="text-[11px] text-gray-400">{session.teacher.name}</p>
                       )}
+                      <SessionChangeNote session={session} />
                       <div className="mt-1">
                         <SessionReport session={session} />
                       </div>
+                      {onSessionChanged && (
+                        <SessionActions session={session} onChanged={onSessionChanged} />
+                      )}
                     </li>
                   ))}
                 </ul>

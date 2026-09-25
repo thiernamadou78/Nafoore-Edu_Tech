@@ -521,6 +521,11 @@ model Session {
   homework      String?
   notes     String?
   cancellationReason String? @map("cancellation_reason")
+  // Report / annulation (voir SessionChangesService)
+  rescheduledFrom    DateTime? @map("rescheduled_from")
+  postponeReason     String?   @map("postpone_reason")
+  changedBy          String?   @map("changed_by") // famille | enseignant | admin
+  changedAt          DateTime? @map("changed_at")
   createdAt DateTime  @default(now()) @map("created_at")
   attendanceLogs AttendanceLog[]
   scheduleId String?  @map("schedule_id")
@@ -576,6 +581,10 @@ model RecurringSchedule {
   active          Boolean  @default(true)
   // Date de la 1ere seance : la generation part de la, pas d'aujourd'hui.
   startsOn        DateTime? @map("starts_on")
+  // Arret du programme (enseignant ou admin)
+  stoppedReason   String?   @map("stopped_reason")
+  stoppedBy       String?   @map("stopped_by")
+  stoppedAt       DateTime? @map("stopped_at")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
   sessions        Session[]

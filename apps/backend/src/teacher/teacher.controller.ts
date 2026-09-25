@@ -153,8 +153,9 @@ export class TeacherController {
     @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
     @Param('id') id: string,
     @Query('subject') subject: string,
+    @Query('reason') reason: string,
   ) {
-    return this.recurringScheduleService.remove(teacherAccount, id, subject);
+    return this.recurringScheduleService.remove(teacherAccount, id, subject, reason);
   }
 
   @Get('dashboard')

@@ -15,6 +15,7 @@ import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { UpsertRecurringScheduleDto } from './dto/upsert-recurring-schedule.dto';
 import { nextOccurrences, ScheduleSlot, slotsOverlap } from './recurring-schedule.util';
 import { AvailabilityService } from './availability.service';
+import { SessionChangesService } from '../session-changes/session-changes.service';
 
 // Fenêtre glissante : combien de semaines de séances réelles sont
 // matérialisées à l'avance à partir du planning récurrent. Le pointage QR
@@ -29,6 +30,7 @@ export class RecurringScheduleService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly availability: AvailabilityService,
+    private readonly sessionChanges: SessionChangesService,
   ) {}
 
   async upsert(
@@ -110,26 +112,27 @@ export class RecurringScheduleService {
     return { ...schedule, sessionsCreated };
   }
 
-  async remove(teacherAccount: AuthenticatedTeacherAccount, studentId: string, subject: string) {
+  // Arret du programme (motif obligatoire) : seances a venir retirees,
+  // famille et admin prevenus — voir SessionChangesService.stopProgram.
+  async remove(
+    teacherAccount: AuthenticatedTeacherAccount,
+    studentId: string,
+    subject: string,
+    reason: string,
+  ) {
     const teacherId = teacherAccount.teacherId as string;
     const schedule = await this.prisma.recurringSchedule.findUnique({
       where: { studentId_teacherId_subject: { studentId, teacherId, subject } },
+      include: { teacher: { select: { name: true } } },
     });
-    if (!schedule) {
+    if (!schedule || !schedule.active) {
       throw new NotFoundException('Aucun planning récurrent pour cette matière');
     }
-
-    await this.prisma.session.deleteMany({
-      where: {
-        scheduleId: schedule.id,
-        date: { gt: new Date() },
-        status: { in: ['planifiee', 'confirmee'] },
-      },
-    });
-    await this.prisma.recurringSchedule.update({
-      where: { id: schedule.id },
-      data: { active: false },
-    });
+    await this.sessionChanges.stopProgram(
+      schedule.id,
+      { kind: 'enseignant', name: schedule.teacher.name },
+      reason,
+    );
   }
 
   // Un prof ne peut pas donner deux cours en meme temps : on verifie ses
@@ -225,10 +228,14 @@ export class RecurringScheduleService {
     // Sessions déjà générées dans la fenêtre à venir, pour ne pas dupliquer
     // en cas d'exécution répétée (upsert + cron de rattrapage).
     const existing = await this.prisma.session.findMany({
-      where: { scheduleId, date: { gt: now } },
-      select: { date: true },
+      where: { scheduleId, OR: [{ date: { gt: now } }, { rescheduledFrom: { gt: now } }] },
+      select: { date: true, rescheduledFrom: true },
     });
-    const existingKeys = new Set(existing.map((s) => s.date.toISOString()));
+    // Une seance deplacee "occupe" encore son creneau d'origine : sans ca,
+    // elle serait recreee a l'ancienne date au prochain passage.
+    const existingKeys = new Set(
+      existing.flatMap((s) => [s.date.toISOString(), s.rescheduledFrom?.toISOString()]).filter(Boolean),
+    );
 
     const toCreate = slots
       .flatMap((slot) => nextOccurrences(slot, WEEKS_AHEAD, from))

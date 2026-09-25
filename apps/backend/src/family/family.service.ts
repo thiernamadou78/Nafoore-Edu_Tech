@@ -326,6 +326,10 @@ export class FamilyService {
             difficulties: true,
             homework: true,
             durationMinutes: true,
+            cancellationReason: true,
+            postponeReason: true,
+            rescheduledFrom: true,
+            changedBy: true,
             teacher: { select: { id: true, name: true } },
             // Utilisé pour ne compter dans les heures cumulées que les
             // séances avec un pointage QR/manuel clôturé (un compte-rendu

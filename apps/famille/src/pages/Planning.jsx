@@ -11,6 +11,7 @@ import { SessionsBoard } from '../components/SessionsBoard'
 import { PlanningCalendar } from '../components/PlanningCalendar'
 import { Badge } from '../components/ui/Badge'
 import { SessionReport } from '../components/SessionReport'
+import { SessionActions, SessionChangeNote } from '../components/SessionActions'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from './labels'
 
 function getInitials(name) {
@@ -63,12 +64,22 @@ function ChildPlanningSection({ student }) {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {!error && !detail && <Spinner />}
-      {detail && <SessionsBoard sessions={detail.sessions ?? []} />}
+      {detail && (
+        <SessionsBoard
+          sessions={detail.sessions ?? []}
+          onSessionChanged={(updated) =>
+            setDetail((d) => ({
+              ...d,
+              sessions: d.sessions.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)),
+            }))
+          }
+        />
+      )}
     </Card>
   )
 }
 
-function FamilySessionCard({ session }) {
+function FamilySessionCard({ session, onChanged }) {
   const time = new Date(session.date).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
@@ -88,9 +99,11 @@ function FamilySessionCard({ session }) {
         {session.studentName}
         {session.teacher ? ` · ${session.teacher.name}` : ''}
       </p>
+      <SessionChangeNote session={session} />
       <div className="mt-2">
         <SessionReport session={session} />
       </div>
+      <SessionActions session={session} onChanged={onChanged} />
     </Card>
   )
 }
@@ -183,7 +196,14 @@ export function Planning() {
         ) : (
           <PlanningCalendar
             sessions={allSessions}
-            renderSession={(session) => <FamilySessionCard session={session} />}
+            renderSession={(session) => (
+              <FamilySessionCard
+                session={session}
+                onChanged={(updated) =>
+                  setAllSessions((list) => list.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)))
+                }
+              />
+            )}
           />
         )
       ) : (

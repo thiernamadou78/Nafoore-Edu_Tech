@@ -67,6 +67,9 @@ function SubjectScheduleCard({ studentId, subject, schedule, defaultDurationMinu
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [warnings, setWarnings] = useState([])
+  // Arret du programme : motif obligatoire (envoye a la famille et a Nafoore).
+  const [stopOpen, setStopOpen] = useState(false)
+  const [stopReason, setStopReason] = useState('')
 
   const startEditing = () => {
     setFrequency(schedule?.frequency ?? 2)
@@ -118,10 +121,12 @@ function SubjectScheduleCard({ studentId, subject, schedule, defaultDurationMinu
     setError(null)
     try {
       await api.del(
-        `/teacher/students/${studentId}/schedule?subject=${encodeURIComponent(subject)}`,
+        `/teacher/students/${studentId}/schedule?subject=${encodeURIComponent(subject)}&reason=${encodeURIComponent(stopReason.trim())}`,
       )
       onChange(null)
       setEditing(false)
+      setStopOpen(false)
+      setStopReason('')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -252,12 +257,40 @@ function SubjectScheduleCard({ studentId, subject, schedule, defaultDurationMinu
             <Button variant="secondary" onClick={() => setEditing(false)}>
               Annuler
             </Button>
-            {schedule && (
-              <Button variant="ghost" icon={Trash2} loading={saving} onClick={handleDelete} className="text-red-600 hover:bg-red-50">
-                Supprimer le planning
+            {schedule && !stopOpen && (
+              <Button variant="ghost" icon={Trash2} onClick={() => setStopOpen(true)} className="text-red-600 hover:bg-red-50">
+                Arrêter le programme
               </Button>
             )}
           </div>
+          {schedule && stopOpen && (
+            <div className="space-y-2 rounded-lg border border-red-100 bg-red-50/50 p-3">
+              <p className="text-sm font-medium text-gray-900">Arrêter le programme de {subject}</p>
+              <p className="text-xs text-gray-500">
+                Toutes les séances à venir seront retirées. La famille et Nafoore seront prévenus par email.
+              </p>
+              <textarea
+                rows={2}
+                value={stopReason}
+                onChange={(e) => setStopReason(e.target.value)}
+                placeholder="Motif (obligatoire) : fin de l'accompagnement, indisponibilité…"
+                className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="danger"
+                  loading={saving}
+                  disabled={stopReason.trim().length < 2}
+                  onClick={handleDelete}
+                >
+                  Confirmer l'arrêt
+                </Button>
+                <Button variant="secondary" onClick={() => setStopOpen(false)}>
+                  Retour
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Card>

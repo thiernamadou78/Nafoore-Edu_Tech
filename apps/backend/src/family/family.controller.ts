@@ -24,12 +24,31 @@ import { SetFamilyNameDto } from './dto/set-family-name.dto';
 import { StartThreadDto } from './dto/start-thread.dto';
 import { SendFamilyMessageDto } from './dto/send-family-message.dto';
 import { FamilyService } from './family.service';
+import { SessionChangesService } from '../session-changes/session-changes.service';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+
+class PostponeSessionDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+class CancelSessionDto {
+  @IsString()
+  @MinLength(2, { message: "Indiquez le motif de l'annulation" })
+  @MaxLength(500)
+  reason: string;
+}
 
 @PortalRoles('famille')
 @UseGuards(PortalAuthGuard, PortalRolesGuard)
 @Controller('family')
 export class FamilyController {
-  constructor(private readonly familyService: FamilyService) {}
+  constructor(
+    private readonly familyService: FamilyService,
+    private readonly sessionChanges: SessionChangesService,
+  ) {}
 
   @Get('me')
   me(@CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount) {
@@ -103,6 +122,26 @@ export class FamilyController {
     @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
   ) {
     return this.familyService.removeStudentPhoto(portalAccount, id);
+  }
+
+  // Decaler : la seance passe "a replanifier", l'enseignant choisira le
+  // nouveau creneau (la famille l'a generalement appele avant).
+  @Post('sessions/:id/postpone')
+  postponeSession(
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+    @Param('id') id: string,
+    @Body() dto: PostponeSessionDto,
+  ) {
+    return this.sessionChanges.postponeByFamily(portalAccount, id, dto.reason);
+  }
+
+  @Post('sessions/:id/cancel')
+  cancelSession(
+    @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,
+    @Param('id') id: string,
+    @Body() dto: CancelSessionDto,
+  ) {
+    return this.sessionChanges.cancelByFamily(portalAccount, id, dto.reason);
   }
 
   @Get('hours')

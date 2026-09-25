@@ -286,7 +286,15 @@ export function StudentDetail() {
       {/* Séances, regroupées par statut */}
       <Card className="p-5">
         <h2 className="mb-3 font-semibold text-gray-900">Séances</h2>
-        <SessionsBoard sessions={sessions} />
+        <SessionsBoard
+          sessions={sessions}
+          onSessionChanged={(updated) =>
+            setStudent((current) => ({
+              ...current,
+              sessions: current.sessions.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)),
+            }))
+          }
+        />
       </Card>
     </div>
   )

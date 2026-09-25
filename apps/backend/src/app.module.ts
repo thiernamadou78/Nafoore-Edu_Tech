@@ -10,6 +10,7 @@ import { AdminAccountsModule } from './admin-accounts/admin-accounts.module';
 import { AuthEmailsModule } from './auth-emails/auth-emails.module';
 import { SubjectsModule } from './subjects/subjects.module';
 import { PlanningModule } from './planning/planning.module';
+import { SessionChangesModule } from './session-changes/session-changes.module';
 import { TeacherApplicationsModule } from './teacher-applications/teacher-applications.module';
 import { LeadsModule } from './leads/leads.module';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -55,6 +56,7 @@ import { TestimonialsModule } from './testimonials/testimonials.module';
     AuthEmailsModule,
     SubjectsModule,
     PlanningModule,
+    SessionChangesModule,
     TeacherApplicationsModule,
     TeacherApplicationsPublicModule,
     LeadsModule,

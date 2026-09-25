@@ -72,4 +72,10 @@ export class UpdateTeacherSessionDto {
   @IsString()
   @MaxLength(500)
   cancellationReason?: string;
+
+  // Motif d'un deplacement de seance (envoye a la famille et a l'admin).
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  changeReason?: string;
 }

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { SessionChangesService } from '../session-changes/session-changes.service';
 import { levelsUpdate } from '../teachers/teachers.service';
 import { PhotosService } from '../photos/photos.service';
 import { EmailService } from '../email/email.service';
@@ -14,7 +15,6 @@ import { GeocodingService } from '../geocoding/geocoding.service';
 import { UpdateTeacherDto } from '../teachers/dto/update-teacher.dto';
 import { resolvePortalUrl } from '../email/portal-url.util';
 import { renderSessionReportReminderEmail } from '../email/templates/session-report-reminder.template';
-import { renderSessionCancelledEmail } from '../email/templates/session-cancelled.template';
 import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { CreateTeacherSessionDto } from './dto/create-teacher-session.dto';
 import { UpdateTeacherSessionDto } from './dto/update-teacher-session.dto';
@@ -58,6 +58,7 @@ export class TeacherService {
   private readonly logger = new Logger(TeacherService.name);
 
   constructor(
+    private readonly sessionChanges: SessionChangesService,
     private readonly prisma: PrismaService,
     private readonly photos: PhotosService,
     private readonly emailService: EmailService,
@@ -527,6 +528,19 @@ export class TeacherService {
       throw new BadRequestException("Un motif d'annulation est requis");
     }
 
+    // Deplacement d'une seance (nouvelle date) : motif obligatoire, sauf
+    // pour replanifier une seance que la famille a demande de decaler.
+    const moving =
+      !!dto.date &&
+      new Date(dto.date).getTime() !== session.date.getTime() &&
+      !['realisee', 'annulee'].includes(session.status);
+    if (moving && session.status !== 'reportee' && !dto.changeReason?.trim()) {
+      throw new BadRequestException('Indiquez le motif du déplacement (il sera envoyé à la famille)');
+    }
+    if (moving && new Date(dto.date as string) < new Date()) {
+      throw new BadRequestException('Le nouveau créneau doit être dans le futur');
+    }
+
     // Compte-rendu structure : les champs non fournis gardent leur valeur
     // actuelle (brouillon deja enregistre).
     const report: SessionReport = {
@@ -610,59 +624,40 @@ export class TeacherService {
         notes: composedNotes,
         ...(touchesReport ? report : {}),
         cancellationReason: dto.cancellationReason,
+        // Seance deplacee : on garde la date d'origine (la generation du
+        // programme ne la recree pas a l'ancien creneau) ; une seance "a
+        // replanifier" redevient planifiee a sa nouvelle date.
+        ...(moving
+          ? {
+              rescheduledFrom: session.rescheduledFrom ?? session.date,
+              status: dto.status ?? (session.status === 'reportee' ? 'planifiee' : undefined),
+              changedBy: 'enseignant',
+              changedAt: new Date(),
+            }
+          : {}),
+        ...(dto.status === 'annulee' && session.status !== 'annulee'
+          ? { changedBy: 'enseignant', changedAt: new Date() }
+          : {}),
       },
     });
 
+    // Famille et admin prevenus (qui, motif, delai avant la seance).
     if (dto.status === 'annulee' && session.status !== 'annulee') {
-      this.notifyFamilyOfCancellation(updated).catch((error) => {
-        this.logger.error(
-          `Échec d'envoi de l'email d'annulation pour la séance ${sessionId}`,
-          error instanceof Error ? error.stack : undefined,
-        );
-      });
+      this.sessionChanges
+        .notifyTeacherChange('cancelled', sessionId, dto.cancellationReason)
+        .catch((error) => this.logger.error(`Notification d'annulation ${sessionId} échouée`, error));
+    } else if (moving) {
+      this.sessionChanges
+        .notifyTeacherChange(
+          'rescheduled',
+          sessionId,
+          dto.changeReason?.trim() || (session.status === 'reportee' ? 'Nouveau créneau suite à la demande de la famille' : undefined),
+          session.date,
+        )
+        .catch((error) => this.logger.error(`Notification de déplacement ${sessionId} échouée`, error));
     }
 
     return updated;
-  }
-
-  // Best-effort : ne doit jamais faire échouer l'annulation elle-même si
-  // l'email ne part pas (famille sans email valide, panne du provider…).
-  private async notifyFamilyOfCancellation(session: {
-    id: string;
-    studentId: string;
-    teacherId: string | null;
-    date: Date;
-    cancellationReason: string | null;
-  }) {
-    if (!session.teacherId) return;
-
-    const [student, teacher] = await Promise.all([
-      this.prisma.student.findUnique({
-        where: { id: session.studentId },
-        select: {
-          name: true,
-          parentLead: {
-            select: { email: true, portalAccount: { select: { email: true } } },
-          },
-        },
-      }),
-      this.prisma.teacher.findUnique({ where: { id: session.teacherId }, select: { name: true } }),
-    ]);
-
-    const recipient = student?.parentLead?.portalAccount?.email ?? student?.parentLead?.email;
-    if (!recipient || !student || !teacher) return;
-
-    await this.emailService.send({
-      to: recipient,
-      subject: `Nafoore Education — Séance annulée pour ${student.name}`,
-      html: renderSessionCancelledEmail({
-        studentName: student.name,
-        teacherName: teacher.name,
-        sessionDate: session.date.toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' }),
-        reason: session.cancellationReason ?? 'Non précisé',
-        portalUrl: resolvePortalUrl('famille'),
-      }),
-    });
   }
 
   async getDashboard(teacherAccount: AuthenticatedTeacherAccount) {

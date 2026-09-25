@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CalendarPlus, Check, ScanLine, X } from 'lucide-react'
+import { CalendarClock, CalendarPlus, Check, ScanLine, X } from 'lucide-react'
 import { api } from '../lib/api'
-import { formatDate } from '../lib/format'
+import { formatDate, formatDateTime } from '../lib/format'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -175,6 +175,69 @@ function ReportForm({ session, onCancel, onSave, saving, notice }) {
   )
 }
 
+// Valeur pour <input type="datetime-local"> (heure locale).
+function toLocalInput(date) {
+  const d = new Date(date)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// Deplacer une seance a un nouveau creneau. Motif obligatoire, sauf pour
+// replanifier une seance que la famille a demande de decaler ; la famille et
+// Nafoore sont prevenus par email.
+function RescheduleForm({ session, onCancel, onConfirm, saving }) {
+  const [date, setDate] = useState(() => toLocalInput(session.date))
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState(null)
+  const fromFamily = session.status === 'reportee'
+  const valid = date && new Date(date) > new Date() && (fromFamily || reason.trim().length >= 2)
+
+  return (
+    <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-500">
+          Nouveau créneau <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="datetime-local"
+          value={date}
+          min={toLocalInput(new Date())}
+          onChange={(e) => setDate(e.target.value)}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-500">
+          Motif {fromFamily ? '(facultatif)' : <span className="text-red-500">*</span>}
+        </label>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          placeholder={fromFamily ? 'Ex : créneau convenu par téléphone avec la famille' : 'Ex : empêchement, changement d’emploi du temps…'}
+          className={`${inputClass} resize-none`}
+        />
+      </div>
+      <p className="text-xs text-gray-500">La famille et Nafoore seront prévenus par email.</p>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex gap-2">
+        <Button
+          loading={saving}
+          disabled={!valid}
+          onClick={() =>
+            onConfirm(new Date(date).toISOString(), reason.trim()).catch((err) => setError(err.message))
+          }
+        >
+          Déplacer la séance
+        </Button>
+        <Button variant="secondary" onClick={onCancel}>
+          Retour
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function CancelForm({ onCancel, onConfirm, saving }) {
   const [reason, setReason] = useState('')
 
@@ -245,6 +308,9 @@ function getDisplayStatus(session, isPast) {
   if (isCheckedIn) {
     return { tone: 'amber', label: 'En cours' }
   }
+  if (session.status === 'reportee') {
+    return { tone: 'amber', label: 'À replanifier' }
+  }
   if (isPast && (session.status === 'planifiee' || session.status === 'confirmee')) {
     return { tone: 'clay', label: 'Passée — à confirmer' }
   }
@@ -257,6 +323,7 @@ function getDisplayStatus(session, isPast) {
 function SessionRow({
   session,
   onCancelSession,
+  onRescheduleSession,
   onSaveReport,
   onManualAttendance,
   savingId,
@@ -266,6 +333,7 @@ function SessionRow({
 }) {
   const [reportOpen, setReportOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [manualOpen, setManualOpen] = useState(false)
 
   // Juste après un pointage manuel, on pousse directement le prof à
@@ -315,7 +383,27 @@ function SessionRow({
             <Badge tone={displayStatus.tone}>{displayStatus.label}</Badge>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {session.status === 'reportee' && !rescheduleOpen && onRescheduleSession && (
+            <Button icon={CalendarClock} onClick={() => setRescheduleOpen(true)}>
+              Choisir un nouveau créneau
+            </Button>
+          )}
+          {!isPast &&
+            (session.status === 'planifiee' || session.status === 'confirmee') &&
+            !session.lastAttendance?.checkinAt &&
+            !rescheduleOpen &&
+            !cancelOpen &&
+            onRescheduleSession && (
+              <Button
+                variant="secondary"
+                icon={CalendarClock}
+                disabled={savingId === session.id}
+                onClick={() => setRescheduleOpen(true)}
+              >
+                Décaler
+              </Button>
+            )}
           {!isPast &&
             (session.status === 'planifiee' || session.status === 'confirmee') &&
             !cancelOpen && (
@@ -377,9 +465,38 @@ function SessionRow({
 
       {session.status === 'annulee' && session.cancellationReason && (
         <div className="mt-3 border-t border-gray-100 pt-3 text-sm text-gray-700">
-          <p className="mb-1 font-medium text-gray-900">Motif de l'annulation</p>
+          <p className="mb-1 font-medium text-gray-900">
+            Motif de l'annulation
+            {session.changedBy === 'famille' && <span className="font-normal text-gray-500"> (annulée par la famille)</span>}
+            {session.changedBy === 'admin' && <span className="font-normal text-gray-500"> (annulée par Nafoore)</span>}
+          </p>
           <p className="text-gray-600">{session.cancellationReason}</p>
         </div>
+      )}
+
+      {session.status === 'reportee' && (
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          La famille a demandé à décaler cette séance : choisissez un nouveau créneau (idéalement après
+          l'avoir appelée).
+          {session.postponeReason && <> Motif : {session.postponeReason}</>}
+        </p>
+      )}
+
+      {session.rescheduledFrom && session.status !== 'reportee' && session.status !== 'annulee' && (
+        <p className="mt-2 text-xs text-gray-500">
+          Déplacée — initialement le {formatDateTime(session.rescheduledFrom)}
+        </p>
+      )}
+
+      {rescheduleOpen && (
+        <RescheduleForm
+          session={session}
+          saving={savingId === session.id}
+          onCancel={() => setRescheduleOpen(false)}
+          onConfirm={(date, reason) =>
+            onRescheduleSession(session.id, date, reason).then(() => setRescheduleOpen(false))
+          }
+        />
       )}
 
       {hasReport && !isClosed && !reportOpen && (
@@ -589,6 +706,7 @@ function StudentPlanningCard({
   onCloseCreate,
   onSubmitCreate,
   onCancelSession,
+  onRescheduleSession,
   onSaveReport,
   onManualAttendance,
   autoReportIds,
@@ -752,6 +870,7 @@ function StudentPlanningCard({
                         compact
                         showStudentName={false}
                         onCancelSession={onCancelSession}
+                        onRescheduleSession={onRescheduleSession}
                         onSaveReport={onSaveReport}
                         onManualAttendance={onManualAttendance}
                         autoOpenReport={autoReportIds.has(session.id)}
@@ -814,6 +933,15 @@ export function Planning() {
       })
       .catch(() => {})
   })
+
+  // Deplacement : l'erreur remonte au formulaire (qui reste ouvert).
+  const handleRescheduleSession = (id, date, reason) => {
+    setSavingId(id)
+    return api
+      .patch(`/teacher/sessions/${id}`, { date, changeReason: reason || undefined })
+      .then(load)
+      .finally(() => setSavingId(null))
+  }
 
   const handleCancelSession = (id, reason) => {
     setSavingId(id)
@@ -923,6 +1051,7 @@ export function Planning() {
               session={session}
               savingId={savingId}
               onCancelSession={handleCancelSession}
+              onRescheduleSession={handleRescheduleSession}
               onSaveReport={handleSaveReport}
               onManualAttendance={handleManualAttendance}
               autoOpenReport={autoReportIds.has(session.id)}
@@ -942,6 +1071,7 @@ export function Planning() {
               onCloseCreate={() => setCreatingForStudentId(null)}
               onSubmitCreate={handleCreateForStudent}
               onCancelSession={handleCancelSession}
+              onRescheduleSession={handleRescheduleSession}
               onSaveReport={handleSaveReport}
               onManualAttendance={handleManualAttendance}
               autoReportIds={autoReportIds}

@@ -9,7 +9,7 @@ export const SESSION_STATUS_LABELS = {
   confirmee: 'Confirmée',
   realisee: 'Réalisée',
   annulee: 'Annulée',
-  reportee: 'Reportée',
+  reportee: 'À replanifier',
 }
 
 export const SESSION_STATUS_TONES = {

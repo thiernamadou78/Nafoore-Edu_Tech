@@ -50,6 +50,7 @@ import {
 import { PassEducatifCard } from './PassEducatifCard'
 import { matchLevel } from '../../lib/levels'
 import { DocumentViewer } from '../../components/DocumentViewer'
+import { useAuth } from '../../context/AuthContext'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -494,7 +495,58 @@ function SessionsByStatusBoard({ sessions, onSave }) {
   )
 }
 
+// Arret d'un programme hebdomadaire par l'admin : motif obligatoire, seances
+// a venir retirees, famille et enseignant prevenus par email.
+function StopProgramButton({ onStop }) {
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="text-xs font-medium text-red-600 hover:underline">
+        Arrêter le programme
+      </button>
+    )
+  }
+  return (
+    <div className="mt-2 space-y-2 rounded-lg border border-red-100 bg-red-50/50 p-3">
+      <p className="text-xs text-gray-600">
+        Les séances à venir seront retirées ; la famille et l'enseignant seront prévenus par email.
+      </p>
+      <textarea
+        rows={2}
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Motif (obligatoire)"
+        className={`${inputClass} resize-none`}
+      />
+      <div className="flex gap-2">
+        <Button
+          variant="danger"
+          loading={saving}
+          disabled={reason.trim().length < 2}
+          onClick={async () => {
+            setSaving(true)
+            try {
+              await onStop(reason.trim())
+            } finally {
+              setSaving(false)
+            }
+          }}
+          className="px-3 py-1.5 text-xs"
+        >
+          Confirmer l'arrêt
+        </Button>
+        <Button variant="secondary" onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs">
+          Retour
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function StudentDetail() {
+  const { can } = useAuth()
   const { id } = useParams()
   const [viewing, setViewing] = useState(null) // document ouvert dans le lecteur
   const [student, setStudent] = useState(null)
@@ -962,6 +1014,17 @@ export function StudentDetail() {
                               </Badge>
                             ))}
                         </div>
+                        {can('students', 'edit') && (
+                          <div className="mt-2">
+                            <StopProgramButton
+                              onStop={(reason) =>
+                                run(`stop-${schedule.id}`, () =>
+                                  api.del(`/students/${id}/schedules/${schedule.id}?reason=${encodeURIComponent(reason)}`),
+                                )
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
