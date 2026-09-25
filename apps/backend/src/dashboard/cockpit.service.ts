@@ -55,6 +55,7 @@ export class CockpitService {
 
     const [
       students,
+      families,
       newStudents30d,
       teachers,
       leadsMonth,
@@ -66,6 +67,8 @@ export class CockpitService {
       todaySessions,
     ] = await Promise.all([
       this.prisma.student.count({ where: and({ isActive: true }, zs) }),
+      // Familles inscrites = leads avec un compte famille actif sur le portail.
+      this.prisma.lead.count({ where: and({ portalAccount: { isNot: null } }, zl) }),
       this.prisma.student.count({ where: and({ createdAt: { gte: new Date(now.getTime() - 30 * DAY_MS) } }, zs) }),
       this.prisma.teacher.count({ where: and({ verified: true }, zt) }),
       this.prisma.lead.count({ where: and({ createdAt: { gte: monthStart } }, zl) }),
@@ -196,6 +199,7 @@ export class CockpitService {
       kpis: {
         students: { value: students, delta: newStudents30d, deltaLabel: 'sur 30 jours' },
         teachers: { value: teachers },
+        families: { value: families },
         hoursMonth: {
           value: Math.round(minutesMonth / 60),
           previous: Math.round(minutesPrevMonth / 60),

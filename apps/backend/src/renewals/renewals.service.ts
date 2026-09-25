@@ -106,6 +106,7 @@ export class RenewalsService {
         `Durée demandée : ${periodMonths} mois`,
       ],
       path: '/renouvellements',
+      scope: { module: 'renewals', kind: 'student', id: assignment.studentId },
     });
 
     if (assignment.teacher.account?.email) {
@@ -189,6 +190,7 @@ export class RenewalsService {
           ...(trimmedComment ? [`Commentaire : ${trimmedComment}`] : []),
         ],
         path: '/renouvellements',
+        scope: { module: 'renewals', kind: 'student', id: studentTeacher.studentId },
       });
       return { status: 'acceptee_prof' };
     }

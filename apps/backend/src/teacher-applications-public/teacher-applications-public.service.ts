@@ -155,8 +155,9 @@ export class TeacherApplicationsPublicService {
 
     await this.uploadDocuments(application.id, uploads);
 
-    // Position du candidat : sert au filtrage par zone des delegues admin.
-    this.geocoding
+    // Position du candidat : sert au filtrage par zone des delegues admin ;
+    // la notification admin part apres, pour prevenir aussi le delegue de la zone.
+    const located = this.geocoding
       .geocode(`${dto.zone}, ${dto.city.trim()}`, dto.postalCode)
       .then((coords) => {
         if (!coords) return;
@@ -166,7 +167,7 @@ export class TeacherApplicationsPublicService {
         this.logger.warn(`Géocodage de la candidature ${application.id} échoué: ${error}`),
       );
 
-    this.adminNotification.notify({
+    void located.finally(() => this.adminNotification.notify({
       subject: `Nouvelle candidature : ${dto.candidateName}`,
       title: 'Nouvelle candidature enseignant',
       lines: [
@@ -177,7 +178,7 @@ export class TeacherApplicationsPublicService {
         `Zone : ${dto.zone} (${dto.postalCode})`,
       ],
       path: `/recrutement/${application.id}`,
-    });
+    }));
 
     try {
       const result = await this.emailService.send({

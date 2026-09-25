@@ -6,6 +6,8 @@ import {
   ArrowUpRight,
   CalendarDays,
   CheckCircle2,
+  Eye,
+  Home,
   Clock,
   Contact2,
   Inbox,
@@ -244,13 +246,24 @@ function HoursChart({ weeks }) {
 }
 
 export function Dashboard() {
-  const { adminAccount } = useAuth()
+  const { adminAccount, isSuperAdmin } = useAuth()
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
+  // Super Admin : voir le tableau de bord tel que le voit un delegue.
+  const [delegates, setDelegates] = useState([])
+  const [asAdmin, setAsAdmin] = useState('')
+
+  useEffect(() => {
+    if (!isSuperAdmin) return
+    api
+      .get('/admin-accounts')
+      .then((accounts) => setDelegates(accounts.filter((a) => a.role === 'admin' && a.isActive)))
+      .catch(() => {})
+  }, [isSuperAdmin])
 
   const load = () =>
     api
-      .get('/dashboard/cockpit')
+      .get(`/dashboard/cockpit${asAdmin ? `?asAdmin=${asAdmin}` : ''}`)
       .then((result) => {
         setData(result)
         setError(null)
@@ -260,7 +273,7 @@ export function Dashboard() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [asAdmin])
   useAutoRefresh(load)
 
   if (error && !data) return <Alert>{error}</Alert>
@@ -283,9 +296,34 @@ export function Dashboard() {
             Votre zone : {adminAccount.zoneAddress} ({adminAccount.zoneRadiusKm} km)
           </span>
         )}
+        {isSuperAdmin && delegates.length > 0 && (
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <Eye size={15} className="text-navy" />
+            Vue :
+            <select
+              value={asAdmin}
+              onChange={(e) => setAsAdmin(e.target.value)}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
+            >
+              <option value="">Toutes les zones</option>
+              {delegates.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                  {d.zoneAddress ? ` — ${d.zoneAddress} (${d.zoneRadiusKm} km)` : ' — toutes zones'}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
+      {asAdmin && (
+        <p className="-mt-2 rounded-lg bg-navy/5 px-3 py-2 text-xs text-navy">
+          Vous voyez le tableau de bord tel que l'affiche{' '}
+          <strong>{delegates.find((d) => d.id === asAdmin)?.name}</strong> (ses droits et sa zone).
+        </p>
+      )}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <KpiCard
           icon={Users}
           label="Élèves actifs"
@@ -293,6 +331,7 @@ export function Dashboard() {
           footer={kpis.students.delta > 0 ? <span className="text-green-600">+{kpis.students.delta} {kpis.students.deltaLabel}</span> : null}
         />
         <KpiCard icon={Contact2} label="Enseignants actifs" value={kpis.teachers.value} />
+        <KpiCard icon={Home} label="Familles inscrites" value={kpis.families?.value ?? 0} />
         <KpiCard
           icon={Clock}
           label="Heures ce mois"
@@ -326,12 +365,14 @@ export function Dashboard() {
       </div>
 
       {/* Carte visible sans defiler, a cote de la journee et des taches. */}
-      <div className="grid gap-4 xl:grid-cols-5">
-        <div className="xl:col-span-3">
-          <DashboardMap height={430} className="h-full" />
-        </div>
-        <div className="flex flex-col gap-4 xl:col-span-2">
+      {/* Carte en grand format, visible des l'ouverture sous les chiffres cles. */}
+      <DashboardMap height={480} className="" asAdmin={asAdmin} />
+
+      <div className="grid gap-4 lg:grid-cols-5">
+        <div className="lg:col-span-3">
           <TodayCard sessions={data.today} />
+        </div>
+        <div className="lg:col-span-2">
           <TodoCard items={data.todo} />
         </div>
       </div>

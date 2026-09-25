@@ -35,19 +35,6 @@ export class ContactsService {
       },
     });
 
-    this.adminNotification.notify({
-      subject: `Nouveau lead : ${dto.name}`,
-      title: 'Nouveau lead reçu',
-      lines: [
-        `Nom : ${dto.name}`,
-        `Profil : ${dto.profile}`,
-        `Email : ${dto.email}`,
-        `Téléphone : ${dto.phone}`,
-        `Services : ${dto.services.join(', ')}`,
-      ],
-      path: `/leads/${lead.id}`,
-    });
-
     // Accuse de reception best-effort : ne doit jamais retarder la reponse du
     // formulaire ni faire echouer la creation du lead.
     this.emailService
@@ -65,15 +52,31 @@ export class ContactsService {
 
     // Best-effort, en tâche de fond : ne doit jamais retarder la réponse du
     // formulaire de contact ni faire échouer la création du lead.
-    if (dto.address) {
-      this.geocoding
-        .geocode(dto.address, dto.postalCode)
-        .then((coords) => {
-          if (!coords) return;
-          return this.prisma.lead.update({ where: { id: lead.id }, data: coords });
-        })
-        .catch((error) => this.logger.warn(`Géocodage du lead ${lead.id} échoué: ${error}`));
-    }
+    // La notification admin part une fois le lead localise : les delegues
+    // dont la zone couvre l'adresse sont alors prevenus eux aussi.
+    const located = dto.address
+      ? this.geocoding
+          .geocode(dto.address, dto.postalCode)
+          .then((coords) => {
+            if (!coords) return;
+            return this.prisma.lead.update({ where: { id: lead.id }, data: coords });
+          })
+          .catch((error) => this.logger.warn(`Géocodage du lead ${lead.id} échoué: ${error}`))
+      : Promise.resolve();
+    void located.finally(() =>
+      this.adminNotification.notify({
+        subject: `Nouveau lead : ${dto.name}`,
+        title: 'Nouveau lead reçu',
+        lines: [
+          `Nom : ${dto.name}`,
+          `Profil : ${dto.profile}`,
+          `Email : ${dto.email}`,
+          `Téléphone : ${dto.phone}`,
+          `Services : ${dto.services.join(', ')}`,
+        ],
+        path: `/leads/${lead.id}`,
+      }),
+    );
 
     return lead;
   }

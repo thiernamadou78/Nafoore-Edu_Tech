@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Circle, MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MapPin } from 'lucide-react'
@@ -69,17 +69,18 @@ function zoneBounds({ latitude, longitude, radiusKm }) {
 const STUDENT_ICON = pinIcon('#1E3A8A')
 const TEACHER_ICON = pinIcon('#EAB308')
 
-export function DashboardMap({ height = 420, className = 'mb-6' }) {
+export function DashboardMap({ height = 420, className = 'mb-6', asAdmin = '' }) {
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    setData(null)
     api
-      .get('/dashboard/map')
+      .get(`/dashboard/map${asAdmin ? `?asAdmin=${asAdmin}` : ''}`)
       .then(setData)
       .catch((err) => setError(err.message))
-  }, [])
+  }, [asAdmin])
 
   const studentCount = data?.students.length ?? 0
   const teacherCount = data?.teachers.length ?? 0
@@ -133,13 +134,6 @@ export function DashboardMap({ height = 420, className = 'mb-6' }) {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              {zone && (
-                <Circle
-                  center={[zone.latitude, zone.longitude]}
-                  radius={zone.radiusKm * 1000}
-                  pathOptions={{ color: '#1E3A8A', weight: 2, fillColor: '#EAB308', fillOpacity: 0.08 }}
-                />
-              )}
               {data.students.map((student) => (
                 <HoverMarker
                   key={`student-${student.id}`}
