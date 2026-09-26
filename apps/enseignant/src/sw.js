@@ -1,4 +1,18 @@
-import { precacheAndRoute } from 'workbox-precaching'
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
+
+// Mise a jour immediate : sans ca, une nouvelle version deployee restait "en
+// attente" tant que l'appli installee n'etait pas entierement fermee (ce qui
+// n'arrive presque jamais sur un telephone) -> l'ancienne version restait
+// affichee. La nouvelle version prend la main tout de suite et la page est
+// rechargee par registerSW (voir main.jsx).
+self.skipWaiting()
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
+
+// Supprime les fichiers des anciennes versions encore en cache.
+cleanupOutdatedCaches()
 
 // Injecté par vite-plugin-pwa (strategies: 'injectManifest') au build.
 precacheAndRoute(self.__WB_MANIFEST)
