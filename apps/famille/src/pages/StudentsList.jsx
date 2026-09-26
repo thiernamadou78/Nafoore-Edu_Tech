@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
 import { CHILD_STATUS_LABELS, CHILD_STATUS_TONES } from './labels'
+import { PhotoOrInitials } from '../components/ui/PhotoOrInitials'
 
 const BORDER_BY_STATUS = {
   actif: 'border-l-leaf-500',
@@ -29,11 +30,7 @@ function ChildCard({ student }) {
     <Card className={`flex flex-col border-l-[3px] ${BORDER_BY_STATUS[status]}`}>
       <div className="flex items-center gap-3 p-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy font-medium text-gold-400">
-          {student.photoUrl ? (
-            <img src={student.photoUrl} alt={student.name} className="h-full w-full object-cover" />
-          ) : (
-            getInitials(student.name)
-          )}
+          <PhotoOrInitials src={student.photoUrl} alt={student.name} initials={getInitials(student.name)} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-serif text-base font-medium text-gray-900">{student.name}</p>

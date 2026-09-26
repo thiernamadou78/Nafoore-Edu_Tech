@@ -13,6 +13,7 @@ import { Badge } from '../components/ui/Badge'
 import { SessionReport } from '../components/SessionReport'
 import { SessionActions, SessionChangeNote } from '../components/SessionActions'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from './labels'
+import { PhotoOrInitials } from '../components/ui/PhotoOrInitials'
 
 function getInitials(name) {
   const parts = name.trim().split(/\s+/)
@@ -45,11 +46,7 @@ function ChildPlanningSection({ student }) {
     <Card className="p-5">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy font-medium text-gold-400">
-          {student.photoUrl ? (
-            <img src={student.photoUrl} alt={student.name} className="h-full w-full object-cover" />
-          ) : (
-            getInitials(student.name)
-          )}
+          <PhotoOrInitials src={student.photoUrl} alt={student.name} initials={getInitials(student.name)} />
         </div>
         <div className="min-w-0 flex-1">
           <Link

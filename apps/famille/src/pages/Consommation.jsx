@@ -6,6 +6,7 @@ import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { Card } from '../components/ui/Card'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
+import { PhotoOrInitials } from '../components/ui/PhotoOrInitials'
 
 function getInitials(name) {
   return (name || '?')
@@ -73,11 +74,7 @@ function ChildCard({ child, rows }) {
       <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-navy to-navy/90 px-5 py-4 text-white">
         <Link to={`/eleves/${child.id}`} className="flex min-w-0 items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 font-semibold text-gold-400 ring-2 ring-gold-400/60">
-            {child.photoUrl ? (
-              <img src={child.photoUrl} alt={child.name} className="h-full w-full object-cover" />
-            ) : (
-              getInitials(child.name)
-            )}
+            <PhotoOrInitials src={child.photoUrl} alt={child.name} initials={getInitials(child.name)} />
           </span>
           <span className="min-w-0">
             <span className="block truncate font-semibold hover:underline">{child.name}</span>

@@ -39,6 +39,7 @@ import {
   TEACHER_REQUEST_STATUS_LABELS,
   TEACHER_REQUEST_STATUS_TONES,
 } from './labels'
+import { PhotoOrInitials } from '../components/ui/PhotoOrInitials'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -159,11 +160,7 @@ export function StudentDetail() {
       {/* En-tête élève */}
       <div className="mb-6 flex items-center gap-4">
         <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy font-medium text-gold-400">
-          {student.photoUrl ? (
-            <img src={student.photoUrl} alt={student.name} className="h-full w-full object-cover" />
-          ) : (
-            getInitials(student.name)
-          )}
+          <PhotoOrInitials src={student.photoUrl} alt={student.name} initials={getInitials(student.name)} />
         </div>
         <div>
           <h1 className="font-serif text-xl font-bold text-navy">{student.name}</h1>
@@ -537,11 +534,7 @@ function MatchingProposalCard({ matching, onChanged }) {
     <div className="rounded-lg border-l-4 border-l-gold-400 bg-gold-400/10 p-3">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy/10 text-navy">
-          {teacher.photoUrl ? (
-            <img src={teacher.photoUrl} alt={teacher.name} className="h-full w-full object-cover" />
-          ) : (
-            getInitials(teacher.name)
-          )}
+          <PhotoOrInitials src={teacher.photoUrl} alt={teacher.name} initials={getInitials(teacher.name)} />
         </div>
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900">

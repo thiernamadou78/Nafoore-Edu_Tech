@@ -5,6 +5,7 @@ import { Download, FileText } from 'lucide-react'
 import logoSrc from '../../components/IMG/Logo.png'
 import { Button } from '../../components/ui/Button'
 import { CLASSE_LABELS, FUNDING_SOURCE_LABELS, LEVEL_LABELS } from './labels'
+import { PhotoOrInitials } from '../../components/ui/PhotoOrInitials'
 
 // Remplace html-to-image : sur les navigateurs Chromium récents, son clonage
 // inline (des centaines de propriétés CSS répétées sur chaque élément) fait
@@ -213,17 +214,9 @@ export function PassEducatifCard({ student }) {
 
       <div className="mx-3 rounded-2xl bg-white px-6 py-6">
         <div className="flex items-center gap-4">
-          {student.photoUrl ? (
-            <img
-              src={student.photoUrl}
-              alt={student.name}
-              className="h-16 w-16 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-50 font-serif text-xl font-bold text-navy">
-              {initials(student.name)}
-            </div>
-          )}
+          <div className="relative overflow-hidden flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-50 font-serif text-xl font-bold text-navy">
+            <PhotoOrInitials src={student.photoUrl} alt={student.name} initials={initials(student.name)} />
+          </div>
           <div>
             <p className="font-serif text-lg font-bold leading-tight text-navy">{student.name}</p>
             <p className="text-sm text-gray-500">Classe de {classeLabel}</p>

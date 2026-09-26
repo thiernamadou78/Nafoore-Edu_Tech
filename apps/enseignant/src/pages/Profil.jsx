@@ -9,6 +9,7 @@ import { Spinner } from '../components/ui/Spinner'
 import { SUBJECT_CATEGORY_LABELS, useSubjects } from '../lib/useSubjects'
 import { LevelPicker } from '../components/LevelPicker'
 import { useCitySuggestions } from '../lib/useCitySuggestions'
+import { PhotoOrInitials } from '../components/ui/PhotoOrInitials'
 
 const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
@@ -257,11 +258,7 @@ export function Profil() {
 
           <div className="mb-5 flex items-center gap-4 rounded-xl border border-dashed border-gray-200 p-3">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy font-medium text-gold-400">
-              {form.photoUrl ? (
-                <img src={form.photoUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                getInitials(form.name)
-              )}
+              <PhotoOrInitials src={form.photoUrl} alt="" initials={getInitials(form.name)} />
             </div>
             <div>
               <Button
