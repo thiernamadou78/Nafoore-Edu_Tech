@@ -1,4 +1,4 @@
-import { ArrayMinSize, IsArray, IsEmail, IsIn, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
+import { ArrayMinSize, IsArray, IsDateString, IsEmail, IsIn, IsOptional, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
 import { CONTACT_SERVICES } from '../../contacts/dto/create-contact.dto';
 import { PHONE_ERROR_MESSAGE, PHONE_REGEX } from '../../common/phone';
 
@@ -44,4 +44,9 @@ export class CreateFamilyLeadDto {
 
   @Length(2, 100, { message: 'La ville / commune est obligatoire' })
   city: string;
+
+  // Comme sur le formulaire de contact : date de debut souhaitee (facultative).
+  @IsOptional()
+  @IsDateString({}, { message: 'Date de début souhaitée invalide' })
+  desiredStartDate?: string;
 }

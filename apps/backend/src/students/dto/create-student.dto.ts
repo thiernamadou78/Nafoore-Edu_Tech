@@ -17,6 +17,12 @@ export class CreateStudentDto {
   @MaxLength(100)
   name: string;
 
+  // Comme cote famille (facultatif ici pour les autres creations d'eleve,
+  // mais demande par le formulaire admin).
+  @IsOptional()
+  @IsIn(['homme', 'femme'], { message: 'Le genre doit être homme ou femme' })
+  gender?: string;
+
   @IsIn(['primaire', 'college', 'lycee'], { message: 'level doit être primaire, college ou lycee' })
   level: string;
 

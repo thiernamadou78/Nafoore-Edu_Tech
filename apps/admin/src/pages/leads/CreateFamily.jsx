@@ -28,6 +28,7 @@ const DEFAULT_FORM = {
   city: '',
   address: '',
   postalCode: '',
+  desiredStartDate: '',
   message: '',
 }
 
@@ -73,6 +74,7 @@ export function CreateFamily() {
         city: form.city,
         address: form.address,
         postalCode: form.postalCode,
+        desiredStartDate: form.desiredStartDate || undefined,
         message: form.message,
       })
       const params = new URLSearchParams({ leadId: lead.id, familyName: form.name })
@@ -235,6 +237,18 @@ export function CreateFamily() {
           <p className="-mt-2 text-xs text-gray-400">
             Permet d'afficher la famille sur la carte du tableau de bord.
           </p>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Date de début souhaitée
+            </label>
+            <input
+              type="date"
+              value={form.desiredStartDate}
+              onChange={(e) => setForm({ ...form, desiredStartDate: e.target.value })}
+              className={inputClass}
+            />
+          </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">

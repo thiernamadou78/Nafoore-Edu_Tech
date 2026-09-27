@@ -15,8 +15,8 @@ const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
 const GENDERS = [
-  { value: 'homme', label: 'Homme' },
-  { value: 'femme', label: 'Femme' },
+  { value: 'homme', label: 'Garçon' },
+  { value: 'femme', label: 'Fille' },
 ]
 
 function isoDateYearsAgo(years) {

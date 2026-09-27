@@ -15,20 +15,57 @@ import { SubjectPicker } from './SubjectPicker'
 import { SUBJECT_CATEGORY_LABELS, useSubjects } from '../../lib/useSubjects'
 import { CLASS_LABELS, LEVELS, formatLevels, matchLevel } from '../../lib/levels'
 import { useCitySuggestions } from '../../lib/useCitySuggestions'
+import { LevelPicker } from '../../components/LevelPicker'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
+// Memes champs que le formulaire de candidature de la vitrine : un prof cree
+// par l'admin doit avoir un profil aussi complet qu'un candidat valide.
 const EMPTY_FORM = {
   name: '',
   gender: '',
   subjects: [],
+  levels: [],
+  classes: [],
+  availabilityDays: [],
   address: '',
   postalCode: '',
   city: '',
   email: '',
   phone: '',
   bio: '',
+}
+
+const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
+// Choix d'un ou plusieurs fichiers (bouton + nom du fichier choisi).
+function FileField({ label, multiple = false, files, onChange }) {
+  const inputRef = useRef(null)
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+      <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()} className="max-w-full px-3 py-1.5">
+        <span className="truncate">
+          {files.length === 0
+            ? multiple
+              ? 'Choisir des fichiers'
+              : 'Choisir un fichier'
+            : files.length === 1
+              ? files[0].name
+              : `${files.length} fichiers`}
+        </span>
+      </Button>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple={multiple}
+        accept=".pdf,.jpg,.jpeg,.png"
+        onChange={(e) => onChange(Array.from(e.target.files ?? []))}
+        className="hidden"
+      />
+    </div>
+  )
 }
 
 const PROFILE_FILTERS = [
@@ -93,12 +130,16 @@ export function TeachersList() {
     form?.city,
     (city) => setForm((f) => (f ? { ...f, city } : f)),
   )
+  // Documents facultatifs, comme sur la candidature.
+  const [cvFiles, setCvFiles] = useState([])
+  const [identityFiles, setIdentityFiles] = useState([])
   const [diplomaFiles, setDiplomaFiles] = useState([])
-  const [criminalRecordFile, setCriminalRecordFile] = useState(null)
+  const [criminalRecordFiles, setCriminalRecordFiles] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
-  const diplomasInputRef = useRef(null)
-  const criminalRecordInputRef = useRef(null)
+  // Niveaux demandes seulement si une matiere de soutien scolaire est choisie
+  // (inutiles pour un formateur pro), comme sur la candidature.
+  const needsLevels = form.subjects.some((name) => !isPro(name))
 
   const load = useCallback(
     () =>
@@ -180,8 +221,10 @@ export function TeachersList() {
   const closeCreate = () => {
     setShowCreate(false)
     setForm(EMPTY_FORM)
+    setCvFiles([])
+    setIdentityFiles([])
     setDiplomaFiles([])
-    setCriminalRecordFile(null)
+    setCriminalRecordFiles([])
     setError(null)
   }
 
@@ -200,6 +243,14 @@ export function TeachersList() {
       setError('Choisissez au moins une matière.')
       return
     }
+    if (needsLevels && form.levels.length === 0) {
+      setError('Choisissez au moins un niveau scolaire.')
+      return
+    }
+    if (form.availabilityDays.length === 0) {
+      setError('Choisissez au moins un jour de disponibilité.')
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
@@ -207,6 +258,9 @@ export function TeachersList() {
         name: form.name,
         gender: form.gender,
         subjects: form.subjects,
+        levels: needsLevels ? form.levels : [],
+        classes: needsLevels ? form.classes : [],
+        availabilityDays: form.availabilityDays,
         address: form.address,
         postalCode: form.postalCode,
         city: form.city.trim(),
@@ -215,8 +269,10 @@ export function TeachersList() {
         bio: form.bio.trim(),
       })
       await Promise.all([
+        ...cvFiles.map((file) => uploadDocument(teacher.id, file, 'cv')),
+        ...identityFiles.map((file) => uploadDocument(teacher.id, file, 'piece_identite')),
         ...diplomaFiles.map((file) => uploadDocument(teacher.id, file, 'diplome')),
-        ...(criminalRecordFile ? [uploadDocument(teacher.id, criminalRecordFile, 'casier_judiciaire')] : []),
+        ...criminalRecordFiles.map((file) => uploadDocument(teacher.id, file, 'casier_judiciaire')),
       ])
       closeCreate()
       await load()
@@ -509,14 +565,6 @@ export function TeachersList() {
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Matières *</label>
-            <SubjectPicker
-              selected={form.subjects}
-              onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
-            />
-          </div>
-
           {/* Adresse : meme bloc que le formulaire de contact (adresse, puis
               code postal et ville proposee a partir du code postal). */}
           <div className="space-y-3 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
@@ -570,7 +618,54 @@ export function TeachersList() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Bio *</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Matières / domaines *</label>
+            <SubjectPicker
+              selected={form.subjects}
+              onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
+            />
+          </div>
+
+          {needsLevels && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Niveaux scolaires *</label>
+              <LevelPicker
+                levels={form.levels}
+                classes={form.classes}
+                onChange={({ levels, classes }) => setForm((f) => ({ ...f, levels, classes }))}
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Disponibilités *</label>
+            <div className="flex flex-wrap gap-1.5">
+              {DAYS_OF_WEEK.map((day) => {
+                const active = form.availabilityDays.includes(day)
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        availabilityDays: active
+                          ? f.availabilityDays.filter((d) => d !== day)
+                          : [...f.availabilityDays, day],
+                      }))
+                    }
+                    className={`rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-colors ${
+                      active ? 'border-navy bg-navy text-white' : 'border-gray-200 text-gray-600 hover:border-navy/30'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Présentation (visible par les familles) *</label>
             <textarea
               rows={3}
               required
@@ -582,47 +677,15 @@ export function TeachersList() {
             />
           </div>
 
-          <div className="grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Diplômes (PDF, JPG, PNG)
-              </label>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => diplomasInputRef.current?.click()}
-                className="px-3 py-1.5"
-              >
-                {diplomaFiles.length > 0 ? `${diplomaFiles.length} fichier(s)` : 'Choisir des fichiers'}
-              </Button>
-              <input
-                ref={diplomasInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => setDiplomaFiles(Array.from(e.target.files ?? []))}
-                className="hidden"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Casier judiciaire (B3)
-              </label>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => criminalRecordInputRef.current?.click()}
-                className="px-3 py-1.5"
-              >
-                {criminalRecordFile ? criminalRecordFile.name : 'Choisir un fichier'}
-              </Button>
-              <input
-                ref={criminalRecordInputRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => setCriminalRecordFile(e.target.files?.[0] ?? null)}
-                className="hidden"
-              />
+          <div className="border-t border-gray-100 pt-4">
+            <p className="mb-3 text-xs text-gray-500">
+              Documents facultatifs (PDF, JPG ou PNG), ajoutables aussi plus tard depuis la fiche.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FileField label="CV" files={cvFiles} onChange={setCvFiles} />
+              <FileField label="Pièce d'identité" files={identityFiles} onChange={setIdentityFiles} />
+              <FileField label="Diplômes" multiple files={diplomaFiles} onChange={setDiplomaFiles} />
+              <FileField label="Casier judiciaire (B3)" files={criminalRecordFiles} onChange={setCriminalRecordFiles} />
             </div>
           </div>
 

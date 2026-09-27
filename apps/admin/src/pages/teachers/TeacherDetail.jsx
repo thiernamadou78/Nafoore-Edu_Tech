@@ -22,6 +22,8 @@ import { DocumentViewer } from '../../components/DocumentViewer'
 import { TeacherReviewsCard } from '../../components/TeacherReviewsCard'
 import { useCitySuggestions } from '../../lib/useCitySuggestions'
 
+const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
@@ -55,6 +57,7 @@ export function TeacherDetail() {
     subjects: [],
     levels: [],
     classes: [],
+    availabilityDays: [],
     bio: '',
     address: '',
     postalCode: '',
@@ -81,6 +84,7 @@ export function TeacherDetail() {
         subjects: data.subjects,
         levels: data.levels ?? [],
         classes: data.classes ?? [],
+        availabilityDays: data.availabilityDays ?? [],
         bio: data.bio ?? '',
         address: data.address ?? '',
         postalCode: data.postalCode ?? '',
@@ -265,7 +269,34 @@ export function TeacherDetail() {
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">Bio *</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Disponibilités</label>
+            <div className="flex flex-wrap gap-1.5">
+              {DAYS_OF_WEEK.map((day) => {
+                const active = form.availabilityDays.includes(day)
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        availabilityDays: active
+                          ? f.availabilityDays.filter((d) => d !== day)
+                          : [...f.availabilityDays, day],
+                      }))
+                    }
+                    className={`rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-colors ${
+                      active ? 'border-navy bg-navy text-white' : 'border-gray-200 text-gray-600 hover:border-navy/30'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Présentation (visible par les familles) *</label>
             <textarea
               rows={3}
               required
@@ -305,6 +336,7 @@ export function TeacherDetail() {
                   subjects: form.subjects,
                   levels: form.levels,
                   classes: form.classes,
+                  availabilityDays: form.availabilityDays,
                   bio: form.bio.trim(),
                   address: form.address,
                   postalCode: form.postalCode,

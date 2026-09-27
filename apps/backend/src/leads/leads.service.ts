@@ -37,6 +37,7 @@ export class LeadsService {
         address: dto.address ?? null,
         postalCode: dto.postalCode ?? null,
         city: dto.city,
+        desiredStartDate: dto.desiredStartDate ? new Date(dto.desiredStartDate) : null,
         status: 'valide',
         assignedToId: actorId,
       },
