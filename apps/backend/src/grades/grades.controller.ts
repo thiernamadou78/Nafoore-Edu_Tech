@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { Permission } from '../auth/permissions';
 import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
@@ -11,6 +11,7 @@ import { CurrentTeacherAccount } from '../auth/current-teacher-account.decorator
 import { AuthenticatedTeacherAccount, TeacherAuthGuard } from '../auth/teacher-auth.guard';
 import { GradesService } from './grades.service';
 import { CreateGradeDto } from './dto/create-grade.dto';
+import { UpdateGradeDto } from './dto/update-grade.dto';
 
 @UseGuards(TeacherAuthGuard)
 @Controller('teacher')
@@ -32,6 +33,15 @@ export class TeacherGradesController {
     @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
   ) {
     return this.grades.addGrade(teacherAccount, id, dto);
+  }
+
+  @Patch('grades/:id')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateGradeDto,
+    @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,
+  ) {
+    return this.grades.updateGrade(teacherAccount, id, dto);
   }
 
   @Delete('grades/:id')

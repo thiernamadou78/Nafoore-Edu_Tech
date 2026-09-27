@@ -88,7 +88,7 @@ export function StudentDetail() {
   const { id } = useParams()
   const [student, setStudent] = useState(null)
   const [error, setError] = useState(null)
-  const [tab, setTab] = useState('suivi')
+  const [tab, setTab] = useState('enseignants')
 
   const now = Date.now()
   const sessions = student?.sessions ?? []
@@ -155,10 +155,10 @@ export function StudentDetail() {
     }))
 
   const tabs = [
-    { key: 'suivi', label: 'Suivi' },
-    { key: 'planning', label: 'Planning' },
     { key: 'enseignants', label: 'Enseignants', count: activeRequests.length },
     { key: 'pass', label: 'Pass' },
+    { key: 'planning', label: 'Planning' },
+    { key: 'suivi', label: 'Suivi' },
   ]
 
   return (

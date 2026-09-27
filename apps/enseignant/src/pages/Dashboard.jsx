@@ -96,8 +96,8 @@ export function Dashboard() {
             Notes initiales à saisir
           </h2>
           <p className="mb-3 text-xs text-gray-500">
-            Dès que l'élève a ses notes (Pronote), renseigne-les : elles servent de point de départ à
-            sa progression.
+            Relève-les depuis le compte Pronote de l'élève dès qu'elles y sont : elles servent de
+            point de départ à sa progression.
           </p>
           <div className="space-y-2">
             {data.missingBaselines.map((item) => (

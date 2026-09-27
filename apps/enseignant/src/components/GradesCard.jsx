@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LineChart, Trash2 } from 'lucide-react'
+import { LineChart, Pencil, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
 import { Alert } from './ui/Alert'
@@ -12,6 +12,7 @@ const inputClass =
 
 const KIND_LABELS = { depart: 'Initiale', suivi: 'Évaluation' }
 const BASELINE_LABEL = 'Note initiale'
+const LABEL_PLACEHOLDER = 'Ex : Évaluation 1, Note 1'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -23,10 +24,130 @@ function formatMonth(month) {
   })
 }
 
-// Notes relevees sur Pronote : le prof est le seul a les saisir. La note
+// Notes relevees par le prof depuis le compte Pronote de l'eleve. La note
 // initiale (avant l'accompagnement) sert de point de depart a la progression ;
 // elle ne bloque rien (l'eleve ne l'a pas toujours au 1er cours) mais un
 // rappel reste affiche tant qu'elle manque. Chaque note a une denomination.
+// Une note, corrigeable en place (erreur de saisie) ou supprimable.
+function GradeRow({ grade, onSaved, onRemove, onError }) {
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [draft, setDraft] = useState(null)
+
+  const startEdit = () => {
+    setDraft({
+      kind: grade.kind,
+      label: grade.label ?? '',
+      value: String(grade.value).replace('.', ','),
+      scale: grade.scale,
+      evaluatedAt: new Date(grade.evaluatedAt).toISOString().slice(0, 10),
+      comment: grade.comment ?? '',
+    })
+    setEditing(true)
+  }
+
+  const save = async () => {
+    setSaving(true)
+    onError(null)
+    try {
+      await api.patch(`/teacher/grades/${grade.id}`, {
+        kind: draft.kind,
+        label: draft.label.trim(),
+        value: Number(draft.value.toString().replace(',', '.')),
+        scale: Number(draft.scale),
+        evaluatedAt: draft.evaluatedAt,
+        comment: draft.comment.trim(),
+      })
+      setEditing(false)
+      await onSaved()
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    const set = (key) => (e) => setDraft((d) => ({ ...d, [key]: e.target.value }))
+    return (
+      <li className="space-y-2 py-2 text-xs">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <input
+            value={draft.label}
+            onChange={set('label')}
+            maxLength={80}
+            placeholder={`Dénomination * (${LABEL_PLACEHOLDER})`}
+            className={inputClass}
+          />
+          <select value={draft.kind} onChange={set('kind')} className={inputClass}>
+            <option value="depart">Note initiale (avant le prof)</option>
+            <option value="suivi">Évaluation (avec le prof)</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-[1fr_auto_1fr_1fr] items-center gap-2">
+          <input inputMode="decimal" value={draft.value} onChange={set('value')} className={inputClass} />
+          <span className="text-gray-500">sur</span>
+          <select value={draft.scale} onChange={set('scale')} className={inputClass}>
+            {[20, 10, 40, 100].map((scale) => (
+              <option key={scale} value={scale}>
+                {scale}
+              </option>
+            ))}
+          </select>
+          <input type="date" max={today()} value={draft.evaluatedAt} onChange={set('evaluatedAt')} className={inputClass} />
+        </div>
+        <input
+          value={draft.comment}
+          onChange={set('comment')}
+          maxLength={300}
+          placeholder="Commentaire (facultatif)"
+          className={inputClass}
+        />
+        <div className="flex gap-2">
+          <Button loading={saving} disabled={!draft.label.trim() || draft.value === ''} onClick={save}>
+            Enregistrer
+          </Button>
+          <Button variant="secondary" onClick={() => setEditing(false)}>
+            Annuler
+          </Button>
+        </div>
+      </li>
+    )
+  }
+
+  return (
+    <li className="flex items-center justify-between gap-2 py-1.5 text-xs">
+      <span className="text-gray-700">
+        <Badge tone={grade.kind === 'depart' ? 'amber' : 'blue'}>{KIND_LABELS[grade.kind]}</Badge>{' '}
+        {grade.label && <span className="font-medium text-gray-900">{grade.label} · </span>}
+        <span className="font-medium">
+          {grade.value}/{grade.scale}
+        </span>{' '}
+        · {formatDate(grade.evaluatedAt)}
+        {grade.comment ? ` · ${grade.comment}` : ''}
+      </span>
+      <span className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={startEdit}
+          aria-label="Modifier la note"
+          className="text-gray-400 hover:text-navy"
+        >
+          <Pencil size={14} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onRemove(grade.id)}
+          aria-label="Supprimer la note"
+          className="text-gray-400 hover:text-red-600"
+        >
+          <Trash2 size={14} />
+        </button>
+      </span>
+    </li>
+  )
+}
+
 export function GradesCard({ studentId, subjects }) {
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
@@ -97,8 +218,9 @@ export function GradesCard({ studentId, subjects }) {
         Notes et progression
       </h2>
       <p className="mb-4 text-xs text-gray-500">
-        Note relevée sur Pronote (avec l'élève ou son parent). La progression compare la moyenne
-        de départ à la moyenne du dernier mois.
+        Notes relevées depuis le compte Pronote de l'élève (avec lui ou son parent). La progression
+        compare la note initiale à la moyenne du dernier mois. Une erreur de saisie ? Clique sur le
+        crayon pour corriger la note.
       </p>
 
       {error && <Alert className="mb-3">{error}</Alert>}
@@ -142,25 +264,7 @@ export function GradesCard({ studentId, subjects }) {
           )}
           <ul className="divide-y divide-gray-100 px-3 py-1">
             {subject.grades.map((grade) => (
-              <li key={grade.id} className="flex items-center justify-between gap-2 py-1.5 text-xs">
-                <span className="text-gray-700">
-                  <Badge tone={grade.kind === 'depart' ? 'amber' : 'blue'}>{KIND_LABELS[grade.kind]}</Badge>{' '}
-                  {grade.label && <span className="font-medium text-gray-900">{grade.label} · </span>}
-                  <span className="font-medium">
-                    {grade.value}/{grade.scale}
-                  </span>{' '}
-                  · {formatDate(grade.evaluatedAt)}
-                  {grade.comment ? ` · ${grade.comment}` : ''}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeGrade(grade.id)}
-                  aria-label="Supprimer la note"
-                  className="text-gray-400 hover:text-red-600"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </li>
+              <GradeRow key={grade.id} grade={grade} onSaved={load} onRemove={removeGrade} onError={setError} />
             ))}
           </ul>
         </div>
@@ -209,7 +313,7 @@ export function GradesCard({ studentId, subjects }) {
           value={form.label}
           onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
           maxLength={80}
-          placeholder="Dénomination * (ex : Contrôle chapitre 3, DM fractions)"
+          placeholder={`Dénomination * (${LABEL_PLACEHOLDER})`}
           className={inputClass}
         />
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">

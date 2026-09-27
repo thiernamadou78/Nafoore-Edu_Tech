@@ -47,10 +47,9 @@ function formatTimeRange(date, durationMinutes) {
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
 
-// Note initiale d'un eleve dans une matiere (sa note avant le prof, ex.
-// relevee sur Pronote). Proposee juste apres le 1er compte-rendu, mais jamais
-// bloquante : si l'eleve ne l'a pas encore, "Plus tard" et un rappel reste
-// affiche jusqu'a la saisie.
+// Note initiale d'un eleve dans une matiere (sa note avant le prof, relevee
+// depuis son compte Pronote). Independante du compte-rendu : la seance se
+// cloture sans elle, un rappel reste affiche jusqu'a la saisie.
 function BaselineGradesForm({ studentId, subject, intro, onDone, onCancel }) {
   const [label, setLabel] = useState('Note initiale')
   const [value, setValue] = useState('')
@@ -89,8 +88,8 @@ function BaselineGradesForm({ studentId, subject, intro, onDone, onCancel }) {
       <div className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
         {intro ?? (
           <>
-            Note initiale de l'élève en <strong>{subject}</strong> : sa note avant ton arrivée (ex.
-            relevée sur Pronote).
+            Note initiale de l'élève en <strong>{subject}</strong> : sa note avant ton arrivée,
+            relevée depuis son compte Pronote.
           </>
         )}{' '}
         Pas encore reçue ? Clique sur « Plus tard » : un rappel restera affiché jusqu'à la saisie.
@@ -103,7 +102,7 @@ function BaselineGradesForm({ studentId, subject, intro, onDone, onCancel }) {
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           maxLength={80}
-          placeholder="Ex : Note initiale, Contrôle chapitre 2"
+          placeholder="Ex : Évaluation 1, Note 1"
           className={inputClass}
         />
       </div>
@@ -171,8 +170,8 @@ function MissingBaselinesBanner({ items, onSaved }) {
     <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
       <p className="font-semibold">Notes initiales à saisir</p>
       <p className="mb-2 text-xs text-amber-800">
-        Dès que l'élève a ses notes (Pronote), renseigne-les : elles servent de point de départ à sa
-        progression.
+        Relève-les depuis le compte Pronote de l'élève dès qu'elles y sont : elles servent de point de
+        départ à sa progression.
       </p>
       <ul className="space-y-1.5">
         {items.map((item) => {
@@ -228,8 +227,8 @@ function ReportForm({ session, onCancel, onSave, saving, notice }) {
     <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
       {blocked && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Première séance en {session.subject} : après le compte-rendu, tu pourras saisir la note
-          initiale de l'élève. S'il ne l'a pas encore (Pronote), tu la renseigneras plus tard.
+          Première séance en {session.subject} : pense à saisir la note initiale de l'élève (depuis
+          son compte Pronote), maintenant ou plus tard. Elle ne bloque pas la clôture de la séance.
         </p>
       )}
       {session.notes && !session.chapter && !session.topics && (
@@ -674,9 +673,6 @@ function SessionRow({
             disabled={savingId === session.id}
             onClick={() =>
               onSaveReport(session.id, { status: 'realisee' })
-                .then((result) => {
-                  if (result?.baselineMissing) setBaselineOpen(true)
-                })
                 .catch((err) => setReportNotice({ tone: 'red', text: err.message }))
             }
             className="rounded-full bg-amber-600 px-3 py-1 font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
@@ -714,11 +710,10 @@ function SessionRow({
           onSave={(data) => {
             setReportNotice(null)
             return onSaveReport(session.id, data)
-              .then((result) => {
+              .then(() => {
+                // Seance cloturee ; si la note initiale manque, le rappel
+                // s'affiche sur la ligne (sans enchainer la saisie).
                 setReportOpen(false)
-                // Seance cloturee ; 1re seance sans note initiale : on la
-                // propose tout de suite (sans obligation).
-                if (result?.baselineMissing) setBaselineOpen(true)
               })
               .catch((err) => setReportNotice({ tone: 'red', text: err.message }))
           }}
@@ -729,12 +724,6 @@ function SessionRow({
         <BaselineGradesForm
           studentId={session.studentId}
           subject={session.subject}
-          intro={
-            <>
-              Séance clôturée. Note initiale de l'élève en <strong>{session.subject}</strong> : sa
-              note avant ton arrivée (ex. relevée sur Pronote).
-            </>
-          }
           onCancel={() => setBaselineOpen(false)}
           onDone={async () => {
             setBaselineOpen(false)

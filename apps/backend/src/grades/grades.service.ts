@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
 import { CreateGradeDto } from './dto/create-grade.dto';
+import { UpdateGradeDto } from './dto/update-grade.dto';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const mean = (values: number[]) => values.reduce((sum, v) => sum + v, 0) / values.length;
@@ -165,6 +166,34 @@ export class GradesService {
         scale: dto.scale,
         evaluatedAt,
         comment: dto.comment?.trim() || null,
+      },
+    });
+  }
+
+  // Correction d'une note par le prof qui l'a saisie.
+  async updateGrade(teacherAccount: AuthenticatedTeacherAccount, gradeId: string, dto: UpdateGradeDto) {
+    const grade = await this.prisma.grade.findUnique({ where: { id: gradeId } });
+    if (!grade || !teacherAccount.teacherId || grade.teacherId !== teacherAccount.teacherId) {
+      throw new NotFoundException('Note introuvable');
+    }
+    const label = dto.label === undefined ? undefined : dto.label.trim();
+    if (label === '') throw new BadRequestException('La dénomination de la note est obligatoire');
+    const value = dto.value ?? grade.value;
+    const scale = dto.scale ?? grade.scale;
+    if (value > scale) throw new BadRequestException('La note ne peut pas dépasser le barème');
+    const evaluatedAt = dto.evaluatedAt ? new Date(dto.evaluatedAt) : undefined;
+    if (evaluatedAt && evaluatedAt.getTime() > Date.now() + 86_400_000) {
+      throw new BadRequestException("La date de l'évaluation ne peut pas être dans le futur");
+    }
+    return this.prisma.grade.update({
+      where: { id: gradeId },
+      data: {
+        kind: dto.kind,
+        label,
+        value: dto.value,
+        scale: dto.scale,
+        evaluatedAt,
+        comment: dto.comment === undefined ? undefined : dto.comment.trim() || null,
       },
     });
   }
