@@ -24,6 +24,7 @@ import { FamilyModule } from './family/family.module';
 import { TeacherRequestsModule } from './teacher-requests/teacher-requests.module';
 import { RenewalsModule } from './renewals/renewals.module';
 import { GradesModule } from './grades/grades.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { TeacherApplicationsPublicModule } from './teacher-applications-public/teacher-applications-public.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { AdminMessagingModule } from './admin-messaging/admin-messaging.module';
@@ -70,6 +71,7 @@ import { TestimonialsModule } from './testimonials/testimonials.module';
     TeacherRequestsModule,
     RenewalsModule,
     GradesModule,
+    ReviewsModule,
     TeacherModule,
     AdminMessagingModule,
     FormulasModule,

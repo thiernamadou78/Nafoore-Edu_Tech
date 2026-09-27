@@ -20,5 +20,12 @@
     "build:admin": "npm run build --workspace=apps/admin",
     "build:famille": "npm run build --workspace=apps/famille",
     "build:enseignant": "npm run build --workspace=apps/enseignant"
+  },
+  "overrides": {
+    "multer": "^2.4.0",
+    "body-parser@1": "^1.20.8",
+    "qs": "^6.16.0",
+    "file-type": "^21.3.4",
+    "uuid": "^11.1.1"
   }
 }

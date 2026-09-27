@@ -28,6 +28,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { Spinner } from '../components/ui/Spinner'
 import { SessionsTimeline } from '../components/SessionsTimeline'
 import { ProgressCard } from '../components/ProgressCard'
+import { TeacherReviews } from '../components/TeacherReviews'
 import { SessionReport } from '../components/SessionReport'
 import { PassEducatifCard } from './PassEducatifCard'
 import { DAYS_OF_WEEK, FREQUENCY_OPTIONS, SUBJECTS_BY_LEVEL } from './curriculum'
@@ -295,6 +296,7 @@ export function StudentDetail() {
         <>
           <TeachersSection student={student} />
           <AssignmentsSection student={student} onChanged={load} />
+          <TeacherReviews studentId={student.id} />
           <TeacherRequestsSection
             student={student}
             activeRequests={activeRequests}

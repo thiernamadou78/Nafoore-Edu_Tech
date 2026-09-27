@@ -19,6 +19,7 @@ import { SubjectPicker } from './SubjectPicker'
 import { LevelPicker } from '../../components/LevelPicker'
 import { formatLevels } from '../../lib/levels'
 import { DocumentViewer } from '../../components/DocumentViewer'
+import { TeacherReviewsCard } from '../../components/TeacherReviewsCard'
 import { useCitySuggestions } from '../../lib/useCitySuggestions'
 
 const inputClass =
@@ -412,6 +413,8 @@ export function TeacherDetail() {
           </Button>
         </div>
       </Collapsible>
+
+      <TeacherReviewsCard teacherId={id} />
 
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 p-6 pb-3">

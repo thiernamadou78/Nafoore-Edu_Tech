@@ -122,6 +122,7 @@ model Student {
   fundingLinks   FundingLink[]
   attendanceLogs AttendanceLog[]
   recurringSchedules RecurringSchedule[]
+  teacherReviews TeacherReview[]
 
   @@map("students")
 }
@@ -218,16 +219,23 @@ model Message {
   @@map("messages")
 }
 
+// Avis d'une famille sur l'enseignant de son enfant : un par couple
+// eleve/prof, modifiable par la famille (noms figes pour l'affichage).
 model TeacherReview {
   id          String   @id @default(cuid())
   teacherId   String   @map("teacher_id")
   teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  studentId   String?  @map("student_id")
+  student     Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
   familyName  String   @map("family_name")
   studentName String   @map("student_name")
   rating      Int
   comment     String?
   createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
+  @@unique([studentId, teacherId])
+  @@index([teacherId])
   @@map("teacher_reviews")
 }
 
@@ -542,6 +550,9 @@ model Session {
   // SessionReminderService.sendUpcomingSessionEmails.
   emailReminderSentAt    DateTime? @map("email_reminder_sent_at")
 
+  @@index([studentId, date])
+  @@index([teacherId, date])
+  @@index([status, date])
   @@map("sessions")
 }
 
@@ -1006,3 +1017,4 @@ model Subject {
 
   @@map("subjects")
 }
+
