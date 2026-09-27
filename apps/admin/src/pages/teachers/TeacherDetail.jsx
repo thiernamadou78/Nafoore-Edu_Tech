@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarClock, FileText, Power, Save, Trash2, Upload, Eye } from 'lucide-react'
 import { api } from '../../lib/api'
@@ -29,12 +29,71 @@ const inputClass =
 
 const PHONE_PATTERN = /^(\+33 ?|0)[1-9]([ .-]?\d{2}){4}$/
 
-const TEACHER_DOCUMENT_TYPE_LABELS = {
-  cv: 'CV',
-  piece_identite: "Pièce d'identité",
-  diplome: 'Diplôme',
-  casier_judiciaire: 'Casier judiciaire',
-  autre: 'Autre',
+// Memes emplacements que l'ajout d'enseignant et la candidature.
+const DOCUMENT_SLOTS = [
+  { type: 'cv', label: 'CV', multiple: false },
+  { type: 'piece_identite', label: "Pièce d'identité", multiple: false },
+  { type: 'diplome', label: 'Diplômes', multiple: true },
+  { type: 'casier_judiciaire', label: 'Casier judiciaire (B3)', multiple: false },
+]
+
+// Un emplacement de document : fichiers deja deposes (voir / supprimer) et
+// envoi immediat du ou des fichiers choisis. Un nouvel envoi n'efface jamais
+// l'ancien : la suppression reste une decision explicite de l'admin.
+function DocumentSlot({ slot, documents, uploading, onUpload, onView, onDelete }) {
+  const inputRef = useRef(null)
+  return (
+    <div className="rounded-lg border border-gray-100 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-gray-700">{slot.label}</p>
+        <Button
+          type="button"
+          variant="secondary"
+          icon={Upload}
+          loading={uploading}
+          onClick={() => inputRef.current?.click()}
+          className="px-2.5 py-1 text-xs"
+        >
+          Ajouter
+        </Button>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple={slot.multiple}
+          accept=".pdf,.jpg,.jpeg,.png"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? [])
+            e.target.value = ''
+            if (files.length > 0) onUpload(files)
+          }}
+          className="hidden"
+        />
+      </div>
+      {documents.length === 0 ? (
+        <p className="text-xs text-gray-400">Aucun fichier.</p>
+      ) : (
+        <ul className="space-y-1">
+          {documents.map((doc) => (
+            <li key={doc.id} className="flex items-center justify-between gap-2 text-xs">
+              <span className="min-w-0 truncate text-gray-700" title={doc.fileName}>
+                {doc.fileName}
+                <span className="ml-1 text-gray-400">· {formatDate(doc.createdAt)}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <button type="button" onClick={() => onView(doc)} className="inline-flex items-center gap-1 text-navy hover:underline">
+                  <Eye size={13} />
+                  Voir
+                </button>
+                <button type="button" onClick={() => onDelete(doc)} className="text-gray-400 hover:text-red-600" title="Supprimer">
+                  <Trash2 size={13} />
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 const timeOf = (date) =>
@@ -73,7 +132,6 @@ export function TeacherDetail() {
   )
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
-  const [documentForm, setDocumentForm] = useState({ file: null, type: 'diplome' })
 
   const load = () =>
     api.get(`/teachers/${id}`).then((data) => {
@@ -365,85 +423,58 @@ export function TeacherDetail() {
       </Collapsible>
 
       <Collapsible title="Documents" icon={FileText} className="mb-6" badge={<Badge tone="gray">{teacher.documents.length}</Badge>}>
-        <div className="mb-4 space-y-2">
-          {teacher.documents.length === 0 ? (
-            <p className="text-sm text-gray-500">Aucun document pour l'instant.</p>
-          ) : (
-            teacher.documents.map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between text-sm">
-                <div>
-                  <span className="font-medium text-gray-900">{doc.fileName}</span>
-                  <span className="ml-2 text-gray-500">
-                    {TEACHER_DOCUMENT_TYPE_LABELS[doc.type] ?? doc.type} · {doc.uploadedBy.name} ·{' '}
-                    {formatDate(doc.createdAt)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setViewing({ path: `/teachers/${id}/documents/${doc.id}/view`, fileName: doc.fileName })}
-                    className="inline-flex items-center gap-1 text-navy hover:underline"
-                  >
-                    <Eye size={14} />
-                    Voir
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!window.confirm(`Supprimer définitivement « ${doc.fileName} » ?`)) return
-                      run('delete-doc', () => api.del(`/teachers/${id}/documents/${doc.id}`))
-                    }}
-                    className="text-gray-400 hover:text-red-600"
-                    title="Supprimer"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Type</label>
-            <select
-              value={documentForm.type}
-              onChange={(e) => setDocumentForm((f) => ({ ...f, type: e.target.value }))}
-              className={inputClass}
-            >
-              {Object.entries(TEACHER_DOCUMENT_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1">
-            <label className="mb-1 block text-xs text-gray-500">Fichier</label>
-            <input
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(e) =>
-                setDocumentForm((f) => ({ ...f, file: e.target.files?.[0] ?? null }))
+        <div className="grid gap-3 sm:grid-cols-2">
+          {DOCUMENT_SLOTS.map((slot) => (
+            <DocumentSlot
+              key={slot.type}
+              slot={slot}
+              documents={teacher.documents.filter((doc) => doc.type === slot.type)}
+              uploading={savingAction === `upload-${slot.type}`}
+              onView={(doc) => setViewing({ path: `/teachers/${id}/documents/${doc.id}/view`, fileName: doc.fileName })}
+              onDelete={(doc) => {
+                if (!window.confirm(`Supprimer définitivement « ${doc.fileName} » ?`)) return
+                run('delete-doc', () => api.del(`/teachers/${id}/documents/${doc.id}`))
+              }}
+              onUpload={(files) =>
+                run(`upload-${slot.type}`, async () => {
+                  for (const file of files) {
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    formData.append('type', slot.type)
+                    await api.upload(`/teachers/${id}/documents`, formData)
+                  }
+                })
               }
-              className="w-full text-sm"
+            />
+          ))}
+        </div>
+        {teacher.documents.some((doc) => !DOCUMENT_SLOTS.some((slot) => slot.type === doc.type)) && (
+          <div className="mt-3">
+            <DocumentSlot
+              slot={{ type: 'autre', label: 'Autres documents', multiple: true }}
+              documents={teacher.documents.filter((doc) => !DOCUMENT_SLOTS.some((slot) => slot.type === doc.type))}
+              uploading={savingAction === 'upload-autre'}
+              onView={(doc) => setViewing({ path: `/teachers/${id}/documents/${doc.id}/view`, fileName: doc.fileName })}
+              onDelete={(doc) => {
+                if (!window.confirm(`Supprimer définitivement « ${doc.fileName} » ?`)) return
+                run('delete-doc', () => api.del(`/teachers/${id}/documents/${doc.id}`))
+              }}
+              onUpload={(files) =>
+                run('upload-autre', async () => {
+                  for (const file of files) {
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    formData.append('type', 'autre')
+                    await api.upload(`/teachers/${id}/documents`, formData)
+                  }
+                })
+              }
             />
           </div>
-          <Button
-            icon={Upload}
-            loading={savingAction === 'upload'}
-            disabled={!documentForm.file}
-            onClick={() =>
-              run('upload', async () => {
-                const formData = new FormData()
-                formData.append('file', documentForm.file)
-                formData.append('type', documentForm.type)
-                await api.upload(`/teachers/${id}/documents`, formData)
-                setDocumentForm({ file: null, type: 'diplome' })
-              })
-            }
-          >
-            Envoyer
-          </Button>
-        </div>
+        )}
+        <p className="mt-3 text-xs text-gray-400">
+          PDF, JPG ou PNG. Documents consultables uniquement (pas de téléchargement), chaque consultation est enregistrée.
+        </p>
       </Collapsible>
 
       <TeacherReviewsCard teacherId={id} />
