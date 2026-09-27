@@ -10,6 +10,7 @@ import { SUBJECT_CATEGORY_LABELS, useSubjects } from '../lib/useSubjects'
 import { LevelPicker } from '../components/LevelPicker'
 import { useCitySuggestions } from '../lib/useCitySuggestions'
 import { PhotoOrInitials } from '../components/ui/PhotoOrInitials'
+import { MyDocuments } from '../components/MyDocuments'
 
 const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
@@ -451,6 +452,8 @@ export function Profil() {
           {saved && <span className="text-sm text-leaf-700">Enregistré.</span>}
         </div>
       </form>
+
+      <MyDocuments />
     </div>
   )
 }

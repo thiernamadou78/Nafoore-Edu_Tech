@@ -5,12 +5,10 @@ import {
   Calendar,
   Check,
   FileWarning,
-  KeyRound,
   MessageSquarePlus,
   Paperclip,
   Sparkles,
   Trash2,
-  UserPlus,
   X,
   Eye,
 } from 'lucide-react'
@@ -35,12 +33,6 @@ const DOCUMENT_TYPE_LABELS = {
   diplome: 'Diplôme',
   casier_judiciaire: 'Casier judiciaire',
   autre: 'Autre',
-}
-
-const ACCOUNT_STATUS_LABELS = {
-  invite: 'Invité (mot de passe pas encore changé)',
-  actif: 'Actif',
-  suspendu: 'Suspendu',
 }
 
 const TABS = [
@@ -255,56 +247,18 @@ export function RecruitmentDetail() {
             </div>
           </Card>
 
-          {application.status === 'valide' && (
-            <Card className="p-6">
-              <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-                <UserPlus size={16} className="text-navy" />
-                Compte enseignant
-              </h2>
-              {!application.teacherAccount ? (
-                <>
-                  <p className="mb-3 text-sm text-gray-500">
-                    Aucun compte n'a encore été créé. La création génère un accès à l'espace
-                    enseignant et lui envoie ses identifiants par email.
-                  </p>
-                  <Button
-                    icon={UserPlus}
-                    className="w-full"
-                    loading={savingAction === 'create-account'}
-                    onClick={() =>
-                      run('create-account', () =>
-                        api.post(`/teacher-applications/${id}/create-account`),
-                      )
-                    }
-                  >
-                    Créer le compte
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <p className="mb-3 text-sm text-gray-500">
-                    Statut :{' '}
-                    <span className="font-medium text-gray-700">
-                      {ACCOUNT_STATUS_LABELS[application.teacherAccount.status] ??
-                        application.teacherAccount.status}
-                    </span>
-                  </p>
-                  <Button
-                    variant="secondary"
-                    icon={KeyRound}
-                    className="w-full"
-                    loading={savingAction === 'resend-credentials'}
-                    onClick={() =>
-                      run('resend-credentials', () =>
-                        api.post(`/teacher-applications/${id}/resend-credentials`),
-                      )
-                    }
-                  >
-                    Renvoyer les identifiants
-                  </Button>
-                </>
-              )}
-            </Card>
+          {/* Identifiants du portail : envoyes depuis la fiche de l'enseignant
+              (bloc "Acces au portail"), un seul endroit pour tous les profs. */}
+          {application.status === 'valide' && application.createdTeacherId && (
+            <Link
+              to={`/enseignants/${application.createdTeacherId}`}
+              className="block rounded-xl border border-gray-200 bg-white p-4 text-sm text-navy shadow-sm hover:bg-navy/5"
+            >
+              <span className="font-semibold">Voir la fiche enseignant →</span>
+              <span className="mt-0.5 block text-xs text-gray-500">
+                Accès au portail et envoi des identifiants.
+              </span>
+            </Link>
           )}
         </div>
 

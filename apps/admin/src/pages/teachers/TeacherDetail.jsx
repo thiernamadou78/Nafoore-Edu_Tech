@@ -77,7 +77,10 @@ function DocumentSlot({ slot, documents, uploading, onUpload, onView, onDelete }
             <li key={doc.id} className="flex items-center justify-between gap-2 text-xs">
               <span className="min-w-0 truncate text-gray-700" title={doc.fileName}>
                 {doc.fileName}
-                <span className="ml-1 text-gray-400">· {formatDate(doc.createdAt)}</span>
+                <span className="ml-1 text-gray-400">
+                  · {formatDate(doc.createdAt)}
+                  {!doc.uploadedById && ' · déposé par l’enseignant'}
+                </span>
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 <button type="button" onClick={() => onView(doc)} className="inline-flex items-center gap-1 text-navy hover:underline">

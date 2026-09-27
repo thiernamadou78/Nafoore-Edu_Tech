@@ -3,11 +3,12 @@ import { TeachersController } from './teachers.controller';
 import { TeachersService } from './teachers.service';
 import { TeacherDocumentsController } from './teacher-documents.controller';
 import { TeacherDocumentsService } from './teacher-documents.service';
+import { TeacherPortalDocumentsController } from './teacher-portal-documents.controller';
 import { OnboardingModule } from '../onboarding/onboarding.module';
 
 @Module({
   imports: [OnboardingModule],
-  controllers: [TeachersController, TeacherDocumentsController],
+  controllers: [TeachersController, TeacherDocumentsController, TeacherPortalDocumentsController],
   providers: [TeachersService, TeacherDocumentsService],
 })
 export class TeachersModule {}

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
@@ -29,8 +29,10 @@ export class TeacherDocumentsService {
     teacherId: string,
     file: Express.Multer.File,
     dto: CreateTeacherDocumentDto,
-    actorId: string,
+    // null : depose par l'enseignant depuis son portail.
+    actorId: string | null,
   ) {
+    if (!file) throw new BadRequestException('Aucun fichier reçu');
     // Documents consultables a l'ecran : PDF, JPG ou PNG verifies sur leur
     // contenu reel (pas seulement l'extension).
     const contentType = assertFileSignature(file, DOCUMENT_MIME_TYPES, 'PDF, JPG ou PNG');
