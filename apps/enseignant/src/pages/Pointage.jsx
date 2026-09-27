@@ -124,14 +124,25 @@ function describeResult(result) {
   }
 }
 
+const CAMERA_START_TIMEOUT_MS = 12000
+
 // Arret de la camera sans jamais planter : html5-qrcode peut lever une
 // erreur synchrone si le lecteur n'est pas (ou plus) en cours d'analyse.
+// Renvoie une promesse resolue une fois la camera vraiment liberee.
 function safeStop(scanner) {
+  if (!scanner) return Promise.resolve()
   try {
-    const pending = scanner?.stop()
-    pending?.catch?.(() => {})
+    return Promise.resolve(scanner.stop())
+      .catch(() => {})
+      .then(() => {
+        try {
+          scanner.clear()
+        } catch {
+          // rien a nettoyer
+        }
+      })
   } catch {
-    // deja arrete
+    return Promise.resolve()
   }
 }
 
@@ -139,6 +150,11 @@ export function Pointage() {
   const navigate = useNavigate()
   const scannerRef = useRef(null)
   const scanningRef = useRef(true)
+  // Arret en cours : un redemarrage doit attendre qu'il soit termine, sinon
+  // html5-qrcode refuse la transition et la promesse ne se resout jamais
+  // (chargement infini sur "Relancer le scan").
+  const stoppingRef = useRef(Promise.resolve())
+  const attemptRef = useRef(0)
   const [cameraError, setCameraError] = useState(null)
   const [cameraStopped, setCameraStopped] = useState(false)
   const [result, setResult] = useState(null)
@@ -148,34 +164,80 @@ export function Pointage() {
   const [earlyReason, setEarlyReason] = useState('')
   const [confirmingEarly, setConfirmingEarly] = useState(false)
 
-  const startCamera = () => {
+  const releaseCamera = () => {
+    const scanner = scannerRef.current
+    scannerRef.current = null
+    stoppingRef.current = stoppingRef.current.then(() => safeStop(scanner))
+    return stoppingRef.current
+  }
+
+  const startCamera = async () => {
+    const attempt = ++attemptRef.current
     setStarting(true)
     setCameraError(null)
-    const scanner = scannerRef.current ?? new Html5Qrcode(SCANNER_ELEMENT_ID)
-    scannerRef.current = scanner
+    // Liberer proprement l'ancienne instance avant d'en creer une neuve.
+    await releaseCamera()
+    if (attempt !== attemptRef.current) return
 
-    scanner
-      .start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: 250 },
-        (decodedText) => handleDecoded(decodedText),
-        () => {
-          // Échec de décodage sur une frame : normal tant qu'aucun QR n'est
-          // dans le cadre, on ignore silencieusement.
-        },
+    const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID)
+    scannerRef.current = scanner
+    let timer
+    try {
+      await Promise.race([
+        scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: 250 },
+          (decodedText) => handleDecoded(decodedText),
+          () => {
+            // Échec de décodage sur une frame : normal tant qu'aucun QR n'est
+            // dans le cadre, on ignore silencieusement.
+          },
+        ),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('timeout')), CAMERA_START_TIMEOUT_MS)
+        }),
+      ])
+    } catch (err) {
+      if (attempt !== attemptRef.current) return
+      console.error(err)
+      releaseCamera()
+      setCameraStopped(true)
+      setCameraError(
+        err?.message === 'timeout'
+          ? 'La caméra ne répond pas. Relancez le scan ; si cela persiste, fermez puis rouvrez l’application.'
+          : "Impossible d'accéder à la caméra. Vérifiez les autorisations de votre navigateur.",
       )
-      .catch((err) => {
-        setCameraError(
-          "Impossible d'accéder à la caméra. Vérifiez les autorisations de votre navigateur.",
-        )
-        console.error(err)
-      })
-      .finally(() => setStarting(false))
+    } finally {
+      clearTimeout(timer)
+      if (attempt === attemptRef.current) setStarting(false)
+    }
   }
 
   useEffect(() => {
     startCamera()
-    return () => safeStop(scannerRef.current)
+    return () => {
+      attemptRef.current += 1
+      releaseCamera()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Appli passee en arriere-plan (PWA) : le systeme coupe souvent le flux
+  // video, qui revient noir. On libere la camera et on la relance au retour.
+  const cameraStoppedRef = useRef(false)
+  cameraStoppedRef.current = cameraStopped
+  useEffect(() => {
+    const onVisibility = () => {
+      if (cameraStoppedRef.current) return
+      if (document.visibilityState === 'hidden') {
+        attemptRef.current += 1
+        releaseCamera()
+      } else {
+        startCamera()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -183,8 +245,10 @@ export function Pointage() {
   // visuellement) tant qu'on n'a pas explicitement clique sur Annuler —
   // sinon elle continuerait de tourner en arriere-plan indefiniment.
   const stopCamera = () => {
-    safeStop(scannerRef.current)
+    attemptRef.current += 1
+    releaseCamera()
     scanningRef.current = false
+    setStarting(false)
     setCameraStopped(true)
     setPaused(false)
     setResult(null)
@@ -401,44 +465,44 @@ export function Pointage() {
           )}
         </div>
 
-        {cameraStopped ? (
-          <div className="mx-auto flex aspect-square w-full max-w-sm flex-col items-center justify-center gap-3 rounded-2xl bg-gray-100 text-gray-500">
-            <ScanLine size={32} className="text-gray-400" />
-            <p className="text-sm">La caméra est arrêtée.</p>
-            <Button icon={RotateCcw} onClick={restartCamera}>
-              Relancer le scan
-            </Button>
-          </div>
-        ) : (
-          <div
-            className={`relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-2xl bg-navy transition-opacity ${paused ? 'opacity-30' : ''}`}
-          >
-            <div id={SCANNER_ELEMENT_ID} className="h-full w-full [&_video]:object-cover" />
+        <div
+          className={`relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-2xl bg-navy transition-opacity ${paused ? 'opacity-30' : ''}`}
+        >
+          <div id={SCANNER_ELEMENT_ID} className="h-full w-full [&_video]:object-cover" />
 
-            {starting && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              </div>
-            )}
+          {cameraStopped && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-100 text-gray-500">
+              <ScanLine size={32} className="text-gray-400" />
+              <p className="text-sm">La caméra est arrêtée.</p>
+              <Button icon={RotateCcw} onClick={restartCamera}>
+                Relancer le scan
+              </Button>
+            </div>
+          )}
 
-            {!starting && !paused && (
-              <div className="pointer-events-none absolute inset-0">
-                {/* Cadre de visée façon scanner : 4 coins + ligne de scan animée */}
-                <div className="absolute inset-8 sm:inset-10">
-                  {['top-0 left-0 border-t-4 border-l-4 rounded-tl-xl', 'top-0 right-0 border-t-4 border-r-4 rounded-tr-xl', 'bottom-0 left-0 border-b-4 border-l-4 rounded-bl-xl', 'bottom-0 right-0 border-b-4 border-r-4 rounded-br-xl'].map(
-                    (corner) => (
-                      <span
-                        key={corner}
-                        className={`absolute h-8 w-8 border-gold-400 ${corner}`}
-                      />
-                    ),
-                  )}
-                  <div className="absolute inset-x-0 top-0 h-0.5 animate-scanline bg-gold-400 shadow-[0_0_8px_2px_rgba(234,179,8,0.7)]" />
-                </div>
+          {!cameraStopped && starting && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            </div>
+          )}
+
+          {!cameraStopped && !starting && !paused && (
+            <div className="pointer-events-none absolute inset-0">
+              {/* Cadre de visée façon scanner : 4 coins + ligne de scan animée */}
+              <div className="absolute inset-8 sm:inset-10">
+                {['top-0 left-0 border-t-4 border-l-4 rounded-tl-xl', 'top-0 right-0 border-t-4 border-r-4 rounded-tr-xl', 'bottom-0 left-0 border-b-4 border-l-4 rounded-bl-xl', 'bottom-0 right-0 border-b-4 border-r-4 rounded-br-xl'].map(
+                  (corner) => (
+                    <span
+                      key={corner}
+                      className={`absolute h-8 w-8 border-gold-400 ${corner}`}
+                    />
+                  ),
+                )}
+                <div className="absolute inset-x-0 top-0 h-0.5 animate-scanline bg-gold-400 shadow-[0_0_8px_2px_rgba(234,179,8,0.7)]" />
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   )
