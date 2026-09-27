@@ -460,22 +460,23 @@ export function TeachersList() {
       <Modal open={showCreate} onClose={closeCreate} title="Ajouter un enseignant" size="lg">
         <form onSubmit={handleCreate} className="space-y-4">
           {error && <p className="text-sm text-red-600">{error}</p>}
+          {/* Identite et contact */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Genre *</label>
-            <select
-              required
-              value={form.gender}
-              onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
-              className={inputClass}
-            >
-              <option value="">Choisir…</option>
-              <option value="homme">Homme</option>
-              <option value="femme">Femme</option>
-            </select>
-          </div>
-          <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Nom</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Genre *</label>
+              <select
+                required
+                value={form.gender}
+                onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
+                className={inputClass}
+              >
+                <option value="">Choisir…</option>
+                <option value="homme">Homme</option>
+                <option value="femme">Femme</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Nom *</label>
               <input
                 required
                 value={form.name}
@@ -484,30 +485,59 @@ export function TeachersList() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Matières</label>
-              <SubjectPicker
-                selected={form.subjects}
-                onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
+              <label className="mb-1 block text-sm font-medium text-gray-700">Email *</label>
+              <input
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Adresse</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Téléphone *</label>
+              <input
+                type="tel"
+                required
+                pattern="^(\+33 ?|0)[1-9]([ .-]?\d{2}){4}$"
+                title="Numéro de téléphone français (ex : 06 12 34 56 78)"
+                placeholder="06 12 34 56 78"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Matières *</label>
+            <SubjectPicker
+              selected={form.subjects}
+              onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
+            />
+          </div>
+
+          {/* Adresse : meme bloc que le formulaire de contact (adresse, puis
+              code postal et ville proposee a partir du code postal). */}
+          <div className="space-y-3 rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Adresse *</label>
               <input
                 required
+                autoComplete="street-address"
                 value={form.address}
                 onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
                 placeholder="Ex : 3 rue de la République"
                 className={inputClass}
               />
             </div>
-
             <div className="grid grid-cols-[130px_1fr] gap-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Code postal
-                </label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Code postal *</label>
                 <input
                   required
+                  inputMode="numeric"
+                  autoComplete="postal-code"
                   value={form.postalCode}
                   onChange={(e) => setForm((f) => ({ ...f, postalCode: e.target.value }))}
                   pattern="\d{5}"
@@ -534,29 +564,9 @@ export function TeachersList() {
                 </datalist>
               </div>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
-              <input
-                type="email"
-                required
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Téléphone</label>
-              <input
-                type="tel"
-                required
-                pattern="^(\+33 ?|0)[1-9]([ .-]?\d{2}){4}$"
-                title="Numéro de téléphone français (ex : 06 12 34 56 78)"
-                placeholder="06 12 34 56 78"
-                value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                className={inputClass}
-              />
-            </div>
+            <p className="text-xs text-gray-400">
+              Sert au matching des demandes (distance) et à la carte du tableau de bord.
+            </p>
           </div>
 
           <div>
