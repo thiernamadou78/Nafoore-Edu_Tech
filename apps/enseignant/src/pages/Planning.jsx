@@ -47,10 +47,12 @@ function formatTimeRange(date, durationMinutes) {
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
 
-// 1re seance : apres le compte-rendu, la carte bascule sur la saisie des
-// notes de depart (necessaires pour mesurer la progression), puis la seance
-// est cloturee automatiquement — plus d'aller-retour vers la fiche eleve.
-function BaselineGradesForm({ session, onDone, onCancel }) {
+// Note initiale d'un eleve dans une matiere (sa note avant le prof, ex.
+// relevee sur Pronote). Proposee juste apres le 1er compte-rendu, mais jamais
+// bloquante : si l'eleve ne l'a pas encore, "Plus tard" et un rappel reste
+// affiche jusqu'a la saisie.
+function BaselineGradesForm({ studentId, subject, intro, onDone, onCancel }) {
+  const [label, setLabel] = useState('Note initiale')
   const [value, setValue] = useState('')
   const [scale, setScale] = useState(20)
   const [evaluatedAt, setEvaluatedAt] = useState(todayIso())
@@ -58,15 +60,17 @@ function BaselineGradesForm({ session, onDone, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const numeric = Number(value.toString().replace(',', '.'))
-  const valid = value !== '' && !Number.isNaN(numeric) && numeric >= 0 && numeric <= Number(scale)
+  const valid =
+    label.trim() !== '' && value !== '' && !Number.isNaN(numeric) && numeric >= 0 && numeric <= Number(scale)
 
   const submit = async () => {
     setSaving(true)
     setError(null)
     try {
-      await api.post(`/teacher/students/${session.studentId}/grades`, {
-        subject: session.subject,
+      await api.post(`/teacher/students/${studentId}/grades`, {
+        subject,
         kind: 'depart',
+        label: label.trim(),
         value: numeric,
         scale: Number(scale),
         evaluatedAt,
@@ -83,9 +87,25 @@ function BaselineGradesForm({ session, onDone, onCancel }) {
   return (
     <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
       <div className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
-        Compte-rendu enregistré. Dernière étape pour clôturer cette première séance : la note de
-        départ de l'élève en <strong>{session.subject}</strong> (sa note avant l'accompagnement, ex.
-        relevée sur Pronote).
+        {intro ?? (
+          <>
+            Note initiale de l'élève en <strong>{subject}</strong> : sa note avant ton arrivée (ex.
+            relevée sur Pronote).
+          </>
+        )}{' '}
+        Pas encore reçue ? Clique sur « Plus tard » : un rappel restera affiché jusqu'à la saisie.
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-500">
+          Dénomination <span className="text-red-500">*</span>
+        </label>
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          maxLength={80}
+          placeholder="Ex : Note initiale, Contrôle chapitre 2"
+          className={inputClass}
+        />
       </div>
       <div className="grid grid-cols-[1fr_90px_1fr] gap-2">
         <div>
@@ -126,18 +146,68 @@ function BaselineGradesForm({ session, onDone, onCancel }) {
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         maxLength={300}
-        placeholder="Commentaire (facultatif) : contrôle, devoir maison…"
+        placeholder="Commentaire (facultatif)"
         className={inputClass}
       />
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div className="flex gap-2">
         <Button loading={saving} disabled={!valid} onClick={submit}>
-          Enregistrer et clôturer la séance
+          Enregistrer la note initiale
         </Button>
         <Button variant="secondary" onClick={onCancel}>
           Plus tard
         </Button>
       </div>
+    </div>
+  )
+}
+
+// Rappel en haut du planning : eleves/matieres deja commences sans note
+// initiale. Saisie possible directement depuis le bandeau.
+function MissingBaselinesBanner({ items, onSaved }) {
+  const [openKey, setOpenKey] = useState(null)
+  if (items.length === 0) return null
+  return (
+    <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <p className="font-semibold">Notes initiales à saisir</p>
+      <p className="mb-2 text-xs text-amber-800">
+        Dès que l'élève a ses notes (Pronote), renseigne-les : elles servent de point de départ à sa
+        progression.
+      </p>
+      <ul className="space-y-1.5">
+        {items.map((item) => {
+          const key = `${item.studentId}|${item.subject}`
+          return (
+            <li key={key} className="rounded-lg bg-white/70 px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  <span className="font-medium">{item.studentName}</span> · {item.subject}
+                </span>
+                {openKey !== key && (
+                  <button
+                    type="button"
+                    onClick={() => setOpenKey(key)}
+                    className="rounded-full bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700"
+                  >
+                    Saisir la note initiale
+                  </button>
+                )}
+              </div>
+              {openKey === key && (
+                <BaselineGradesForm
+                  studentId={item.studentId}
+                  subject={item.subject}
+                  onCancel={() => setOpenKey(null)}
+                  onDone={async () => {
+                    setOpenKey(null)
+                    await onSaved()
+                  }}
+                />
+              )}
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
@@ -158,8 +228,8 @@ function ReportForm({ session, onCancel, onSave, saving, notice }) {
     <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
       {blocked && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Première séance en {session.subject} : après le compte-rendu, on te demandera la note de
-          départ de l'élève, juste ici, pour clôturer la séance.
+          Première séance en {session.subject} : après le compte-rendu, tu pourras saisir la note
+          initiale de l'élève. S'il ne l'a pas encore (Pronote), tu la renseigneras plus tard.
         </p>
       )}
       {session.notes && !session.chapter && !session.topics && (
@@ -419,6 +489,7 @@ function SessionRow({
   onRescheduleSession,
   onSaveReport,
   onManualAttendance,
+  onRefresh,
   savingId,
   compact = false,
   showStudentName = true,
@@ -436,14 +507,14 @@ function SessionRow({
   useEffect(() => {
     if (autoOpenReport) setReportOpen(true)
   }, [autoOpenReport])
-  // Un compte-rendu enregistre mais pas encore cloture (notes de depart
-  // manquantes) reste visible et modifiable.
+  // Un compte-rendu enregistre mais pas encore cloture (brouillon) reste
+  // visible et modifiable.
   const isClosed = session.status === 'realisee'
   const hasReport = Boolean(session.notes) || (isClosed && session.attended !== null)
   const [reportNotice, setReportNotice] = useState(null)
-  // Compte-rendu en attente des notes de depart : on garde les donnees pour
-  // cloturer la seance des que la note est saisie.
-  const [pendingReport, setPendingReport] = useState(null)
+  // Saisie de la note initiale ouverte (juste apres le 1er compte-rendu, ou
+  // depuis le rappel).
+  const [baselineOpen, setBaselineOpen] = useState(false)
   const isPast = new Date(session.date) < new Date()
   // Reflete cote client la fenetre appliquee par le backend
   // (attendance.service.ts) : le pointage manuel est un secours ponctuel,
@@ -595,32 +666,39 @@ function SessionRow({
         />
       )}
 
-      {hasReport && !isClosed && !reportOpen && !pendingReport && (
+      {hasReport && !isClosed && !reportOpen && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <span>Compte-rendu enregistré, séance pas encore clôturée.</span>
+          <button
+            type="button"
+            disabled={savingId === session.id}
+            onClick={() =>
+              onSaveReport(session.id, { status: 'realisee' })
+                .then((result) => {
+                  if (result?.baselineMissing) setBaselineOpen(true)
+                })
+                .catch((err) => setReportNotice({ tone: 'red', text: err.message }))
+            }
+            className="rounded-full bg-amber-600 px-3 py-1 font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            Clôturer la séance
+          </button>
+        </div>
+      )}
+
+      {isClosed && session.baselineMissing && !reportOpen && !baselineOpen && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
           <span>
-            Compte-rendu enregistré, séance pas encore clôturée
-            {session.baselineMissing ? ' : il manque la note de départ.' : '.'}
+            Note initiale en {session.subject} pas encore saisie. N'oublie pas de la renseigner dès que
+            l'élève l'a.
           </span>
-          {session.baselineMissing && (
-            <button
-              type="button"
-              onClick={() =>
-                setPendingReport({
-                  attended: session.attended ?? true,
-                  chapter: session.chapter ?? '',
-                  topics: session.topics ?? '',
-                  understanding: session.understanding,
-                  participation: session.participation,
-                  difficulties: session.difficulties ?? '',
-                  homework: session.homework ?? '',
-                  status: 'realisee',
-                })
-              }
-              className="rounded-full bg-amber-600 px-3 py-1 font-semibold text-white hover:bg-amber-700"
-            >
-              Saisir la note de départ
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setBaselineOpen(true)}
+            className="rounded-full bg-amber-600 px-3 py-1 font-semibold text-white hover:bg-amber-700"
+          >
+            Saisir la note initiale
+          </button>
         </div>
       )}
 
@@ -637,29 +715,31 @@ function SessionRow({
             setReportNotice(null)
             return onSaveReport(session.id, data)
               .then((result) => {
-                if (result?.pendingBaseline) {
-                  // Bascule directe sur la saisie des notes de depart.
-                  setPendingReport(data)
-                  setReportOpen(false)
-                } else {
-                  setReportOpen(false)
-                }
+                setReportOpen(false)
+                // Seance cloturee ; 1re seance sans note initiale : on la
+                // propose tout de suite (sans obligation).
+                if (result?.baselineMissing) setBaselineOpen(true)
               })
               .catch((err) => setReportNotice({ tone: 'red', text: err.message }))
           }}
         />
       )}
 
-      {pendingReport && (
+      {baselineOpen && (
         <BaselineGradesForm
-          session={session}
-          onCancel={() => setPendingReport(null)}
-          onDone={() =>
-            onSaveReport(session.id, pendingReport).then((result) => {
-              if (result?.pendingBaseline) throw new Error(result.message)
-              setPendingReport(null)
-            })
+          studentId={session.studentId}
+          subject={session.subject}
+          intro={
+            <>
+              Séance clôturée. Note initiale de l'élève en <strong>{session.subject}</strong> : sa
+              note avant ton arrivée (ex. relevée sur Pronote).
+            </>
           }
+          onCancel={() => setBaselineOpen(false)}
+          onDone={async () => {
+            setBaselineOpen(false)
+            await onRefresh?.()
+          }}
         />
       )}
 
@@ -833,6 +913,7 @@ function StudentPlanningCard({
   onRescheduleSession,
   onSaveReport,
   onManualAttendance,
+  onRefresh,
   autoReportIds,
 }) {
   const [createForm, setCreateForm] = useState({
@@ -997,6 +1078,7 @@ function StudentPlanningCard({
                         onRescheduleSession={onRescheduleSession}
                         onSaveReport={onSaveReport}
                         onManualAttendance={onManualAttendance}
+                        onRefresh={onRefresh}
                         autoOpenReport={autoReportIds.has(session.id)}
                       />
                     ))}
@@ -1129,6 +1211,16 @@ export function Planning() {
   for (const session of sessions) {
     sessionsByStudent.get(session.studentId)?.push(session)
   }
+  const missingBaselines = [
+    ...new Map(
+      sessions
+        .filter((session) => session.status === 'realisee' && session.baselineMissing)
+        .map((session) => [
+          `${session.studentId}|${session.subject}`,
+          { studentId: session.studentId, studentName: session.studentName, subject: session.subject },
+        ]),
+    ).values(),
+  ]
 
   return (
     <div>
@@ -1155,6 +1247,8 @@ export function Planning() {
 
       {error && <p className="mb-4 text-red-600">{error}</p>}
 
+      <MissingBaselinesBanner items={missingBaselines} onSaved={load} />
+
       {students.length === 0 ? (
         <p className="text-sm text-gray-500">Aucun élève assigné pour l'instant.</p>
       ) : view === 'calendrier' ? (
@@ -1178,6 +1272,7 @@ export function Planning() {
               onRescheduleSession={handleRescheduleSession}
               onSaveReport={handleSaveReport}
               onManualAttendance={handleManualAttendance}
+              onRefresh={load}
               autoOpenReport={autoReportIds.has(session.id)}
             />
           )}
@@ -1198,6 +1293,7 @@ export function Planning() {
               onRescheduleSession={handleRescheduleSession}
               onSaveReport={handleSaveReport}
               onManualAttendance={handleManualAttendance}
+              onRefresh={load}
               autoReportIds={autoReportIds}
             />
           ))}

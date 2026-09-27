@@ -578,27 +578,6 @@ export class TeacherService {
       );
     }
 
-    // Notes de depart obligatoires : sans elles, aucune progression ne pourra
-    // etre mesuree pour la famille. On bloque donc la cloture, pas la seance.
-    if (dto.status === 'realisee' && session.subject) {
-      const baseline = await this.prisma.grade.count({
-        where: { studentId: session.studentId, subject: session.subject, kind: 'depart' },
-      });
-      if (baseline === 0) {
-        // Le compte-rendu est enregistre (rien n'est perdu) mais la seance
-        // reste ouverte tant que les notes de depart manquent.
-        const draft = await this.prisma.session.update({
-          where: { id: sessionId },
-          data: { attended: dto.attended, notes: composedNotes, ...report },
-        });
-        return {
-          ...draft,
-          pendingBaseline: true,
-          message: `Compte-rendu enregistré, mais la séance n'est pas clôturée : saisis d'abord les notes de départ de l'élève en ${session.subject} (Mes élèves, fiche de l'élève, « Notes et progression »), puis clique de nouveau sur Enregistrer.`,
-        };
-      }
-    }
-
     if (dto.date || dto.durationMinutes) {
       const startsAt = dto.date ? new Date(dto.date) : session.date;
       const durationMinutes = dto.durationMinutes ?? session.durationMinutes;
@@ -661,16 +640,45 @@ export class TeacherService {
         .catch((error) => this.logger.error(`Notification de déplacement ${sessionId} échouée`, error));
     }
 
+    // La note initiale ne bloque pas la cloture : l'eleve n'a pas toujours
+    // encore ses notes (Pronote) au 1er cours. On signale seulement qu'elle
+    // manque, pour que l'appli la propose et garde un rappel.
+    if (dto.status === 'realisee' && session.subject) {
+      const baseline = await this.prisma.grade.count({
+        where: { studentId: session.studentId, subject: session.subject, kind: 'depart' },
+      });
+      return { ...updated, baselineMissing: baseline === 0 };
+    }
+
     return updated;
+  }
+
+  // Couples eleve/matiere avec au moins une seance realisee mais sans note
+  // initiale : rappel affiche au prof jusqu'a la saisie.
+  private async findMissingBaselines(teacherId: string) {
+    const done = await this.prisma.session.findMany({
+      where: { teacherId, status: 'realisee', subject: { not: null } },
+      select: { studentId: true, subject: true, student: { select: { name: true } } },
+      distinct: ['studentId', 'subject'],
+    });
+    if (done.length === 0) return [];
+    const baselines = await this.prisma.grade.findMany({
+      where: { kind: 'depart', studentId: { in: [...new Set(done.map((d) => d.studentId))] } },
+      select: { studentId: true, subject: true },
+    });
+    const has = new Set(baselines.map((b) => `${b.studentId}|${b.subject}`));
+    return done
+      .filter((d) => !has.has(`${d.studentId}|${d.subject}`))
+      .map((d) => ({ studentId: d.studentId, studentName: d.student.name, subject: d.subject as string }));
   }
 
   async getDashboard(teacherAccount: AuthenticatedTeacherAccount) {
     if (!teacherAccount.teacherId) {
-      return { upcomingSessions: [], pendingReports: [], pendingReportsCount: 0, studentsCount: 0, familiesCount: 0 };
+      return { upcomingSessions: [], pendingReports: [], pendingReportsCount: 0, studentsCount: 0, familiesCount: 0, missingBaselines: [] };
     }
     const teacherId = teacherAccount.teacherId;
 
-    const [upcoming, pendingReportSessions, students] = await Promise.all([
+    const [upcoming, pendingReportSessions, students, missingBaselines] = await Promise.all([
       this.prisma.session.findMany({
         where: { teacherId, date: { gte: new Date() }, status: { not: 'annulee' } },
         orderBy: { date: 'asc' },
@@ -690,6 +698,7 @@ export class TeacherService {
         where: { teachers: { some: { teacherId } } },
         select: { parentLeadId: true },
       }),
+      this.findMissingBaselines(teacherId),
     ]);
 
     return {
@@ -707,6 +716,7 @@ export class TeacherService {
       })),
       studentsCount: students.length,
       familiesCount: new Set(students.map((s) => s.parentLeadId).filter(Boolean)).size,
+      missingBaselines,
     };
   }
 

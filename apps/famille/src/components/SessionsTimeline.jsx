@@ -125,7 +125,9 @@ function Pager({ page, pages, onChange }) {
 // Suivi des seances d'un enfant, sans longue page a faire defiler :
 // onglets A venir / Realisees / Annulees, filtre par matiere, 5 seances par
 // page, compte-rendu resume et depliable.
-export function SessionsTimeline({ sessions: allSessions, onSessionChanged }) {
+// mode : 'all' (tous les onglets), 'history' (realisees et annulees
+// seulement) ou 'upcoming' (seances a venir seulement).
+export function SessionsTimeline({ sessions: allSessions, onSessionChanged, mode = 'all' }) {
   const [subject, setSubject] = useState('all')
   const colorOf = subjectPalette(allSessions.map((s) => s.subject))
   const subjects = [...new Set(allSessions.map((s) => s.subject).filter(Boolean))].sort((a, b) =>
@@ -150,9 +152,13 @@ export function SessionsTimeline({ sessions: allSessions, onSessionChanged }) {
     { key: 'upcoming', label: 'À venir' },
     { key: 'done', label: 'Réalisées' },
     { key: 'cancelled', label: 'Annulées' },
-  ].filter((t) => t.key !== 'cancelled' || groups.cancelled.length > 0)
+  ]
+    .filter((t) => t.key !== 'cancelled' || groups.cancelled.length > 0)
+    .filter((t) => (mode === 'history' ? t.key !== 'upcoming' : mode === 'upcoming' ? t.key === 'upcoming' : true))
 
-  const [tab, setTab] = useState(() => (groups.upcoming.length > 0 ? 'upcoming' : 'done'))
+  const [tab, setTab] = useState(() =>
+    mode === 'history' ? 'done' : mode === 'upcoming' || groups.upcoming.length > 0 ? 'upcoming' : 'done',
+  )
   const [page, setPage] = useState(0)
   useEffect(() => setPage(0), [tab, subject])
 
@@ -168,6 +174,7 @@ export function SessionsTimeline({ sessions: allSessions, onSessionChanged }) {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        {tabs.length > 1 && (
         <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs">
           {tabs.map((t) => (
             <button
@@ -182,6 +189,7 @@ export function SessionsTimeline({ sessions: allSessions, onSessionChanged }) {
             </button>
           ))}
         </div>
+        )}
         {subjects.length > 1 && (
           <div className="flex flex-wrap gap-1">
             {[{ key: 'all', label: 'Toutes' }, ...subjects.map((s) => ({ key: s, label: s }))].map((item) => (

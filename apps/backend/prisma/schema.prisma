@@ -981,6 +981,7 @@ model Grade {
   teacher     Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   subject     String
   kind        String   // depart | suivi
+  label       String?  // denomination (ex : "Note initiale", "Contrôle ch. 3")
   value       Float
   scale       Float    @default(20)
   evaluatedAt DateTime @map("evaluated_at")

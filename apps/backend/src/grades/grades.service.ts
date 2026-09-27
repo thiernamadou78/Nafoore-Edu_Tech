@@ -65,6 +65,7 @@ export class GradesService {
           .map((g) => ({
             id: g.id,
             kind: g.kind,
+            label: g.label,
             value: g.value,
             scale: g.scale,
             evaluatedAt: g.evaluatedAt,
@@ -143,6 +144,8 @@ export class GradesService {
     dto: CreateGradeDto,
   ) {
     await this.assertTeacherOfStudent(teacherAccount, studentId);
+    const label = dto.label.trim();
+    if (!label) throw new BadRequestException('La dénomination de la note est obligatoire');
     if (dto.value > dto.scale) {
       throw new BadRequestException('La note ne peut pas dépasser le barème');
     }
@@ -157,6 +160,7 @@ export class GradesService {
         teacherId: teacherAccount.teacherId,
         subject: dto.subject,
         kind: dto.kind,
+        label,
         value: dto.value,
         scale: dto.scale,
         evaluatedAt,

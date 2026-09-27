@@ -1154,7 +1154,7 @@ export function StudentDetail() {
 
           {tab === 'bilans' && (
             <div className="space-y-6">
-              <StudentProgressCard studentId={id} />
+              <StudentProgressCard studentId={id} sessions={student.sessions} />
               <Card className="p-6">
                 <h2 className="mb-3 font-semibold text-gray-900">Bilans des séances</h2>
                 {(() => {

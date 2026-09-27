@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarClock, FileWarning, Users } from 'lucide-react'
+import { CalendarClock, FileWarning, LineChart, Users } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { formatDateTime } from '../lib/format'
@@ -81,6 +81,39 @@ export function Dashboard() {
                   className="rounded-full bg-navy px-3 py-1 text-xs font-semibold text-white hover:bg-navy/90"
                 >
                   {session.hasDraft ? 'Terminer' : 'Rédiger le compte-rendu'}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Rappel non bloquant : l'eleve n'avait pas encore ses notes au 1er cours. */}
+      {data.missingBaselines?.length > 0 && (
+        <Card className="mb-6 border-amber-200 bg-amber-50/50 p-5">
+          <h2 className="mb-1 flex items-center gap-2 font-semibold text-gray-900">
+            <LineChart size={16} className="text-amber-600" />
+            Notes initiales à saisir
+          </h2>
+          <p className="mb-3 text-xs text-gray-500">
+            Dès que l'élève a ses notes (Pronote), renseigne-les : elles servent de point de départ à
+            sa progression.
+          </p>
+          <div className="space-y-2">
+            {data.missingBaselines.map((item) => (
+              <div
+                key={`${item.studentId}|${item.subject}`}
+                className="flex flex-wrap items-center justify-between gap-2 text-sm"
+              >
+                <div>
+                  <span className="font-medium text-gray-900">{item.studentName}</span>
+                  <span className="ml-2 text-gray-500">{item.subject}</span>
+                </div>
+                <Link
+                  to={`/eleves/${item.studentId}#notes`}
+                  className="rounded-full bg-navy px-3 py-1 text-xs font-semibold text-white hover:bg-navy/90"
+                >
+                  Saisir la note initiale
                 </Link>
               </div>
             ))}

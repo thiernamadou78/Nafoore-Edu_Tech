@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { IsKnownSubject } from '../../common/subjects';
 
 export const GRADE_KINDS = ['depart', 'suivi'] as const;
@@ -10,6 +10,13 @@ export class CreateGradeDto {
 
   @IsIn(GRADE_KINDS, { message: 'Le type doit être "depart" ou "suivi"' })
   kind: (typeof GRADE_KINDS)[number];
+
+  // Denomination de l'evaluation, obligatoire (ex : "Note initiale",
+  // "Contrôle chapitre 3").
+  @IsString({ message: 'La dénomination de la note est obligatoire' })
+  @IsNotEmpty({ message: 'La dénomination de la note est obligatoire' })
+  @MaxLength(80)
+  label: string;
 
   @Type(() => Number)
   @IsNumber({}, { message: 'La note doit être un nombre' })

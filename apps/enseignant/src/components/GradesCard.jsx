@@ -10,7 +10,8 @@ import { Card } from './ui/Card'
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
 
-const KIND_LABELS = { depart: 'Départ', suivi: 'Évaluation' }
+const KIND_LABELS = { depart: 'Initiale', suivi: 'Évaluation' }
+const BASELINE_LABEL = 'Note initiale'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -22,9 +23,10 @@ function formatMonth(month) {
   })
 }
 
-// Notes relevees sur Pronote : le prof est le seul a les saisir. Les notes de
-// depart (avant l'accompagnement) sont obligatoires pour pouvoir cloturer une
-// seance ; les evaluations suivantes alimentent la progression du mois.
+// Notes relevees sur Pronote : le prof est le seul a les saisir. La note
+// initiale (avant l'accompagnement) sert de point de depart a la progression ;
+// elle ne bloque rien (l'eleve ne l'a pas toujours au 1er cours) mais un
+// rappel reste affiche tant qu'elle manque. Chaque note a une denomination.
 export function GradesCard({ studentId, subjects }) {
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
@@ -32,6 +34,7 @@ export function GradesCard({ studentId, subjects }) {
   const [form, setForm] = useState({
     subject: '',
     kind: 'depart',
+    label: BASELINE_LABEL,
     value: '',
     scale: 20,
     evaluatedAt: today(),
@@ -57,12 +60,13 @@ export function GradesCard({ studentId, subjects }) {
       await api.post(`/teacher/students/${studentId}/grades`, {
         subject: form.subject,
         kind: form.kind,
+        label: form.label.trim(),
         value: Number(form.value.toString().replace(',', '.')),
         scale: Number(form.scale),
         evaluatedAt: form.evaluatedAt,
         comment: form.comment || undefined,
       })
-      setForm((f) => ({ ...f, value: '', comment: '' }))
+      setForm((f) => ({ ...f, value: '', comment: '', label: f.kind === 'depart' ? BASELINE_LABEL : '' }))
       await load()
     } catch (err) {
       setError(err.message)
@@ -101,8 +105,8 @@ export function GradesCard({ studentId, subjects }) {
 
       {missingBaseline.length > 0 && (
         <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Notes de départ manquantes : {missingBaseline.join(', ')}. Elles sont obligatoires pour
-          clôturer une séance dans ces matières.
+          Note initiale à saisir : {missingBaseline.join(', ')}. Pas encore reçue sur Pronote ? Aucun
+          souci, renseigne-la dès que l'élève l'a : elle sert de point de départ à sa progression.
         </p>
       )}
 
@@ -121,7 +125,7 @@ export function GradesCard({ studentId, subjects }) {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-3 py-2">
             <p className="text-sm font-semibold text-gray-800">{subject.subject}</p>
             <p className="text-xs text-gray-600">
-              {subject.baselineAverage !== null ? `Départ ${subject.baselineAverage}` : 'Pas de note de départ'}
+              {subject.baselineAverage !== null ? `Initiale ${subject.baselineAverage}` : 'Pas de note initiale'}
               {subject.latestAverage !== null && ` → ${subject.latestAverage}/20`}
               {subject.delta !== null && (
                 <span className={`ml-2 font-bold ${subject.delta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -141,6 +145,7 @@ export function GradesCard({ studentId, subjects }) {
               <li key={grade.id} className="flex items-center justify-between gap-2 py-1.5 text-xs">
                 <span className="text-gray-700">
                   <Badge tone={grade.kind === 'depart' ? 'amber' : 'blue'}>{KIND_LABELS[grade.kind]}</Badge>{' '}
+                  {grade.label && <span className="font-medium text-gray-900">{grade.label} · </span>}
                   <span className="font-medium">
                     {grade.value}/{grade.scale}
                   </span>{' '}
@@ -179,13 +184,34 @@ export function GradesCard({ studentId, subjects }) {
           </select>
           <select
             value={form.kind}
-            onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value }))}
+            onChange={(e) => {
+              const kind = e.target.value
+              setForm((f) => ({
+                ...f,
+                kind,
+                // "Note initiale" proposee d'office pour une note de depart.
+                label:
+                  kind === 'depart' && !f.label.trim()
+                    ? BASELINE_LABEL
+                    : kind === 'suivi' && f.label === BASELINE_LABEL
+                      ? ''
+                      : f.label,
+              }))
+            }}
             className={inputClass}
           >
-            <option value="depart">Note de départ (avant le prof)</option>
+            <option value="depart">Note initiale (avant le prof)</option>
             <option value="suivi">Évaluation (avec le prof)</option>
           </select>
         </div>
+        <input
+          required
+          value={form.label}
+          onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+          maxLength={80}
+          placeholder="Dénomination * (ex : Contrôle chapitre 3, DM fractions)"
+          className={inputClass}
+        />
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <input
             required

@@ -88,6 +88,7 @@ export function StudentDetail() {
   const { id } = useParams()
   const [student, setStudent] = useState(null)
   const [error, setError] = useState(null)
+  const [tab, setTab] = useState('suivi')
 
   const now = Date.now()
   const sessions = student?.sessions ?? []
@@ -147,6 +148,19 @@ export function StudentDetail() {
     .filter(Boolean)
     .join(' · ')
 
+  const onSessionChanged = (updated) =>
+    setStudent((current) => ({
+      ...current,
+      sessions: current.sessions.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)),
+    }))
+
+  const tabs = [
+    { key: 'suivi', label: 'Suivi' },
+    { key: 'planning', label: 'Planning' },
+    { key: 'enseignants', label: 'Enseignants', count: activeRequests.length },
+    { key: 'pass', label: 'Pass' },
+  ]
+
   return (
     <div>
       <Link
@@ -157,116 +171,172 @@ export function StudentDetail() {
         Retour
       </Link>
 
-      {/* En-tête élève */}
-      <div className="mb-6 flex items-center gap-4">
-        <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy font-medium text-gold-400">
-          <PhotoOrInitials src={student.photoUrl} alt={student.name} initials={getInitials(student.name)} />
-        </div>
-        <div>
-          <h1 className="font-serif text-xl font-bold text-navy">{student.name}</h1>
-          {tagLine && <p className="mt-0.5 text-[13px] text-gray-500">{tagLine}</p>}
-        </div>
-      </div>
-
-      {/* Bande d'infos compacte */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm">
-        <div className="flex items-center gap-2">
-          <CalendarClock size={16} className="shrink-0 text-gray-400" />
-          <span className="text-gray-500">Prochaine séance</span>
-          {nextSession ? (
-            <span className="font-medium text-gray-800">
-              {formatDateTime(nextSession.date)}
-              {nextSession.subject ? ` · ${nextSession.subject}` : ''}
-            </span>
-          ) : (
-            <span className="text-gray-400">Aucune séance planifiée</span>
-          )}
-        </div>
-        <div className="hidden h-5 w-px bg-gray-200 sm:block" />
-        <div className="flex items-center gap-2">
-          <Users size={16} className="shrink-0 text-gray-400" />
-          <span className="text-gray-500">Enseignant</span>
-          {teacherName ? (
-            <span className="font-medium text-gray-800">{teacherName}</span>
-          ) : (
-            <span className="text-gray-400">Aucun enseignant assigné</span>
-          )}
-        </div>
-        <div className="hidden h-5 w-px bg-gray-200 sm:block" />
-        <div className="flex items-center gap-2">
-          <CheckCircle2 size={16} className="shrink-0 text-gray-400" />
-          <span className="text-gray-500">Heures cumulées</span>
-          <span className="font-medium text-gray-800">{formatMinutes(totalMinutesRealized)}</span>
-        </div>
-      </div>
-
-      {/* Pass éducatif */}
-      <div className="mb-6">
-        <PassEducatifCard student={student} />
-      </div>
-
-      <AssignmentsSection student={student} onChanged={load} />
-
-      {/* Demande de professeur */}
-      <TeacherRequestsSection
-        student={student}
-        activeRequests={activeRequests}
-        onChanged={load}
-      />
-
-      {/* Programme */}
-      {student.recurringSchedules?.length > 0 && (
-        <Card className="mb-6 p-5">
-          <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-            <CalendarClock size={16} className="text-gold-500" />
-            Programme
-          </h2>
-          <div className="space-y-4">
-            {student.recurringSchedules.map((schedule) => (
-              <div key={schedule.id}>
-                <p className="mb-1.5 text-sm text-gray-700">
-                  <span className="font-medium text-gray-900">{schedule.teacher.name}</span> —{' '}
-                  {schedule.frequency} séance{schedule.frequency > 1 ? 's' : ''} par semaine
-                  {schedule.subject && ` · ${schedule.subject}`}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[...schedule.slots]
-                    .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
-                    .map((slot, i) => (
-                      <Badge key={i} tone="gold">
-                        {DAY_LABELS[slot.dayOfWeek]} {slot.time}
-                      </Badge>
-                    ))}
-                </div>
-              </div>
-            ))}
+      {/* En-tête élève : identité et infos clés, visibles quel que soit l'onglet */}
+      <div className="rounded-2xl bg-navy p-5 text-white shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-gold-400 bg-navy font-semibold text-gold-400">
+            <PhotoOrInitials src={student.photoUrl} alt={student.name} initials={getInitials(student.name)} />
           </div>
-          <p className="mt-3 text-xs text-gray-400">
-            Pour modifier ce planning, contacte l'enseignant via la messagerie.
-          </p>
-        </Card>
+          <div className="min-w-0">
+            <h1 className="truncate font-serif text-xl font-bold">{student.name}</h1>
+            {tagLine && <p className="mt-0.5 text-[13px] text-white/60">{tagLine}</p>}
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
+            <CalendarClock size={13} className="text-gold-400" />
+            {nextSession ? (
+              <span>
+                <span className="text-white/60">Prochaine séance · </span>
+                <span className="font-semibold">
+                  {formatDateTime(nextSession.date)}
+                  {nextSession.subject ? ` · ${nextSession.subject}` : ''}
+                </span>
+              </span>
+            ) : (
+              <span className="text-white/60">Aucune séance planifiée</span>
+            )}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
+            <Users size={13} className="text-gold-400" />
+            <span className={teacherName ? 'font-semibold' : 'text-white/60'}>
+              {teacherName ?? 'Aucun enseignant assigné'}
+            </span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
+            <CheckCircle2 size={13} className="text-gold-400" />
+            <span className="font-semibold">{formatMinutes(totalMinutesRealized)}</span>
+            <span className="text-white/60">cumulées</span>
+          </span>
+        </div>
+      </div>
+
+      {/* Onglets */}
+      <div className="sticky top-0 z-10 mb-6 mt-3 flex overflow-x-auto border-b border-gray-200 bg-cream">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={`relative flex-1 whitespace-nowrap px-3 py-3 text-sm transition-colors ${
+              tab === t.key ? 'font-semibold text-navy' : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            {t.label}
+            {t.count > 0 && (
+              <span className="ml-1.5 rounded-full bg-gold-400 px-1.5 py-0.5 text-[10px] font-bold text-navy">
+                {t.count}
+              </span>
+            )}
+            {tab === t.key && (
+              <span className="absolute inset-x-3 bottom-0 h-[3px] rounded-t-full bg-gold-500" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'suivi' && (
+        <>
+          <ProgressCard studentId={student.id} sessions={sessions} />
+          <Card className="mb-6 p-5">
+            <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+              <Sparkles size={16} className="text-gold-500" />
+              Comptes-rendus
+            </h2>
+            <SessionsTimeline mode="history" sessions={sessions} onSessionChanged={onSessionChanged} />
+          </Card>
+        </>
       )}
 
-      {/* Seances et comptes-rendus, lus ligne par ligne (a venir puis historique) */}
-      <Card className="mb-6 p-5">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-          <Sparkles size={16} className="text-gold-500" />
-          Séances et comptes-rendus
-        </h2>
-        <SessionsTimeline
-          sessions={sessions}
-          onSessionChanged={(updated) =>
-            setStudent((current) => ({
-              ...current,
-              sessions: current.sessions.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)),
-            }))
-          }
-        />
-      </Card>
+      {tab === 'planning' && (
+        <>
+          <Card className="mb-6 p-5">
+            <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+              <CalendarClock size={16} className="text-gold-500" />
+              Séances à venir
+            </h2>
+            <SessionsTimeline mode="upcoming" sessions={sessions} onSessionChanged={onSessionChanged} />
+          </Card>
+          {student.recurringSchedules?.length > 0 && (
+            <Card className="mb-6 p-5">
+              <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+                <CalendarClock size={16} className="text-gold-500" />
+                Programme
+              </h2>
+              <div className="space-y-4">
+                {student.recurringSchedules.map((schedule) => (
+                  <div key={schedule.id}>
+                    <p className="mb-1.5 text-sm text-gray-700">
+                      <span className="font-medium text-gray-900">{schedule.teacher.name}</span> —{' '}
+                      {schedule.frequency} séance{schedule.frequency > 1 ? 's' : ''} par semaine
+                      {schedule.subject && ` · ${schedule.subject}`}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[...schedule.slots]
+                        .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+                        .map((slot, i) => (
+                          <Badge key={i} tone="gold">
+                            {DAY_LABELS[slot.dayOfWeek]} {slot.time}
+                          </Badge>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-gray-400">
+                Pour modifier ce planning, contacte l'enseignant via la messagerie.
+              </p>
+            </Card>
+          )}
+        </>
+      )}
 
-      <ProgressCard studentId={student.id} sessions={sessions} />
+      {tab === 'enseignants' && (
+        <>
+          <TeachersSection student={student} />
+          <AssignmentsSection student={student} onChanged={load} />
+          <TeacherRequestsSection
+            student={student}
+            activeRequests={activeRequests}
+            onChanged={load}
+          />
+        </>
+      )}
 
+      {tab === 'pass' && (
+        <div className="mb-6">
+          <PassEducatifCard student={student} />
+        </div>
+      )}
     </div>
+  )
+}
+
+// Enseignants suivis sans date de fin : les accompagnements à durée limitée
+// sont affichés par AssignmentsSection, avec le renouvellement.
+function TeachersSection({ student }) {
+  const rows = (student.teachers ?? []).filter((row) => !row.endsAt)
+  if (rows.length === 0) return null
+  return (
+    <Card className="mb-6 p-5">
+      <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+        <Users size={16} className="text-gold-500" />
+        Enseignants
+      </h2>
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <div key={row.id} className="flex items-center gap-3 rounded-lg border border-gray-100 p-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy text-xs font-semibold text-gold-400">
+              <PhotoOrInitials src={row.teacher.photoUrl} alt={row.teacher.name} initials={getInitials(row.teacher.name)} />
+            </div>
+            <p className="text-sm font-medium text-gray-800">
+              {row.teacher.name}
+              {row.subject ? <span className="font-normal text-gray-500"> · {row.subject}</span> : null}
+            </p>
+          </div>
+        ))}
+      </div>
+    </Card>
   )
 }
 
