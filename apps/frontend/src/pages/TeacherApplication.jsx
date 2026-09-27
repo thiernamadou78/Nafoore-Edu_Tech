@@ -75,9 +75,10 @@ const normalize = (value) =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
 
-// Liste fermee (pas de saisie libre) chargee depuis le catalogue gere par le
-// Super Admin : indispensable pour que les demandes des familles (et les
-// besoins des entreprises) puissent etre comparees aux matieres d'un prof.
+// Liste chargee depuis le catalogue gere par le Super Admin : indispensable
+// pour que les demandes des familles (et les besoins des entreprises)
+// puissent etre comparees aux matieres d'un prof. Un domaine professionnel
+// absent peut etre propose (valide ensuite par le Super Admin).
 function useSubjectCatalog() {
   const [catalog, setCatalog] = useState([])
   useEffect(() => {
@@ -86,17 +87,33 @@ function useSubjectCatalog() {
       .then(setCatalog)
       .catch(() => setCatalog([]))
   }, [])
-  return catalog
+  return [catalog, setCatalog]
+}
+
+async function suggestSubject(name) {
+  const res = await fetch(`${API_URL}/subjects/suggest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+  const body = await res.json().catch(() => null)
+  if (!res.ok) {
+    const message = Array.isArray(body?.message) ? body.message.join(', ') : body?.message
+    throw new Error(message || "Impossible d'ajouter ce domaine pour le moment.")
+  }
+  return body
 }
 
 // Pastilles + recherche au clic (meme pattern que "Mon profil" cote enseignant) :
 // evite d'afficher les 24 matieres d'un coup et allonger le formulaire.
-function SubjectQuickAdd({ catalog, selected, onChange }) {
+function SubjectQuickAdd({ catalog, selected, onChange, onCatalogAdd }) {
   // Champ visible par defaut ; une fois une matiere choisie il se replie et
   // laisse la place au bouton "+ Ajouter".
   const [open, setOpen] = useState(true)
   const [focused, setFocused] = useState(false)
   const [query, setQuery] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState('')
   const inputRef = useRef(null)
 
   const normalizedQuery = normalize(query.trim())
@@ -112,11 +129,34 @@ function SubjectQuickAdd({ catalog, selected, onChange }) {
     }))
     .filter((group) => group.names.length > 0)
 
+  // Pastille "Ajouter" : texte saisi qui ne correspond exactement a aucune
+  // matiere du catalogue (ni deja choisie).
+  const typed = query.trim().replace(/\s+/g, ' ')
+  const canSuggest =
+    typed.length >= 2 &&
+    !catalog.some(({ name }) => normalize(name) === normalize(typed)) &&
+    !selected.some((name) => normalize(name) === normalize(typed))
+
   const addSubject = (subject) => {
-    onChange([...selected, subject])
+    if (!selected.includes(subject)) onChange([...selected, subject])
     setQuery('')
+    setAddError('')
     setFocused(false)
     setOpen(false)
+  }
+
+  const suggest = async () => {
+    setAdding(true)
+    setAddError('')
+    try {
+      const subject = await suggestSubject(typed)
+      onCatalogAdd(subject)
+      addSubject(subject.name)
+    } catch (err) {
+      setAddError(err.message)
+    } finally {
+      setAdding(false)
+    }
   }
 
   const reopen = () => {
@@ -160,7 +200,10 @@ function SubjectQuickAdd({ catalog, selected, onChange }) {
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setAddError('')
+            }}
             onFocus={() => setFocused(true)}
             onBlur={() =>
               setTimeout(() => {
@@ -172,6 +215,7 @@ function SubjectQuickAdd({ catalog, selected, onChange }) {
               if (e.key === 'Enter') {
                 e.preventDefault()
                 if (filtered.length > 0) addSubject(filtered[0])
+                else if (canSuggest && !adding) suggest()
               }
               if (e.key === 'Escape') inputRef.current?.blur()
             }}
@@ -183,7 +227,7 @@ function SubjectQuickAdd({ catalog, selected, onChange }) {
             onMouseDown={(e) => e.preventDefault()}
             className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg"
           >
-            {groups.length === 0 ? (
+            {groups.length === 0 && !canSuggest ? (
               <p className="px-3 py-2 font-sans text-sm text-gray-400">Aucune matière trouvée.</p>
             ) : (
               groups.map((group) => (
@@ -204,8 +248,25 @@ function SubjectQuickAdd({ catalog, selected, onChange }) {
                 </div>
               ))
             )}
+            {canSuggest && (
+              <div className="border-t border-gray-100 px-3 py-2.5">
+                <p className="mb-1.5 font-sans text-[11px] text-gray-400">
+                  Domaine professionnel absent de la liste ?
+                </p>
+                <button
+                  type="button"
+                  disabled={adding}
+                  onClick={suggest}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full bg-gold-400/20 px-3 py-1 font-sans text-xs font-semibold text-navy hover:bg-gold-400/35 disabled:opacity-60"
+                >
+                  <span className="shrink-0">{adding ? 'Ajout…' : '+ Ajouter'}</span>
+                  <span className="truncate">« {typed} »</span>
+                </button>
+              </div>
+            )}
           </div>
           )}
+          {addError && <p className="mt-1 font-sans text-xs text-red-600">{addError}</p>}
         </div>
       )}
     </div>
@@ -229,7 +290,7 @@ export default function TeacherApplication() {
   const [fileErrors, setFileErrors] = useState({})
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
-  const subjectCatalog = useSubjectCatalog()
+  const [subjectCatalog, setSubjectCatalog] = useSubjectCatalog()
   // Niveaux/classes : seulement pour les matieres de soutien scolaire (un
   // formateur qui ne propose que des domaines pro n'en a pas).
   const needsLevels = form.subjects.some(
@@ -551,6 +612,13 @@ export default function TeacherApplication() {
                     catalog={subjectCatalog}
                     selected={form.subjects}
                     onChange={(subjects) => setForm((f) => ({ ...f, subjects }))}
+                    onCatalogAdd={(subject) =>
+                      setSubjectCatalog((current) =>
+                        current.some((s) => s.name === subject.name)
+                          ? current
+                          : [...current, { name: subject.name, category: subject.category }],
+                      )
+                    }
                   />
                 </div>
 

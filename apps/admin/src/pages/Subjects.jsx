@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BookOpen, Briefcase, Eye, EyeOff, GraduationCap, Plus, Search, Trash2 } from 'lucide-react'
+import { BookOpen, Briefcase, Check, Eye, EyeOff, GraduationCap, Lightbulb, Plus, Search, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { invalidateSubjects, SUBJECT_CATEGORY_LABELS } from '../lib/useSubjects'
 import { Alert } from '../components/ui/Alert'
@@ -58,9 +58,13 @@ export function Subjects() {
     setSaving(false)
   }
 
+  // Domaines proposes par des candidats, en attente de decision.
+  const suggestions = subjects.filter((s) => s.suggested)
+
   const groups = useMemo(() => {
     const term = search.trim().toLowerCase()
-    const visible = term ? subjects.filter((s) => s.name.toLowerCase().includes(term)) : subjects
+    const reviewed = subjects.filter((s) => !s.suggested)
+    const visible = term ? reviewed.filter((s) => s.name.toLowerCase().includes(term)) : reviewed
     return ['professionnel', 'scolaire'].map((category) => ({
       category,
       items: visible.filter((s) => s.category === category),
@@ -111,6 +115,65 @@ export function Subjects() {
           </Button>
         </form>
       </Card>
+
+      {suggestions.length > 0 && (
+        <Card className="mb-6 border-amber-200 bg-amber-50/40 p-5">
+          <h2 className="mb-1 flex items-center gap-2 font-semibold text-gray-900">
+            <Lightbulb size={16} className="text-amber-600" />
+            Domaines proposés par des candidats
+            <Badge tone="amber">{suggestions.length}</Badge>
+          </h2>
+          <p className="mb-3 text-xs text-gray-500">
+            Ajoutés depuis le formulaire de candidature. Le candidat qui l'a proposé l'a déjà sur son
+            dossier ; validez-le pour le proposer aux autres, ou masquez-le (doublon, faute de frappe…).
+          </p>
+          <ul className="divide-y divide-amber-100">
+            {suggestions.map((subject) => (
+              <li key={subject.id} className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <span className="font-medium text-gray-900">{subject.name}</span>
+                  <span className="ml-2 text-xs text-gray-500">
+                    proposé le {new Date(subject.createdAt).toLocaleDateString('fr-FR')}
+                    {subject.applicationsCount > 0 &&
+                      ` · ${subject.applicationsCount} candidat${subject.applicationsCount > 1 ? 's' : ''}`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    icon={Check}
+                    disabled={pendingId === subject.id}
+                    onClick={() =>
+                      run(
+                        subject.id,
+                        () => api.patch(`/admin/subjects/${subject.id}`, { isActive: true }),
+                        `« ${subject.name} » validé : il est maintenant proposé à tous.`,
+                      )
+                    }
+                    className="px-3 py-1.5"
+                  >
+                    Valider
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    icon={EyeOff}
+                    disabled={pendingId === subject.id}
+                    onClick={() =>
+                      run(
+                        subject.id,
+                        () => api.patch(`/admin/subjects/${subject.id}`, { isActive: false }),
+                        `« ${subject.name} » masqué : il reste sur le dossier du candidat mais n'est pas proposé aux autres.`,
+                      )
+                    }
+                    className="px-3 py-1.5"
+                  >
+                    Masquer
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <div className="relative mb-4 w-72">
         <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

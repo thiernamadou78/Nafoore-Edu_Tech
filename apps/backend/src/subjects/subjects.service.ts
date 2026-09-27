@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { setSubjectCatalog } from '../common/subjects';
+import { AdminNotificationService } from '../email/admin-notification.service';
 
 export const SUBJECT_CATEGORIES = ['scolaire', 'professionnel'] as const;
 export type SubjectCategory = (typeof SUBJECT_CATEGORIES)[number];
@@ -20,7 +21,10 @@ export class SubjectsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SubjectsService.name);
   private timer?: NodeJS.Timeout;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly adminNotifications: AdminNotificationService,
+  ) {}
 
   async onModuleInit() {
     await this.refreshCatalog();
@@ -87,9 +91,41 @@ export class SubjectsService implements OnModuleInit, OnModuleDestroy {
     return subject;
   }
 
+  // Domaine professionnel propose par un candidat. S'il existe deja (casse
+  // ou espaces differents), on renvoie l'existant plutot qu'un doublon.
+  // Sinon il est cree masque : valide tout de suite pour ce candidat (le
+  // catalogue de validation inclut les matieres masquees), visible par les
+  // autres une fois valide par le Super Admin.
+  async suggest(name: string) {
+    const clean = name.trim().replace(/\s+/g, ' ');
+    const existing = await this.prisma.subject.findFirst({
+      where: { name: { equals: clean, mode: 'insensitive' } },
+      select: { name: true, category: true },
+    });
+    if (existing) return { ...existing, created: false };
+
+    const subject = await this.prisma.subject.create({
+      data: { name: clean, category: 'professionnel', isActive: false, suggested: true },
+      select: { name: true, category: true },
+    });
+    await this.refreshCatalog();
+    this.adminNotifications.notify({
+      subject: `Nouveau domaine proposé : ${subject.name}`,
+      title: `Domaine proposé par un candidat : ${subject.name}`,
+      lines: [
+        "Un candidat enseignant a ajouté ce domaine professionnel depuis le formulaire de candidature.",
+        'Validez-le dans Matières pour le proposer aux autres candidats, ou masquez-le.',
+      ],
+      path: '/matieres',
+    });
+    return { ...subject, created: true };
+  }
+
   async update(id: string, data: { category?: SubjectCategory; isActive?: boolean }) {
     await this.findOrThrow(id);
-    const subject = await this.prisma.subject.update({ where: { id }, data });
+    // Toute decision du Super Admin (afficher, masquer, changer de categorie)
+    // vaut traitement de la proposition.
+    const subject = await this.prisma.subject.update({ where: { id }, data: { ...data, suggested: false } });
     await this.refreshCatalog();
     return subject;
   }

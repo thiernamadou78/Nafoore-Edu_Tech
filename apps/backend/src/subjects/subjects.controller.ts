@@ -10,7 +10,8 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { IsBoolean, IsIn, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
@@ -35,6 +36,17 @@ class UpdateSubjectDto {
   isActive?: boolean;
 }
 
+class SuggestSubjectDto {
+  @IsString()
+  @Length(2, 60, { message: 'Le domaine doit faire entre 2 et 60 caractères' })
+  // Lettres (accents compris), chiffres, espaces et ponctuation courante
+  // (Power BI, C++, UX/UI, Excel - VBA, Gestion d'équipe…).
+  @Matches(/^[\p{L}\p{N}][\p{L}\p{N} '’+#&/.,()-]*$/u, {
+    message: 'Nom de domaine invalide (lettres, chiffres et ponctuation simple uniquement)',
+  })
+  name: string;
+}
+
 // Public : listes de choix (formulaire de candidature, profils…).
 @Controller('subjects')
 export class SubjectsController {
@@ -43,6 +55,14 @@ export class SubjectsController {
   @Get()
   list() {
     return this.subjects.listActive();
+  }
+
+  // Candidat enseignant : proposer un domaine professionnel absent du
+  // catalogue. Limite par IP pour eviter de remplir le catalogue.
+  @Post('suggest')
+  @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
+  suggest(@Body() dto: SuggestSubjectDto) {
+    return this.subjects.suggest(dto.name);
   }
 }
 

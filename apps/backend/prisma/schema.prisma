@@ -1013,6 +1013,9 @@ model Subject {
   name      String   @unique
   category  String   // scolaire | professionnel
   isActive  Boolean  @default(true) @map("is_active")
+  // Propose par un candidat (formulaire de candidature), en attente de
+  // validation par le Super Admin : masque des listes de choix d'ici la.
+  suggested Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("subjects")
