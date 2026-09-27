@@ -1,11 +1,70 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { LineChart } from 'lucide-react'
 import { api } from '../lib/api'
 import { Card } from './ui/Card'
 import { subjectPalette } from '../lib/subjectColors'
 
-// Carte "Progression par matiere" : moyenne des notes avant l'accompagnement
-// (barree) -> moyenne du dernier mois, sur 20. Notes saisies par l'enseignant.
+// Anneau de la moyenne generale (sur 20), comme la carte de la vitrine.
+function Ring({ value, size = 84, stroke = 8 }) {
+  const gradientId = useId()
+  const r = (size - stroke) / 2
+  const circ = 2 * Math.PI * r
+  const pct = value === null ? 0 : Math.max(0, Math.min(1, value / 20))
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={`url(#${gradientId})`}
+          strokeWidth={stroke}
+          strokeDasharray={circ}
+          strokeDashoffset={circ - pct * circ}
+          strokeLinecap="round"
+        />
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#FACC15" />
+            <stop offset="100%" stopColor="#EAB308" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-serif text-lg font-bold leading-none text-white">
+          {value === null ? '—' : value}
+        </span>
+        <span className="mt-0.5 text-[10px] text-white/50">/20</span>
+      </div>
+    </div>
+  )
+}
+
+function Stat({ label, value, highlight }) {
+  return (
+    <div
+      className={`flex-1 rounded-xl py-2 text-center ${
+        highlight ? 'border border-gold-500/30 bg-gold-500/20' : 'bg-white/10'
+      }`}
+    >
+      <p className={`text-sm font-bold ${highlight ? 'text-gold-400' : 'text-white'}`}>{value}</p>
+      <p className="mt-0.5 text-[10px] text-white/50">{label}</p>
+    </div>
+  )
+}
+
+function formatHours(minutes) {
+  const h = Math.floor(minutes / 60)
+  const m = Math.round(minutes % 60)
+  if (h === 0) return `${m} min`
+  return m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`
+}
+
+// Progression de l'enfant, sur le modele de la carte de la vitrine :
+// synthese en haut (moyenne generale, heures, seances, progres, suivi des
+// seances), puis la liste des matieres avec une barre de couleur chacune.
 export function ProgressCard({
   studentId,
   endpoint = `/family/students/${studentId}/progress`,
@@ -22,119 +81,114 @@ export function ProgressCard({
   }, [endpoint])
 
   const subjects = (progress?.subjects ?? []).filter((s) => s.baselineAverage !== null)
-  // Meme couleur par matiere que dans la liste des seances.
   const colorOf = subjectPalette([...sessions.map((s) => s.subject), ...subjects.map((s) => s.subject)])
-  const doneBySubject = (subject) =>
-    sessions.filter((s) => s.subject === subject && s.status === 'realisee').length
+  const done = sessions.filter((s) => s.status === 'realisee')
+  const minutes = done.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)
+  const overall = progress?.overall ?? null
+  const lastEngagement = progress?.engagement?.[progress.engagement.length - 1] ?? null
 
   return (
-    <Card className="mb-6 p-5">
-      <h2 className="mb-1 flex items-center gap-2 font-semibold text-gray-900">
-        <LineChart size={16} className="text-gold-500" />
-        Progression
-      </h2>
-      <p className="mb-4 text-xs text-gray-500">
-        Moyenne des notes avant l'accompagnement, comparée à la moyenne du dernier mois
-        d'évaluations (notes saisies par l'enseignant).
-      </p>
+    <Card className="mb-6 overflow-hidden p-0">
+      {/* ── Synthese ── */}
+      <div className="bg-navy px-5 pb-4 pt-5 text-white">
+        <h2 className="mb-4 flex items-center gap-2 font-semibold">
+          <LineChart size={16} className="text-gold-400" />
+          Progression
+          {overall && (
+            <span
+              className={`ml-auto rounded-full px-2.5 py-1 text-xs font-semibold ${
+                overall.delta >= 0 ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
+              }`}
+            >
+              {overall.delta >= 0 ? 'En progrès' : 'En baisse'}
+            </span>
+          )}
+        </h2>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      {progress && subjects.length === 0 && (
-        <p className="text-sm text-gray-500">
-          La progression apparaîtra dès que l'enseignant aura saisi les notes de départ puis les
-          premières évaluations.
-        </p>
-      )}
-
-
-      {/* Une petite carte par matiere, chacune avec sa couleur */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {subjects.map((subject) => {
-          const color = colorOf(subject.subject)
-          const done = doneBySubject(subject.subject)
-          const current = subject.latestAverage ?? subject.baselineAverage
-          return (
-            <div key={subject.subject} className={`rounded-xl border border-gray-100 p-3 ${color.soft}`}>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-900">
-                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${color.dot}`} />
-                  <span className="truncate">{subject.subject}</span>
+        <div className="flex items-center gap-4">
+          <Ring value={overall?.latestAverage ?? overall?.baselineAverage ?? null} />
+          <div className="min-w-0 flex-1 space-y-2">
+            <p className="text-[11px] uppercase tracking-wider text-white/50">
+              Moyenne générale
+              {overall && (
+                <span className="ml-1 normal-case tracking-normal text-white/40">
+                  (départ <span className="line-through">{overall.baselineAverage}</span>)
                 </span>
-                {subject.delta !== null && (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                      subject.delta >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {subject.delta >= 0 ? '↑' : '↓'} {Math.abs(subject.delta)} pts
-                  </span>
-                )}
-              </div>
-              <div className="mb-1.5 flex items-baseline gap-2">
-                <span className="text-xs text-gray-400 line-through">{subject.baselineAverage}</span>
-                {subject.latestAverage !== null ? (
-                  <span className={`text-xl font-bold ${color.text}`}>
-                    {subject.latestAverage}
-                    <span className="text-xs font-normal text-gray-400">/20</span>
-                  </span>
-                ) : (
-                  <span className="text-xs text-gray-400">en attente d'évaluation</span>
-                )}
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-white">
-                <div className={`h-full rounded-full ${color.bar}`} style={{ width: `${(current / 20) * 100}%` }} />
-              </div>
-              {done > 0 && (
-                <p className="mt-1.5 text-[11px] text-gray-500">
-                  {done} séance{done > 1 ? 's' : ''} réalisée{done > 1 ? 's' : ''}
-                </p>
               )}
+            </p>
+            <div className="flex gap-2">
+              <Stat label="Heures" value={formatHours(minutes)} />
+              <Stat label="Séances" value={done.length} />
+              <Stat
+                label="Progrès"
+                value={overall ? `${overall.delta >= 0 ? '+' : ''}${overall.delta} pts` : '—'}
+                highlight
+              />
             </div>
-          )
-        })}
+            {lastEngagement && (
+              <p className="text-[11px] text-white/60">
+                Dernier mois : compréhension {lastEngagement.understanding ?? '—'}/5 · participation{' '}
+                {lastEngagement.participation ?? '—'}/5
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
-      {progress?.overall && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl bg-navy px-4 py-3 text-white">
-          <div>
-            <p className="text-xs text-white/60">Synthèse — moyenne générale, toutes matières</p>
-            <p className="text-lg font-bold">
-              <span className="mr-2 text-sm font-normal text-white/50 line-through">
-                {progress.overall.baselineAverage}
-              </span>
-              {progress.overall.latestAverage}/20
-            </p>
-          </div>
-          <span
-            className={`ml-auto rounded-full px-3 py-1 text-sm font-bold ${
-              progress.overall.delta >= 0 ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
-            }`}
-          >
-            {progress.overall.delta >= 0 ? '↑' : '↓'} {Math.abs(progress.overall.delta)} pts
-          </span>
-        </div>
-      )}
-
-      {progress?.engagement?.length > 0 && (
-        <div className="mt-4 rounded-xl border border-gray-100 p-3">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
-            Suivi des séances (compréhension / participation)
+      {/* ── Liste des matieres ── */}
+      <div className="px-5 py-4">
+        <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+          Progression par matière
+        </p>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {progress && subjects.length === 0 && (
+          <p className="text-sm text-gray-500">
+            La progression apparaîtra dès que l'enseignant aura saisi les notes de départ puis les
+            premières évaluations.
           </p>
-          <ul className="space-y-1 text-xs text-gray-600">
-            {progress.engagement.slice(-3).map((m) => (
-              <li key={m.month} className="flex items-center justify-between gap-2">
-                <span>
-                  {new Date(`${m.month}-01`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-                </span>
-                <span>
-                  Compréhension {m.understanding ?? '—'}/5 · Participation {m.participation ?? '—'}/5
-                </span>
-              </li>
-            ))}
-          </ul>
+        )}
+        <div className="space-y-3">
+          {subjects.map((subject) => {
+            const color = colorOf(subject.subject)
+            const current = subject.latestAverage ?? subject.baselineAverage
+            return (
+              <div key={subject.subject}>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-gray-700">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color.hex }} />
+                    <span className="truncate">{subject.subject}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <span className="text-[10px] text-gray-300 line-through">{subject.baselineAverage}</span>
+                    {subject.latestAverage !== null ? (
+                      <>
+                        <span className="text-xs font-bold text-gray-700">{subject.latestAverage}/20</span>
+                        <span
+                          className={`text-[10px] font-bold ${subject.delta >= 0 ? 'text-green-500' : 'text-red-500'}`}
+                        >
+                          {subject.delta >= 0 ? '↑' : '↓'}
+                          {Math.abs(subject.delta)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[10px] text-gray-400">en attente d'évaluation</span>
+                    )}
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${(current / 20) * 100}%`,
+                      background: `linear-gradient(90deg, ${color.hex}88, ${color.hex})`,
+                    }}
+                  />
+                </div>
+              </div>
+            )
+          })}
         </div>
-      )}
+      </div>
     </Card>
   )
 }
