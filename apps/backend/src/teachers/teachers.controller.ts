@@ -25,13 +25,24 @@ import { ListTeachersQueryDto } from './dto/list-teachers-query.dto';
 import { SetVerifiedTeacherDto } from './dto/set-verified-teacher.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
 import { TeachersService } from './teachers.service';
+import { TeacherOnboardingService } from '../onboarding/teacher-onboarding.service';
 
 @Permission('teachers')
 @ZoneParams({ id: 'teacher' })
 @UseGuards(SupabaseAuthGuard, RolesGuard)
 @Controller('teachers')
 export class TeachersController {
-  constructor(private readonly teachersService: TeachersService) {}
+  constructor(
+    private readonly teachersService: TeachersService,
+    private readonly teacherOnboarding: TeacherOnboardingService,
+  ) {}
+
+  // Acces au portail : cree le compte et envoie les identifiants, ou les
+  // renvoie (nouveau mot de passe provisoire) si le compte existe deja.
+  @Post(':id/credentials')
+  sendCredentials(@Param('id') id: string, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.teacherOnboarding.sendCredentialsToTeacher(id, admin.id);
+  }
 
   @Get()
   list(@Query() query: ListTeachersQueryDto, @CurrentAdmin() admin: AuthenticatedAdmin) {

@@ -439,8 +439,9 @@ model TeacherAccount {
   fullName             String                          @map("full_name")
   mustChangePassword   Boolean                         @default(true) @map("must_change_password")
   status               String                          @default("invite") // invite | actif | suspendu
-  teacherApplicationId String                          @unique @map("teacher_application_id")
-  teacherApplication   TeacherApplication              @relation(fields: [teacherApplicationId], references: [id], onDelete: Restrict)
+  // Absent pour un enseignant ajoute directement par l'admin.
+  teacherApplicationId String?                         @unique @map("teacher_application_id")
+  teacherApplication   TeacherApplication?             @relation(fields: [teacherApplicationId], references: [id], onDelete: Restrict)
   teacherId            String?                         @unique @map("teacher_id")
   teacher              Teacher?                        @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   createdAt            DateTime                        @default(now()) @map("created_at")
@@ -451,7 +452,7 @@ model TeacherAccount {
 
 model TeacherCredentialDispatchLog {
   id                   String         @id @default(cuid())
-  teacherApplicationId String         @map("teacher_application_id")
+  teacherApplicationId String?        @map("teacher_application_id")
   teacherAccountId     String         @map("teacher_account_id")
   teacherAccount       TeacherAccount @relation(fields: [teacherAccountId], references: [id], onDelete: Cascade)
   sentById             String?        @map("sent_by")

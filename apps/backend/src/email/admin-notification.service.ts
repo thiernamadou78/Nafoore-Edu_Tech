@@ -7,10 +7,9 @@ import { ZoneKind, ZoneService } from '../auth/zone.service';
 import { AdminModule, hasPermission } from '../auth/permissions';
 import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
 
-// Adresse(s) de test tant que la production n'a pas d'adresse admin dediee :
-// definir ADMIN_NOTIFICATION_EMAIL (plusieurs adresses separees par des
-// virgules) sur Render pour la remplacer, sans toucher au code.
-const TEST_RECIPIENT = 'thiernoamadoud751@gmail.com';
+// Boite de Nafoore par defaut. ADMIN_NOTIFICATION_EMAIL (plusieurs adresses
+// separees par des virgules) sur Render la remplace, sans toucher au code.
+const DEFAULT_RECIPIENT = 'education@nafoore.com';
 
 export interface NotificationScope {
   module: AdminModule;
@@ -57,11 +56,11 @@ export class AdminNotificationService {
   // Boite(s) de Nafoore (Super Admin) : recoivent toutes les notifications.
   private recipients(): string[] {
     const configured = process.env.ADMIN_NOTIFICATION_EMAIL;
-    const list = (configured || TEST_RECIPIENT)
+    const list = (configured || DEFAULT_RECIPIENT)
       .split(',')
       .map((address) => address.trim())
       .filter(Boolean);
-    return list.length > 0 ? list : [TEST_RECIPIENT];
+    return list.length > 0 ? list : [DEFAULT_RECIPIENT];
   }
 
   // Delegues (admins actifs) concernes : droit de consultation sur la

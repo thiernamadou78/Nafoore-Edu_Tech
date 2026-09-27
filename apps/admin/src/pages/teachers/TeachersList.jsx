@@ -137,6 +137,10 @@ export function TeachersList() {
   const [criminalRecordFiles, setCriminalRecordFiles] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
+  // Envoi des identifiants du portail enseignant des la creation (coche par
+  // defaut) ; sinon depuis la fiche, bouton "Envoyer les identifiants".
+  const [sendCredentials, setSendCredentials] = useState(true)
+  const [notice, setNotice] = useState(null)
   // Niveaux demandes seulement si une matiere de soutien scolaire est choisie
   // (inutiles pour un formateur pro), comme sur la candidature.
   const needsLevels = form.subjects.some((name) => !isPro(name))
@@ -225,6 +229,7 @@ export function TeachersList() {
     setIdentityFiles([])
     setDiplomaFiles([])
     setCriminalRecordFiles([])
+    setSendCredentials(true)
     setError(null)
   }
 
@@ -274,7 +279,21 @@ export function TeachersList() {
         ...diplomaFiles.map((file) => uploadDocument(teacher.id, file, 'diplome')),
         ...criminalRecordFiles.map((file) => uploadDocument(teacher.id, file, 'casier_judiciaire')),
       ])
+      // L'enseignant est cree : un echec d'envoi des identifiants ne doit pas
+      // faire croire le contraire (renvoi possible depuis sa fiche).
+      let message = `${teacher.name} a été ajouté.`
+      if (sendCredentials) {
+        try {
+          const result = await api.post(`/teachers/${teacher.id}/credentials`, {})
+          message = `${teacher.name} a été ajouté : ses identifiants de connexion ont été envoyés à ${result.email}.`
+        } catch (err) {
+          message = `${teacher.name} a été ajouté, mais l'envoi des identifiants a échoué (${err.message}). Réessayez depuis sa fiche.`
+        }
+      } else {
+        message += ' Envoyez-lui ses identifiants depuis sa fiche quand vous serez prêt.'
+      }
       closeCreate()
+      setNotice(message)
       await load()
     } catch (err) {
       setError(err.message)
@@ -391,6 +410,11 @@ export function TeachersList() {
       </div>
 
       {error && !showCreate && <Alert>{error}</Alert>}
+      {notice && (
+        <Alert variant="success" className="mb-4">
+          {notice}
+        </Alert>
+      )}
 
       {loading ? (
         <Card className="p-6">
@@ -688,6 +712,21 @@ export function TeachersList() {
               <FileField label="Casier judiciaire (B3)" files={criminalRecordFiles} onChange={setCriminalRecordFiles} />
             </div>
           </div>
+
+          <label className="flex items-start gap-2 rounded-lg bg-navy/5 px-3 py-2.5 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={sendCredentials}
+              onChange={(e) => setSendCredentials(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-navy focus:ring-navy"
+            />
+            <span>
+              Envoyer ses identifiants de connexion par email dès la création
+              <span className="block text-xs text-gray-500">
+                L'enseignant reçoit un lien vers son portail et un mot de passe provisoire à changer à la première connexion.
+              </span>
+            </span>
+          </label>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={closeCreate}>

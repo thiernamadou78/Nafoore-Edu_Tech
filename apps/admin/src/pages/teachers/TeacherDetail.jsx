@@ -96,6 +96,45 @@ function DocumentSlot({ slot, documents, uploading, onUpload, onView, onDelete }
   )
 }
 
+// Acces de l'enseignant a son portail : compte cree, identifiants envoyes,
+// premiere connexion faite ? Et bouton pour (r)envoyer les identifiants.
+function PortalAccessCard({ teacher, sending, onSend }) {
+  const account = teacher.account ?? teacher.application?.teacherAccount ?? null
+  const lastDispatch = teacher.account?.dispatchLogs?.[0] ?? null
+  const connected = account && !account.mustChangePassword
+  return (
+    <Card className="mb-6 flex flex-wrap items-center justify-between gap-3 p-4">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-gray-900">Accès au portail enseignant</p>
+        {!account ? (
+          <p className="text-xs text-gray-500">
+            {teacher.email
+              ? `Pas encore de compte : l'enseignant n'a pas reçu ses identifiants (${teacher.email}).`
+              : "Pas encore de compte. Renseignez d'abord son email dans les infos."}
+          </p>
+        ) : (
+          <p className="text-xs text-gray-500">
+            <Badge tone={connected ? 'green' : 'amber'}>{connected ? 'Connecté' : 'En attente de 1re connexion'}</Badge>{' '}
+            {account.email}
+            {lastDispatch &&
+              ` · identifiants envoyés le ${formatDateTime(lastDispatch.sentAt)}${
+                lastDispatch.deliveryStatus === 'echec' ? ' (échec d’envoi)' : ''
+              }`}
+          </p>
+        )}
+      </div>
+      <Button
+        variant={account ? 'secondary' : 'primary'}
+        loading={sending}
+        disabled={!account && !teacher.email}
+        onClick={() => onSend(Boolean(account))}
+      >
+        {account ? 'Renvoyer les identifiants' : 'Envoyer les identifiants'}
+      </Button>
+    </Card>
+  )
+}
+
 const timeOf = (date) =>
   new Date(date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 
@@ -132,6 +171,7 @@ export function TeacherDetail() {
   )
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
+  const [notice, setNotice] = useState(null)
 
   const load = () =>
     api.get(`/teachers/${id}`).then((data) => {
@@ -207,6 +247,30 @@ export function TeacherDetail() {
       </div>
 
       {error && <Alert>{error}</Alert>}
+      {notice && (
+        <Alert variant="success" className="mb-4">
+          {notice}
+        </Alert>
+      )}
+
+      <PortalAccessCard
+        teacher={teacher}
+        sending={savingAction === 'credentials'}
+        onSend={(resend) => {
+          if (
+            resend &&
+            !window.confirm(
+              "Renvoyer les identifiants ? Un nouveau mot de passe provisoire sera généré : l'ancien ne fonctionnera plus.",
+            )
+          )
+            return
+          setNotice(null)
+          run('credentials', async () => {
+            const result = await api.post(`/teachers/${id}/credentials`, {})
+            setNotice(`Identifiants envoyés à ${result.email}.`)
+          })
+        }}
+      />
 
       <Card className="mb-6 p-6">
         <PhotoUploader

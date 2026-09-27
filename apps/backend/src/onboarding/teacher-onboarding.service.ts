@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -83,7 +84,14 @@ export class TeacherOnboardingService {
       throw creationError;
     }
 
-    await this.dispatchCredentials({ application, teacherAccount, tempPassword, actorId });
+    await this.dispatchCredentials({
+      applicationId: application.id,
+      email: application.candidateEmail,
+      gender: application.gender,
+      teacherAccount,
+      tempPassword,
+      actorId,
+    });
 
     await this.activityLog.log(
       actorId,
@@ -118,7 +126,9 @@ export class TeacherOnboardingService {
     }
 
     await this.dispatchCredentials({
-      application,
+      applicationId: application.id,
+      email: application.candidateEmail,
+      gender: application.gender,
       teacherAccount: application.teacherAccount,
       tempPassword,
       actorId,
@@ -132,21 +142,117 @@ export class TeacherOnboardingService {
     );
   }
 
+  // Enseignant ajoute directement par l'admin (sans candidature), ou deja
+  // passe par le recrutement : cree le compte portail si besoin, sinon
+  // regenere un mot de passe provisoire, puis envoie les identifiants.
+  async sendCredentialsToTeacher(teacherId: string, actorId: string) {
+    const teacher = await this.prisma.teacher.findUnique({
+      where: { id: teacherId },
+      include: { account: true, application: { include: { teacherAccount: true } } },
+    });
+    if (!teacher) throw new NotFoundException('Enseignant introuvable');
+
+    const existing = teacher.account ?? teacher.application?.teacherAccount ?? null;
+    const tempPassword = generateTemporaryPassword();
+
+    if (existing) {
+      const { error } = await this.supabaseAdmin.client.auth.admin.updateUserById(existing.id, {
+        password: tempPassword,
+      });
+      if (error) throw error;
+      const account = existing.teacherId
+        ? existing
+        : await this.prisma.teacherAccount.update({ where: { id: existing.id }, data: { teacherId } });
+      // Nouveau mot de passe provisoire : a changer a la prochaine connexion.
+      await this.prisma.teacherAccount.update({ where: { id: account.id }, data: { mustChangePassword: true } });
+      await this.dispatchCredentials({
+        applicationId: account.teacherApplicationId,
+        email: account.email,
+        gender: teacher.gender,
+        teacherAccount: account,
+        tempPassword,
+        actorId,
+      });
+      await this.activityLog.log(actorId, 'resend_teacher_credentials', 'teachers', teacherId);
+      return { created: false, email: account.email };
+    }
+
+    const email = teacher.email?.trim().toLowerCase();
+    if (!email) {
+      throw new BadRequestException("Renseignez l'email de l'enseignant avant de lui envoyer ses identifiants.");
+    }
+
+    let userId: string;
+    try {
+      userId = await createAuthUserReclaimingOrphans(
+        this.supabaseAdmin,
+        email,
+        tempPassword,
+        (id) => this.prisma.teacherAccount.findUnique({ where: { id } }).then((a) => !a),
+      );
+    } catch (error) {
+      if ((error as Error)?.message?.toLowerCase().includes('already')) {
+        throw new ConflictException(
+          `Un compte existe déjà avec l'adresse ${email} (famille, admin ou autre enseignant). Utilisez une autre adresse pour cet enseignant.`,
+        );
+      }
+      throw error;
+    }
+
+    let teacherAccount;
+    try {
+      teacherAccount = await this.prisma.teacherAccount.create({
+        data: {
+          id: userId,
+          email,
+          fullName: teacher.name,
+          teacherId,
+          teacherApplicationId: teacher.application?.id ?? null,
+        },
+      });
+    } catch (creationError) {
+      try {
+        await this.supabaseAdmin.client.auth.admin.deleteUser(userId);
+      } catch (cleanupError) {
+        this.logger.error(
+          `Échec du nettoyage du compte Supabase Auth orphelin ${userId} après échec de création`,
+          cleanupError instanceof Error ? cleanupError.stack : undefined,
+        );
+      }
+      throw creationError;
+    }
+
+    await this.dispatchCredentials({
+      applicationId: teacher.application?.id ?? null,
+      email,
+      gender: teacher.gender,
+      teacherAccount,
+      tempPassword,
+      actorId,
+    });
+    await this.activityLog.log(actorId, 'create_teacher_account', 'teachers', teacherId);
+    return { created: true, email };
+  }
+
   private async dispatchCredentials({
-    application,
+    applicationId,
+    email,
+    gender,
     teacherAccount,
     tempPassword,
     actorId,
   }: {
-    application: { id: string; candidateEmail: string; gender?: string | null };
+    applicationId: string | null;
+    email: string;
+    gender?: string | null;
     teacherAccount: { id: string; fullName: string };
     tempPassword: string;
     actorId: string;
   }) {
     const html = renderWelcomeEmail({
-      gender: application.gender,
+      gender,
       fullName: teacherAccount.fullName,
-      email: application.candidateEmail,
+      email,
       tempPassword,
       role: 'teacher',
       portalUrl: resolvePortalUrl('teacher'),
@@ -156,7 +262,7 @@ export class TeacherOnboardingService {
     let emailProviderId: string | undefined;
     try {
       const result = await this.emailService.send({
-        to: application.candidateEmail,
+        to: email,
         subject: 'Bienvenue sur Nafoore Education — vos identifiants de connexion',
         html,
       });
@@ -164,14 +270,14 @@ export class TeacherOnboardingService {
     } catch (sendError) {
       deliveryStatus = 'echec';
       this.logger.error(
-        `Échec d'envoi de l'email d'identifiants pour la candidature ${application.id}`,
+        `Échec d'envoi de l'email d'identifiants à ${email}`,
         sendError instanceof Error ? sendError.stack : undefined,
       );
     }
 
     await this.prisma.teacherCredentialDispatchLog.create({
       data: {
-        teacherApplicationId: application.id,
+        teacherApplicationId: applicationId,
         teacherAccountId: teacherAccount.id,
         sentById: actorId,
         deliveryStatus,

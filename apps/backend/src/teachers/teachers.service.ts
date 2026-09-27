@@ -83,6 +83,23 @@ export class TeachersService {
           include: { uploadedBy: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },
         },
+        // Acces au portail enseignant : compte cree ? identifiants envoyes ?
+        account: {
+          select: {
+            email: true,
+            status: true,
+            mustChangePassword: true,
+            createdAt: true,
+            dispatchLogs: {
+              orderBy: { sentAt: 'desc' },
+              take: 1,
+              select: { sentAt: true, deliveryStatus: true },
+            },
+          },
+        },
+        application: {
+          select: { teacherAccount: { select: { email: true, status: true, mustChangePassword: true, createdAt: true } } },
+        },
       },
     });
     if (!teacher) {
