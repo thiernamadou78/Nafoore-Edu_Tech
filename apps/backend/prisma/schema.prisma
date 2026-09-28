@@ -445,6 +445,9 @@ model TeacherAccount {
   // CGU acceptees : version (voir common/legal.ts) et date.
   termsVersion         String?                         @map("terms_version")
   termsAcceptedAt      DateTime?                       @map("terms_accepted_at")
+  // Charte de confidentialite des enseignants acceptee (version et date).
+  charterVersion       String?                         @map("charter_version")
+  charterAcceptedAt    DateTime?                       @map("charter_accepted_at")
   // Absent pour un enseignant ajoute directement par l'admin.
   teacherApplicationId String?                         @unique @map("teacher_application_id")
   teacherApplication   TeacherApplication?             @relation(fields: [teacherApplicationId], references: [id], onDelete: Restrict)

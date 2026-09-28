@@ -19,12 +19,15 @@ export function ProtectedRoute() {
     return <Navigate to="/changer-mot-de-passe" replace />
   }
 
-  // CGU a accepter (premiere connexion ou nouvelle version).
-  if (
-    !teacherAccount.mustChangePassword &&
+  // CGU et charte de confidentialite a accepter (premiere connexion ou
+  // nouvelle version de l'une ou de l'autre).
+  const termsOutdated =
     teacherAccount.currentTermsVersion &&
     teacherAccount.termsVersion !== teacherAccount.currentTermsVersion
-  ) {
+  const charterOutdated =
+    teacherAccount.currentCharterVersion &&
+    teacherAccount.charterVersion !== teacherAccount.currentCharterVersion
+  if (!teacherAccount.mustChangePassword && (termsOutdated || charterOutdated)) {
     return <TermsAcceptance account={teacherAccount} onAccepted={refreshAccount} />
   }
 

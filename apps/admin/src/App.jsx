@@ -32,6 +32,7 @@ import { FormulasList } from './pages/formules/FormulasList'
 import { SiteVitrine } from './pages/site-vitrine/SiteVitrine'
 import { AttendanceAlerts } from './pages/attendance/AttendanceAlerts'
 import { Planning } from './pages/planning/Planning'
+import { LegalAcceptances } from './pages/LegalAcceptances'
 
 export default function App() {
   return (
@@ -98,6 +99,7 @@ export default function App() {
               <Route path="/comptes" element={<AdminAccounts />} />
               <Route path="/matieres" element={<Subjects />} />
               <Route path="/parametres" element={<PlatformSettings />} />
+              <Route path="/cgu-charte" element={<LegalAcceptances />} />
             </Route>
           </Route>
         </Route>

@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { TERMS_VERSION } from '../common/legal';
+import { CHARTER_VERSION, TERMS_VERSION } from '../common/legal';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { SessionChangesService } from '../session-changes/session-changes.service';
@@ -73,9 +73,15 @@ export class TeacherService {
   async acceptTerms(teacherAccountId: string) {
     await this.prisma.teacherAccount.update({
       where: { id: teacherAccountId },
-      data: { termsVersion: TERMS_VERSION, termsAcceptedAt: new Date() },
+      // CGU et charte de confidentialite, acceptees ensemble.
+      data: {
+        termsVersion: TERMS_VERSION,
+        termsAcceptedAt: new Date(),
+        charterVersion: CHARTER_VERSION,
+        charterAcceptedAt: new Date(),
+      },
     });
-    return { termsVersion: TERMS_VERSION };
+    return { termsVersion: TERMS_VERSION, charterVersion: CHARTER_VERSION };
   }
 
   async me(teacherAccount: AuthenticatedTeacherAccount) {
@@ -94,6 +100,8 @@ export class TeacherService {
       status: teacherAccount.status,
       termsVersion: teacherAccount.termsVersion,
       currentTermsVersion: TERMS_VERSION,
+      charterVersion: teacherAccount.charterVersion,
+      currentCharterVersion: CHARTER_VERSION,
     };
   }
 

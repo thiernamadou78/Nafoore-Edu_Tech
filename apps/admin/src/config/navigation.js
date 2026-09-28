@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  FileCheck2,
   Building2,
   CalendarDays,
   Contact2,
@@ -57,5 +58,6 @@ export const NAV_ITEMS = [
   { group: 'administration', label: 'Site vitrine', path: '/site-vitrine', module: 'site', icon: Globe },
   { group: 'administration', label: 'Matières', path: '/matieres', superAdminOnly: true, icon: BookOpen },
   { group: 'administration', label: 'Comptes admin', path: '/comptes', superAdminOnly: true, icon: ShieldCheck },
+  { group: 'administration', label: 'CGU et charte', path: '/cgu-charte', superAdminOnly: true, icon: FileCheck2 },
   { group: 'administration', label: 'Paramètres', path: '/parametres', superAdminOnly: true, icon: Settings },
 ]

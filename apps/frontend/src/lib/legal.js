@@ -22,6 +22,11 @@ export const COMPANY = {
 export const TERMS_VERSION = '2026-09-28'
 export const TERMS_UPDATED_AT = '28 septembre 2026'
 
+// Charte de confidentialite des enseignants : doit correspondre a
+// CHARTER_VERSION cote backend (acceptation redemandee si elle change).
+export const CHARTER_VERSION = '2026-09-28'
+export const CHARTER_UPDATED_AT = '28 septembre 2026'
+
 export const HOSTS = [
   {
     role: 'Sites et applications web',
