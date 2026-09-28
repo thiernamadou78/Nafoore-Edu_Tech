@@ -5,7 +5,6 @@ const LINKS = [
   { to: '/mentions-legales', label: 'Mentions légales' },
   { to: '/cgu', label: 'Conditions générales d’utilisation' },
   { to: '/confidentialite', label: 'Politique de confidentialité' },
-  { to: '/charte-confidentialite', label: 'Charte enseignant' },
 ]
 
 // Mise en page commune des pages legales : titre, date de mise a jour,

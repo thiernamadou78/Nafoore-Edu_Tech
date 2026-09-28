@@ -8,7 +8,6 @@ import ApplicationCompletion from './pages/ApplicationCompletion'
 import MentionsLegales from './pages/legal/MentionsLegales'
 import CGU from './pages/legal/CGU'
 import Confidentialite from './pages/legal/Confidentialite'
-import CharteConfidentialite from './pages/legal/CharteConfidentialite'
 
 // Changement de page : on repart du haut (sauf lien vers une ancre, ex.
 // /#contact, gere par le navigateur).
@@ -33,7 +32,6 @@ export default function App() {
           <Route path="/mentions-legales" element={<MentionsLegales />} />
           <Route path="/cgu" element={<CGU />} />
           <Route path="/confidentialite" element={<Confidentialite />} />
-          <Route path="/charte-confidentialite" element={<CharteConfidentialite />} />
         </Routes>
       </main>
       <Footer />

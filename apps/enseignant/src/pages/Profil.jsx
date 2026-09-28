@@ -11,6 +11,7 @@ import { LevelPicker } from '../components/LevelPicker'
 import { useCitySuggestions } from '../lib/useCitySuggestions'
 import { PhotoOrInitials } from '../components/ui/PhotoOrInitials'
 import { MyDocuments } from '../components/MyDocuments'
+import { CHARTER_UPDATED_AT, CharterText } from '../components/CharterText'
 
 const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
@@ -454,6 +455,32 @@ export function Profil() {
       </form>
 
       <MyDocuments />
+      <MyCharter />
     </div>
+  )
+}
+
+// Charte de confidentialite acceptee a la premiere connexion : relisible ici.
+function MyCharter() {
+  const [open, setOpen] = useState(false)
+  return (
+    <Card className="mt-6 p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-gray-700">Charte de confidentialité</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Vos engagements sur les données des élèves et des familles (version du {CHARTER_UPDATED_AT}).
+          </p>
+        </div>
+        <Button type="button" variant="secondary" onClick={() => setOpen((v) => !v)}>
+          {open ? 'Masquer' : 'Relire'}
+        </Button>
+      </div>
+      {open && (
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <CharterText />
+        </div>
+      )}
+    </Card>
   )
 }

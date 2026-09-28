@@ -5,8 +5,9 @@
 export const TERMS_VERSION = '2026-09-28';
 
 // Version en vigueur de la charte de confidentialite des enseignants (meme
-// principe, comptes enseignant uniquement). Correspond a CHARTER_VERSION de
-// la vitrine.
+// principe, comptes enseignant uniquement). Texte dans l'espace enseignant
+// uniquement (apps/enseignant/src/components/CharterText.jsx), pas sur le
+// site public.
 export const CHARTER_VERSION = '2026-09-28';
 
 // Statut d'acceptation d'un document : a jour, ancienne version acceptee,

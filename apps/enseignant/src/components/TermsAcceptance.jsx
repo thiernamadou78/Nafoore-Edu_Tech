@@ -3,6 +3,7 @@ import { FileCheck2, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import { Button } from './ui/Button'
+import { CharterText } from './CharterText'
 
 const VITRINE_URL = import.meta.env.VITE_VITRINE_URL || 'https://education.nafoore.com'
 
@@ -23,6 +24,7 @@ export function TermsAcceptance({ account, onAccepted }) {
   const [charter, setCharter] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [showCharter, setShowCharter] = useState(false)
   const isUpdate = Boolean(account.termsVersion || account.charterVersion)
 
   const accept = async () => {
@@ -68,7 +70,18 @@ export function TermsAcceptance({ account, onAccepted }) {
               <li key={item}>{item}</li>
             ))}
           </ul>
-          <p className="mt-2 text-xs">{link('/charte-confidentialite', 'Lire la charte complète')}</p>
+          <button
+            type="button"
+            onClick={() => setShowCharter((v) => !v)}
+            className="mt-2 text-xs font-semibold text-navy underline"
+          >
+            {showCharter ? 'Masquer la charte complète' : 'Lire la charte complète'}
+          </button>
+          {showCharter && (
+            <div className="mt-3 max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-white p-3">
+              <CharterText />
+            </div>
+          )}
         </div>
 
         <div className="mt-5 space-y-3 text-sm text-gray-700">
@@ -92,7 +105,7 @@ export function TermsAcceptance({ account, onAccepted }) {
               className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-navy focus:ring-navy"
             />
             <span>
-              Je m’engage à respecter la {link('/charte-confidentialite', 'charte de confidentialité de l’enseignant')}.
+              Je m’engage à respecter la charte de confidentialité de l’enseignant ci-dessus.
             </span>
           </label>
         </div>
