@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { TERMS_VERSION } from '../common/legal';
 import { PrismaService } from '../prisma/prisma.service';
 import { PhotosService } from '../photos/photos.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
@@ -110,11 +111,23 @@ export class FamilyService {
       familyName: portalAccount.familyName,
       role: portalAccount.role,
       mustChangePassword: portalAccount.mustChangePassword,
+      // CGU : version acceptee et version en vigueur (acceptation redemandee
+      // si elles different).
+      termsVersion: portalAccount.termsVersion,
+      currentTermsVersion: TERMS_VERSION,
       status: portalAccount.status,
       address: lead?.address ?? null,
       postalCode: lead?.postalCode ?? null,
       city: lead?.city ?? null,
     };
+  }
+
+  async acceptTerms(portalAccountId: string) {
+    await this.prisma.portalAccount.update({
+      where: { id: portalAccountId },
+      data: { termsVersion: TERMS_VERSION, termsAcceptedAt: new Date() },
+    });
+    return { termsVersion: TERMS_VERSION };
   }
 
   async markPasswordChanged(portalAccountId: string) {

@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { TERMS_VERSION } from '../common/legal';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { SessionChangesService } from '../session-changes/session-changes.service';
@@ -69,6 +70,14 @@ export class TeacherService {
     private readonly sessionNotifier: SessionNotifierService,
   ) {}
 
+  async acceptTerms(teacherAccountId: string) {
+    await this.prisma.teacherAccount.update({
+      where: { id: teacherAccountId },
+      data: { termsVersion: TERMS_VERSION, termsAcceptedAt: new Date() },
+    });
+    return { termsVersion: TERMS_VERSION };
+  }
+
   async me(teacherAccount: AuthenticatedTeacherAccount) {
     const teacher = teacherAccount.teacherId
       ? await this.prisma.teacher.findUnique({
@@ -83,6 +92,8 @@ export class TeacherService {
       fullName: teacherAccount.fullName,
       mustChangePassword: teacherAccount.mustChangePassword,
       status: teacherAccount.status,
+      termsVersion: teacherAccount.termsVersion,
+      currentTermsVersion: TERMS_VERSION,
     };
   }
 

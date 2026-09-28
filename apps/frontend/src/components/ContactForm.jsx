@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useCitySuggestions } from '../lib/useCitySuggestions'
+import PrivacyConsent from './PrivacyConsent'
 
 const PROFILES = [
   { value: 'famille', label: 'Famille', icon: '👨‍👩‍👧' },
@@ -434,6 +435,8 @@ export default function ContactForm() {
                     className="w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 font-sans text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-navy/30 transition-colors resize-none"
                   />
                 </div>
+
+                <PrivacyConsent purpose="traiter ma demande et me recontacter" />
 
                 {status === 'error' && (
                   <div className="mb-4 bg-red-50 border border-red-200 text-red-600 font-sans text-sm rounded-xl px-4 py-3">

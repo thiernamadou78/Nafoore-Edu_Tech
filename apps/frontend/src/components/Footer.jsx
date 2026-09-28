@@ -117,9 +117,17 @@ export default function Footer() {
           <p className="font-sans text-xs text-gray-600">
             © {new Date().getFullYear()} Nafoore Education — Tous droits réservés
           </p>
-          <p className="font-sans text-xs text-gray-600">
-            Fait avec ❤️ pour la réussite de chaque élève
-          </p>
+          <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1 font-sans text-xs text-gray-500">
+            <Link to="/mentions-legales" className="hover:text-gold-400 transition-colors">
+              Mentions légales
+            </Link>
+            <Link to="/cgu" className="hover:text-gold-400 transition-colors">
+              CGU
+            </Link>
+            <Link to="/confidentialite" className="hover:text-gold-400 transition-colors">
+              Politique de confidentialité
+            </Link>
+          </nav>
         </div>
       </div>
     </footer>

@@ -1,9 +1,10 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Spinner } from './ui/Spinner'
+import { TermsAcceptance } from './TermsAcceptance'
 
 export function ProtectedRoute() {
-  const { session, portalAccount, loading } = useAuth()
+  const { session, portalAccount, loading, refreshAccount } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -24,6 +25,17 @@ export function ProtectedRoute() {
     location.pathname !== '/bienvenue'
   ) {
     return <Navigate to="/bienvenue" replace />
+  }
+
+  // CGU a accepter (premiere connexion, apres le choix du nom de famille,
+  // ou nouvelle version).
+  if (
+    !portalAccount.mustChangePassword &&
+    portalAccount.familyName &&
+    portalAccount.currentTermsVersion &&
+    portalAccount.termsVersion !== portalAccount.currentTermsVersion
+  ) {
+    return <TermsAcceptance account={portalAccount} onAccepted={refreshAccount} />
   }
 
   return <Outlet />

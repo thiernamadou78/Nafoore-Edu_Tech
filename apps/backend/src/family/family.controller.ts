@@ -55,6 +55,12 @@ export class FamilyController {
     return this.familyService.me(portalAccount);
   }
 
+  // Acceptation des CGU en vigueur (premiere connexion ou nouvelle version).
+  @Patch('me/accept-terms')
+  acceptTerms(@CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount) {
+    return this.familyService.acceptTerms(portalAccount.id);
+  }
+
   @Patch('me/password-changed')
   async passwordChanged(
     @CurrentPortalAccount() portalAccount: AuthenticatedPortalAccount,

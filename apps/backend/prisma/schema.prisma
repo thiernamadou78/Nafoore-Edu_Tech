@@ -61,6 +61,9 @@ model PortalAccount {
   role               String                  // famille | mairie | entreprise | centre_formation_ecole_pro
   mustChangePassword Boolean                 @default(true) @map("must_change_password")
   status             String                  @default("invite") // invite | actif | suspendu
+  // CGU acceptees : version (voir common/legal.ts) et date.
+  termsVersion       String?                 @map("terms_version")
+  termsAcceptedAt    DateTime?               @map("terms_accepted_at")
   leadId             String                  @unique @map("lead_id")
   lead               Lead                    @relation(fields: [leadId], references: [id], onDelete: Restrict)
   createdAt          DateTime                @default(now()) @map("created_at")
@@ -439,6 +442,9 @@ model TeacherAccount {
   fullName             String                          @map("full_name")
   mustChangePassword   Boolean                         @default(true) @map("must_change_password")
   status               String                          @default("invite") // invite | actif | suspendu
+  // CGU acceptees : version (voir common/legal.ts) et date.
+  termsVersion         String?                         @map("terms_version")
+  termsAcceptedAt      DateTime?                       @map("terms_accepted_at")
   // Absent pour un enseignant ajoute directement par l'admin.
   teacherApplicationId String?                         @unique @map("teacher_application_id")
   teacherApplication   TeacherApplication?             @relation(fields: [teacherApplicationId], references: [id], onDelete: Restrict)

@@ -44,6 +44,12 @@ export class TeacherController {
     return this.teacherService.me(teacherAccount);
   }
 
+  // Acceptation des CGU en vigueur (premiere connexion ou nouvelle version).
+  @Patch('me/accept-terms')
+  acceptTerms(@CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount) {
+    return this.teacherService.acceptTerms(teacherAccount.id);
+  }
+
   @Patch('me/password-changed')
   async passwordChanged(
     @CurrentTeacherAccount() teacherAccount: AuthenticatedTeacherAccount,

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { validateUploads } from '../lib/fileValidation'
 import { useCitySuggestions } from '../lib/useCitySuggestions'
+import PrivacyConsent from '../components/PrivacyConsent'
 
 const LEVELS = [
   { value: 'primaire', label: 'Primaire' },
@@ -806,6 +807,8 @@ export default function TeacherApplication() {
                     )}
                   </div>
                 </div>
+
+                <PrivacyConsent purpose="étudier ma candidature (dont la vérification de mes documents)" />
 
                 {status === 'error' && (
                   <div className="mb-4 bg-red-50 border border-red-200 text-red-600 font-sans text-sm rounded-xl px-4 py-3">

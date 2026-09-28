@@ -89,6 +89,7 @@ export function AuthProvider({ children }) {
         signOut,
         completePasswordChange,
         completeFamilyName,
+        refreshAccount: loadPortalAccount,
       }}
     >
       {children}
