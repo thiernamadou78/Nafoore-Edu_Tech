@@ -18,7 +18,7 @@ export class UpdateTeacherSessionDto {
 
   @IsOptional()
   @IsInt()
-  @Min(5, { message: 'La durée minimale est de 5 minutes' })
+  @Min(30, { message: 'La durée minimale est de 30 minutes' })
   @Max(240)
   durationMinutes?: number;
 
