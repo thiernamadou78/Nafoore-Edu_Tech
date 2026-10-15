@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Ban,
   CalendarPlus,
+  Repeat,
   FileText,
   History,
   Power,
@@ -51,6 +52,7 @@ import { PassEducatifCard } from './PassEducatifCard'
 import { matchLevel } from '../../lib/levels'
 import { DocumentViewer } from '../../components/DocumentViewer'
 import { useAuth } from '../../context/AuthContext'
+import { ScheduleForm, SessionChangeActions, SessionCreateForm } from '../../components/planning/AdminPlanningForms'
 
 const inputClass =
   'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -86,7 +88,7 @@ const TABS = [
 // Carte de seance du calendrier : meme presentation que cote enseignant et
 // famille (heure, matiere, statut, notes) ; "Modifier" ouvre le formulaire
 // d'edition admin.
-function AdminSessionCard({ session, onSave }) {
+function AdminSessionCard({ session, onSave, studentId, onChanged }) {
   const [editing, setEditing] = useState(false)
   const time = new Date(session.date).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
@@ -130,6 +132,7 @@ function AdminSessionCard({ session, onSave }) {
       <div className="mt-1">
         <SessionReport session={session} />
       </div>
+      {studentId && <SessionChangeActions session={session} studentId={studentId} onDone={onChanged} />}
       <Button variant="secondary" onClick={() => setEditing(true)} className="mt-2 px-3 py-1.5 text-xs">
         Modifier
       </Button>
@@ -440,7 +443,7 @@ function AssignTeacherCard({ student, teachers, onAssigned }) {
   )
 }
 
-function SessionsByStatusBoard({ sessions, onSave }) {
+function SessionsByStatusBoard({ sessions, onSave, studentId, onChanged }) {
   const realisees = sessions.filter((s) => s.status === 'realisee')
   const rejetees = sessions.filter((s) => s.status === 'annulee')
   const programmees = sessions.filter((s) => s.status !== 'realisee' && s.status !== 'annulee')
@@ -478,7 +481,10 @@ function SessionsByStatusBoard({ sessions, onSave }) {
             ) : (
               <>
                 {group.page.visible.map((session) => (
-                  <SessionRow key={session.id} session={session} onSave={(patch) => onSave(session.id, patch)} />
+                  <div key={session.id}>
+                    <SessionRow session={session} onSave={(patch) => onSave(session.id, patch)} />
+                    <SessionChangeActions session={session} studentId={studentId} onDone={onChanged} />
+                  </div>
                 ))}
                 <PaginationControls
                   {...group.page}
@@ -556,12 +562,6 @@ export function StudentDetail() {
   // { [teacherId]: string[] } — matieres couvertes par ce prof pour cet eleve.
   // Un prof present dans cette map (avec au moins 1 matiere) est "assigne".
   const [teacherAssignments, setTeacherAssignments] = useState({})
-  const [sessionForm, setSessionForm] = useState({
-    date: '',
-    teacherId: '',
-    subject: '',
-    notes: '',
-  })
   const [reportForm, setReportForm] = useState({ period: '', content: '', shareable: false })
   // Vide par defaut : le statut effectif est calcule a l'usage (voir
   // defaultProgressStatus) pour ne jamais pre-cocher "En progres" sur un
@@ -571,6 +571,9 @@ export function StudentDetail() {
   const [error, setError] = useState(null)
   const [savingAction, setSavingAction] = useState(null)
   const [sessionsView, setSessionsView] = useState('calendrier')
+  // Planification par l'equipe : programme hebdomadaire et seance ponctuelle.
+  const [scheduleEditor, setScheduleEditor] = useState(null) // null | 'new' | schedule
+  const [showCreateSession, setShowCreateSession] = useState(false)
 
   const load = () =>
     api.get(`/students/${id}`).then((data) => {
@@ -645,6 +648,17 @@ export function StudentDetail() {
       return { ...prev, [teacherId]: next }
     })
   }
+
+  // Accompagnements actifs de l'eleve (une matiere avec un enseignant).
+  const planningAssignments = (student?.teachers ?? [])
+    .filter((row) => row.subject && (!row.endsAt || new Date(row.endsAt) >= new Date()))
+    .map((row) => ({
+      id: row.id,
+      subject: row.subject,
+      endsAt: row.endsAt,
+      teacher: row.teacher,
+      student: { id: student.id, name: student.name },
+    }))
 
   if (!student) {
     return error ? <Alert>{error}</Alert> : <p className="text-gray-500">Chargement…</p>
@@ -992,9 +1006,41 @@ export function StudentDetail() {
 
           {tab === 'seances' && (
             <div className="space-y-6">
-              {student.recurringSchedules?.length > 0 && (
-                <Card className="p-6">
-                  <h2 className="mb-3 font-semibold text-gray-900">Programme</h2>
+              <Card className="p-6">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="flex items-center gap-2 font-semibold text-gray-900">
+                    <Repeat size={16} className="text-navy" />
+                    Programme
+                  </h2>
+                  {can('students', 'edit') && !scheduleEditor && planningAssignments.length > 0 && (
+                    <Button variant="secondary" icon={Repeat} onClick={() => setScheduleEditor('new')} className="px-3 py-1.5 text-xs">
+                      Nouveau programme
+                    </Button>
+                  )}
+                </div>
+                {scheduleEditor && (
+                  <div className="mb-4">
+                    <ScheduleForm
+                      key={scheduleEditor === 'new' ? 'new' : scheduleEditor.id}
+                      studentId={id}
+                      assignments={planningAssignments}
+                      existing={scheduleEditor === 'new' ? null : scheduleEditor}
+                      onCancel={() => setScheduleEditor(null)}
+                      onSaved={async () => {
+                        setScheduleEditor(null)
+                        await load()
+                      }}
+                    />
+                  </div>
+                )}
+                {!student.recurringSchedules?.length && !scheduleEditor && (
+                  <p className="text-sm text-gray-500">
+                    {planningAssignments.length > 0
+                      ? 'Aucun programme. Créez un rendez-vous hebdomadaire : les séances sont générées jusqu’à la fin de l’accompagnement.'
+                      : 'Affectez d’abord un enseignant (onglet Enseignants) pour pouvoir créer un programme.'}
+                  </p>
+                )}
+                {student.recurringSchedules?.length > 0 && (
                   <div className="space-y-4">
                     {student.recurringSchedules.map((schedule) => (
                       <div key={schedule.id}>
@@ -1004,6 +1050,7 @@ export function StudentDetail() {
                           </span>{' '}
                           — {schedule.frequency} séance{schedule.frequency > 1 ? 's' : ''} par
                           semaine{schedule.subject && ` · ${schedule.subject}`}
+                          {schedule.durationMinutes ? ` · ${schedule.durationMinutes} min` : ''}
                         </p>
                         <div className="flex flex-wrap gap-1.5">
                           {[...schedule.slots]
@@ -1015,7 +1062,14 @@ export function StudentDetail() {
                             ))}
                         </div>
                         {can('students', 'edit') && (
-                          <div className="mt-2">
+                          <div className="mt-2 flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setScheduleEditor(schedule)}
+                              className="text-xs font-medium text-navy hover:underline"
+                            >
+                              Modifier les créneaux
+                            </button>
                             <StopProgramButton
                               onStop={(reason) =>
                                 run(`stop-${schedule.id}`, () =>
@@ -1028,8 +1082,8 @@ export function StudentDetail() {
                       </div>
                     ))}
                   </div>
-                </Card>
-              )}
+                )}
+              </Card>
               <Card className="p-6">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 font-semibold text-gray-900">
@@ -1073,6 +1127,8 @@ export function StudentDetail() {
                     renderSession={(session) => (
                       <AdminSessionCard
                         session={session}
+                        studentId={can('students', 'edit') ? id : null}
+                        onChanged={load}
                         onSave={(patch) =>
                           run('session', () =>
                             api.patch(`/students/${id}/sessions/${session.id}`, patch),
@@ -1084,70 +1140,33 @@ export function StudentDetail() {
                 ) : (
                   <SessionsByStatusBoard
                     sessions={student.sessions}
+                    studentId={id}
+                    onChanged={load}
                     onSave={(sessionId, patch) =>
                       run('session', () => api.patch(`/students/${id}/sessions/${sessionId}`, patch))
                     }
                   />
                 )}
               </div>
-              <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
-                <div>
-                  <label className="mb-1 block text-xs text-gray-500">Date</label>
-                  <input
-                    type="datetime-local"
-                    value={sessionForm.date}
-                    onChange={(e) => setSessionForm((f) => ({ ...f, date: e.target.value }))}
-                    className={inputClass}
-                  />
+              {can('students', 'edit') && (
+                <div className="border-t border-gray-100 pt-4">
+                  {showCreateSession ? (
+                    <SessionCreateForm
+                      assignments={planningAssignments}
+                      showStudent={false}
+                      onCancel={() => setShowCreateSession(false)}
+                      onCreated={async () => {
+                        setShowCreateSession(false)
+                        await load()
+                      }}
+                    />
+                  ) : (
+                    <Button icon={CalendarPlus} onClick={() => setShowCreateSession(true)}>
+                      Planifier une séance
+                    </Button>
+                  )}
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs text-gray-500">Enseignant</label>
-                  <select
-                    value={sessionForm.teacherId}
-                    onChange={(e) => setSessionForm((f) => ({ ...f, teacherId: e.target.value }))}
-                    className={inputClass}
-                  >
-                    <option value="">—</option>
-                    {teachers.map((teacher) => (
-                      <option key={teacher.id} value={teacher.id}>
-                        {teacher.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-gray-500">Matière</label>
-                  <input
-                    value={sessionForm.subject}
-                    onChange={(e) => setSessionForm((f) => ({ ...f, subject: e.target.value }))}
-                    className={inputClass}
-                  />
-                </div>
-                <input
-                  value={sessionForm.notes}
-                  onChange={(e) => setSessionForm((f) => ({ ...f, notes: e.target.value }))}
-                  placeholder="Contenu abordé (optionnel)"
-                  className={`${inputClass} min-w-[160px] flex-1`}
-                />
-                <Button
-                  icon={CalendarPlus}
-                  loading={savingAction === 'new-session'}
-                  disabled={!sessionForm.date}
-                  onClick={() =>
-                    run('new-session', async () => {
-                      await api.post(`/students/${id}/sessions`, {
-                        date: new Date(sessionForm.date).toISOString(),
-                        teacherId: sessionForm.teacherId || undefined,
-                        subject: sessionForm.subject || undefined,
-                        notes: sessionForm.notes || undefined,
-                      })
-                      setSessionForm({ date: '', teacherId: '', subject: '', notes: '' })
-                    })
-                  }
-                >
-                  Ajouter
-                </Button>
-              </div>
+              )}
               </Card>
             </div>
           )}

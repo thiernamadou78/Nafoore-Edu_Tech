@@ -34,6 +34,13 @@ class PlanningQueryDto {
 export class PlanningController {
   constructor(private readonly planning: PlanningService) {}
 
+  // Affectations actives (eleve + enseignant + matiere) : choix proposes
+  // pour planifier depuis le calendrier.
+  @Get('assignments')
+  assignments(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.planning.assignments(admin);
+  }
+
   @Get()
   list(@Query() query: PlanningQueryDto, @CurrentAdmin() admin: AuthenticatedAdmin) {
     const from = new Date(query.from);

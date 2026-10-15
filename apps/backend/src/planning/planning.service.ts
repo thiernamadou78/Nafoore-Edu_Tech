@@ -11,6 +11,34 @@ export class PlanningService {
     private readonly zone: ZoneService,
   ) {}
 
+  async assignments(admin: AuthenticatedAdmin) {
+    const zoneWhere = await this.zone.where(admin, 'student');
+    const rows = await this.prisma.studentTeacher.findMany({
+      where: {
+        subject: { not: null },
+        student: { isActive: true, ...(zoneWhere ?? {}) },
+        OR: [{ endsAt: null }, { endsAt: { gte: new Date() } }],
+      },
+      select: {
+        id: true,
+        subject: true,
+        endsAt: true,
+        student: { select: { id: true, name: true, classe: true } },
+        teacher: { select: { id: true, name: true } },
+      },
+      orderBy: { student: { name: 'asc' } },
+    });
+    const schedules = await this.prisma.recurringSchedule.findMany({
+      where: { active: true, studentId: { in: [...new Set(rows.map((r) => r.student.id))] } },
+      select: { studentId: true, teacherId: true, subject: true },
+    });
+    const withSchedule = new Set(schedules.map((s) => `${s.studentId}|${s.teacherId}|${s.subject}`));
+    return rows.map((r) => ({
+      ...r,
+      hasSchedule: withSchedule.has(`${r.student.id}|${r.teacher.id}|${r.subject}`),
+    }));
+  }
+
   async list(
     admin: AuthenticatedAdmin,
     filters: { from: Date; to: Date; teacherId?: string; studentId?: string; status?: string },

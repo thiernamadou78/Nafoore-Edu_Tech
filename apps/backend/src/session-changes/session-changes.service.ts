@@ -155,6 +155,22 @@ export class SessionChangesService {
     this.notify(kind, session, { kind: 'enseignant', name: session.teacher.name }, reason, new Date(), previousDate);
   }
 
+  // ------------------------------------------------- admin (apres update)
+
+  // Seance deplacee ou annulee par l'equipe Nafoore : famille et enseignant
+  // prevenus (qui, motif, delai), comme pour les autres acteurs.
+  async notifyAdminChange(
+    kind: 'cancelled' | 'rescheduled',
+    sessionId: string,
+    adminName: string,
+    reason: string | undefined,
+    previousDate?: Date,
+  ) {
+    const session = await this.prisma.session.findUnique({ where: { id: sessionId }, include: sessionInclude });
+    if (!session) return;
+    this.notify(kind, session, { kind: 'admin', name: adminName }, reason, new Date(), previousDate);
+  }
+
   // ----------------------------------------------- arret d'un programme
 
   async stopProgram(scheduleId: string, actor: ChangeActor, reason: string) {
@@ -256,12 +272,15 @@ export class SessionChangesService {
     if (actor.kind !== 'famille' && familyEmail && family) {
       this.send(familyEmail, subject, family.portalAccount?.fullName ?? family.name, family.gender, title, paragraphs, 'famille');
     }
-    this.adminNotification.notify({
-      subject,
-      title,
-      lines: paragraphs,
-      path: `/eleves/${session.student.id}`,
-    });
+    // L'equipe n'est pas prevenue de sa propre action.
+    if (actor.kind !== 'admin') {
+      this.adminNotification.notify({
+        subject,
+        title,
+        lines: paragraphs,
+        path: `/eleves/${session.student.id}`,
+      });
+    }
   }
 
   private send(

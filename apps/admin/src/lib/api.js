@@ -25,11 +25,22 @@ async function send(path, options = {}) {
     const message = Array.isArray(body?.message)
       ? body.message.join(', ')
       : body?.message
-    throw new Error(message || `Erreur ${response.status}`)
+    const error = new Error(message || `Erreur ${response.status}`)
+    // Details exploitables par les formulaires (ex. alerte "hors
+    // disponibilites" a confirmer : code + liste des avertissements).
+    error.status = response.status
+    error.body = body
+    throw error
   }
 
   if (response.status === 204) return null
   return response.json()
+}
+
+// Creneau hors disponibilites (famille ou enseignant) : avertissement a
+// confirmer, pas une erreur bloquante.
+export function availabilityWarnings(error) {
+  return error?.status === 409 && error.body?.code === 'OUT_OF_AVAILABILITY' ? error.body.warnings ?? [] : null
 }
 
 function jsonRequest(path, options = {}) {

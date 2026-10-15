@@ -1,4 +1,4 @@
-import { IsDateString, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export const SESSION_STATUSES = [
   'planifiee',
@@ -29,4 +29,16 @@ export class CreateSessionDto {
   @IsString()
   @MaxLength(2000)
   notes?: string;
+
+  // Memes durees que cote enseignant (30 min a 2 h ; 4 h max).
+  @IsOptional()
+  @IsInt()
+  @Min(30, { message: 'La durée minimale est de 30 minutes' })
+  @Max(240)
+  durationMinutes?: number;
+
+  // L'admin a vu l'alerte "hors disponibilites" et confirme quand meme.
+  @IsOptional()
+  @IsBoolean()
+  confirmOutOfAvailability?: boolean;
 }

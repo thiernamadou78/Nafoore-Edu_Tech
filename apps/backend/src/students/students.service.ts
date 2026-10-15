@@ -16,6 +16,7 @@ const teacherSelect = {
   id: true,
   subject: true,
   hourlyRate: true,
+  endsAt: true,
   teacher: { select: { id: true, name: true, subjects: true } },
 };
 

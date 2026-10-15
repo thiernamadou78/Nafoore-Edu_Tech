@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Clock, FileText, QrCode, UserCheck } from 'lucide-react'
+import { CalendarDays, CalendarPlus, Clock, FileText, QrCode, UserCheck } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useAutoRefresh } from '../../lib/useAutoRefresh'
 import { Alert } from '../../components/ui/Alert'
@@ -9,6 +9,9 @@ import { Card } from '../../components/ui/Card'
 import { PlanningCalendar } from '../../components/ui/PlanningCalendar'
 import { CLASS_LABELS } from '../../lib/levels'
 import { SESSION_STATUS_LABELS, SESSION_STATUS_TONES } from '../students/labels'
+import { Button } from '../../components/ui/Button'
+import { SessionChangeActions, SessionCreateForm } from '../../components/planning/AdminPlanningForms'
+import { useAuth } from '../../context/AuthContext'
 
 const selectClass =
   'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy'
@@ -26,7 +29,7 @@ function isToCheck(session) {
   )
 }
 
-function SessionCard({ session, compact = false }) {
+function SessionCard({ session, compact = false, onChanged }) {
   const toCheck = isToCheck(session)
   const end = new Date(new Date(session.date).getTime() + session.durationMinutes * 60_000)
   const accent = toCheck
@@ -85,12 +88,19 @@ function SessionCard({ session, compact = false }) {
           )}
         </div>
       )}
+      {onChanged && <SessionChangeActions session={session} studentId={session.student.id} onDone={onChanged} />}
     </div>
   )
 }
 
 export function Planning() {
+  const { can } = useAuth()
+  // Planifier / decaler / annuler passe par la fiche eleve : droit d'edition
+  // sur les eleves requis.
+  const canEdit = can('students', 'edit')
   const [view, setView] = useState('semaine')
+  const [assignments, setAssignments] = useState([])
+  const [creatingFor, setCreatingFor] = useState(null) // jour selectionne (cle)
   // Periode affichee par le calendrier (communiquee via onRangeChange).
   const [range, setRange] = useState(null)
   const [sessions, setSessions] = useState([])
@@ -118,6 +128,15 @@ export function Planning() {
     setLoading(true)
     load()
   }, [load])
+
+  // Accompagnements actifs : choix proposes pour planifier depuis le calendrier.
+  useEffect(() => {
+    if (!canEdit) return
+    api
+      .get('/planning/assignments')
+      .then(setAssignments)
+      .catch(() => setAssignments([]))
+  }, [canEdit])
   useAutoRefresh(load)
 
   // Listes des filtres construites a partir des seances de la periode.
@@ -224,7 +243,34 @@ export function Planning() {
               : { from, to },
           )
         }
-        renderSession={(session) => <SessionCard session={session} />}
+        renderSession={(session) => <SessionCard session={session} onChanged={canEdit ? load : undefined} />}
+        renderDayPanel={
+          canEdit
+            ? (day) => {
+                const key = day.toDateString()
+                if (creatingFor === key) {
+                  return (
+                    <SessionCreateForm
+                      key={key}
+                      assignments={assignments}
+                      defaultDate={day}
+                      onCancel={() => setCreatingFor(null)}
+                      onCreated={async () => {
+                        setCreatingFor(null)
+                        await load()
+                      }}
+                    />
+                  )
+                }
+                const past = new Date(day).setHours(23, 59, 59, 999) < Date.now()
+                return past ? null : (
+                  <Button variant="secondary" icon={CalendarPlus} onClick={() => setCreatingFor(key)} className="px-3 py-1.5 text-xs">
+                    Planifier une séance ce jour
+                  </Button>
+                )
+              }
+            : undefined
+        }
       />
 
       {!loading && visible.length === 0 && (

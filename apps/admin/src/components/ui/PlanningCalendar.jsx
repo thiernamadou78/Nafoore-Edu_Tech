@@ -26,7 +26,9 @@ function dotColor(session) {
 // ont des séances, et un clic sur un jour affiche l'agenda du jour.
 // mode="month" (par défaut) ou "week" : même présentation, la vue semaine
 // n'affiche que la ligne des 7 jours et navigue de semaine en semaine.
-export function PlanningCalendar({ sessions, renderSession, mode = 'month', onRangeChange }) {
+// renderDayPanel (facultatif) : contenu affiche au-dessus des seances du jour
+// selectionne (ex. bouton et formulaire "Planifier ce jour" cote admin).
+export function PlanningCalendar({ sessions, renderSession, mode = 'month', onRangeChange, renderDayPanel }) {
   const today = new Date()
   const isWeek = mode === 'week'
   // Debut de la periode affichee : 1er du mois, ou lundi de la semaine.
@@ -192,6 +194,7 @@ export function PlanningCalendar({ sessions, renderSession, mode = 'month', onRa
             </span>
           </h3>
         </div>
+        {renderDayPanel && <div className="mb-3">{renderDayPanel(selected)}</div>}
         {selectedSessions.length === 0 ? (
           <Card className="p-6 text-center text-sm text-gray-400">Aucune séance ce jour.</Card>
         ) : (
