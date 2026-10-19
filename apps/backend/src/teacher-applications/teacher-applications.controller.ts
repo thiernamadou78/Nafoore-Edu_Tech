@@ -117,7 +117,7 @@ export class TeacherApplicationsController {
     @Body() dto: DecisionDto,
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
-    return this.teacherApplicationsService.decide(id, dto.status, admin.id);
+    return this.teacherApplicationsService.decide(id, dto.status, admin.id, dto.confirmDuplicate ?? false);
   }
 
   // Consultation a l'ecran (plus de lien de telechargement), tracee.

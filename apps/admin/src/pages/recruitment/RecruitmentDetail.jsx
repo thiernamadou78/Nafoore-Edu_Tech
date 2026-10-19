@@ -35,6 +35,31 @@ const DOCUMENT_TYPE_LABELS = {
   autre: 'Autre',
 }
 
+// Meme adresse email utilisee ailleurs : autre candidature, enseignant ou
+// compte famille (une adresse = un seul compte de connexion).
+function DuplicateList({ duplicates }) {
+  const link = (d) =>
+    d.kind === 'candidature' ? `/recrutement/${d.id}` : d.kind === 'enseignant' ? `/enseignants/${d.id}` : `/leads/${d.id}`
+  const label = (d) =>
+    d.kind === 'candidature'
+      ? `Candidature du ${new Date(d.createdAt).toLocaleDateString('fr-FR')} (${STATUS_LABELS[d.status] ?? d.status})`
+      : d.kind === 'enseignant'
+        ? 'Enseignant déjà inscrit'
+        : 'Compte famille'
+  return (
+    <ul className="mt-1 space-y-1">
+      {duplicates.map((d) => (
+        <li key={`${d.kind}-${d.id}`}>
+          <Link to={link(d)} className="font-medium underline">
+            {d.name}
+          </Link>{' '}
+          <span className="text-amber-800">· {label(d)}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 const TABS = [
   { key: 'documents', label: 'Documents' },
   { key: 'entretien', label: 'Entretien & profil' },
@@ -66,6 +91,26 @@ export function RecruitmentDetail() {
     load().catch((err) => setError(err.message))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // Decision suspendue : l'email du candidat est deja utilise ailleurs.
+  const [duplicateCheck, setDuplicateCheck] = useState(null) // { status, duplicates }
+
+  const decide = (status, confirmDuplicate = false) =>
+    run(status, async () => {
+      try {
+        await api.patch(`/teacher-applications/${id}/decision`, {
+          status,
+          confirmDuplicate: confirmDuplicate || undefined,
+        })
+        setDuplicateCheck(null)
+      } catch (err) {
+        if (err.status === 409 && err.body?.code === 'DUPLICATE_EMAIL') {
+          setDuplicateCheck({ status, duplicates: err.body.duplicates ?? [] })
+          return
+        }
+        throw err
+      }
+    })
 
   const run = async (action, fn) => {
     setSavingAction(action)
@@ -170,6 +215,44 @@ export function RecruitmentDetail() {
 
           <Card className="p-6">
             <h2 className="mb-3 font-semibold text-gray-900">Décision</h2>
+            {application.duplicates?.length > 0 && !duplicateCheck && (
+              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                <p className="font-semibold">Adresse email déjà utilisée</p>
+                <p>{application.candidateEmail} apparaît aussi dans :</p>
+                <DuplicateList duplicates={application.duplicates} />
+              </div>
+            )}
+            {duplicateCheck && (
+              <div className="mb-3 space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                <p className="font-semibold">
+                  {duplicateCheck.status === 'valide' ? 'Validation suspendue' : 'Email « documents requis » non envoyé'}
+                </p>
+                <p>
+                  L’adresse {application.candidateEmail} est déjà utilisée ailleurs. Vérifiez qu’il ne s’agit pas d’un
+                  doublon avant de continuer :
+                </p>
+                <DuplicateList duplicates={duplicateCheck.duplicates} />
+                {duplicateCheck.status === 'valide' && duplicateCheck.duplicates.some((d) => d.kind !== 'candidature') && (
+                  <p>
+                    Attention : un compte de connexion existe déjà avec cette adresse, le compte enseignant ne pourra pas
+                    être créé automatiquement.
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    variant="warning"
+                    loading={savingAction === duplicateCheck.status}
+                    onClick={() => decide(duplicateCheck.status, true)}
+                    className="px-3 py-1.5 text-xs"
+                  >
+                    {duplicateCheck.status === 'valide' ? 'Valider quand même' : 'Envoyer quand même'}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setDuplicateCheck(null)} className="px-3 py-1.5 text-xs">
+                    Annuler
+                  </Button>
+                </div>
+              </div>
+            )}
             {!application.bio && (
               <p className="mb-3 text-xs text-amber-700">
                 Complète la bio dans l'onglet "Entretien &amp; profil" avant de valider. La photo
@@ -208,11 +291,7 @@ export function RecruitmentDetail() {
                 className="w-full"
                 loading={savingAction === 'valide'}
                 disabled={!application.bio}
-                onClick={() =>
-                  run('valide', () =>
-                    api.patch(`/teacher-applications/${id}/decision`, { status: 'valide' }),
-                  )
-                }
+                onClick={() => decide('valide')}
               >
                 Valider
               </Button>
@@ -221,13 +300,7 @@ export function RecruitmentDetail() {
                 icon={FileWarning}
                 className="w-full"
                 loading={savingAction === 'documents_requis'}
-                onClick={() =>
-                  run('documents_requis', () =>
-                    api.patch(`/teacher-applications/${id}/decision`, {
-                      status: 'documents_requis',
-                    }),
-                  )
-                }
+                onClick={() => decide('documents_requis')}
               >
                 Documents requis
               </Button>
@@ -236,11 +309,7 @@ export function RecruitmentDetail() {
                 icon={X}
                 className="w-full"
                 loading={savingAction === 'refuse'}
-                onClick={() =>
-                  run('refuse', () =>
-                    api.patch(`/teacher-applications/${id}/decision`, { status: 'refuse' }),
-                  )
-                }
+                onClick={() => decide('refuse')}
               >
                 Refuser
               </Button>

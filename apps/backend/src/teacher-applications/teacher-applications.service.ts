@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
@@ -62,7 +62,44 @@ export class TeacherApplicationsService {
       throw new NotFoundException('Candidature introuvable');
     }
     const photoUrl = await this.photos.signUrl(application.photoPath);
-    return { ...application, photoUrl };
+    const duplicates = await this.emailDuplicates(application);
+    return { ...application, photoUrl, duplicates };
+  }
+
+  // Meme adresse email deja utilisee ailleurs : autre candidature, enseignant
+  // (autre que celui cree par cette candidature) ou compte famille. Une
+  // adresse ne peut servir qu'a un seul compte de connexion.
+  async emailDuplicates(application: { id: string; candidateEmail: string; createdTeacherId: string | null }) {
+    const email = { equals: application.candidateEmail.trim(), mode: 'insensitive' as const };
+    const [applications, teachers, families] = await Promise.all([
+      this.prisma.teacherApplication.findMany({
+        where: { id: { not: application.id }, candidateEmail: email },
+        select: { id: true, candidateName: true, status: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.teacher.findMany({
+        where: {
+          email,
+          ...(application.createdTeacherId ? { id: { not: application.createdTeacherId } } : {}),
+        },
+        select: { id: true, name: true },
+      }),
+      this.prisma.portalAccount.findMany({
+        where: { email },
+        select: { leadId: true, fullName: true, familyName: true },
+      }),
+    ]);
+    return [
+      ...applications.map((a) => ({
+        kind: 'candidature' as const,
+        id: a.id,
+        name: a.candidateName,
+        status: a.status,
+        createdAt: a.createdAt,
+      })),
+      ...teachers.map((t) => ({ kind: 'enseignant' as const, id: t.id, name: t.name })),
+      ...families.map((f) => ({ kind: 'famille' as const, id: f.leadId, name: f.familyName || f.fullName })),
+    ];
   }
 
   async create(dto: CreateTeacherApplicationDto) {
@@ -183,8 +220,19 @@ export class TeacherApplicationsService {
     id: string,
     status: 'valide' | 'refuse' | 'documents_requis',
     actorId: string,
+    confirmDuplicate = false,
   ) {
     const existing = await this.findOne(id);
+
+    // Avant d'ecrire au candidat (documents requis) ou de lui creer un compte
+    // (validation) : son email est-il deja utilise ailleurs ?
+    if (status !== 'refuse' && existing.duplicates.length > 0 && !confirmDuplicate) {
+      throw new ConflictException({
+        code: 'DUPLICATE_EMAIL',
+        message: `L'adresse ${existing.candidateEmail} est déjà utilisée ailleurs : vérifiez qu'il ne s'agit pas d'un doublon.`,
+        duplicates: existing.duplicates,
+      });
+    }
 
     if (status === 'valide' && !existing.bio) {
       throw new BadRequestException(
