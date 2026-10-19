@@ -13,6 +13,7 @@ import { resolvePortalUrl } from '../email/portal-url.util';
 import { renderDocumentsRequiredEmail } from '../email/templates/documents-required.template';
 import { renderInterviewScheduledEmail } from '../email/templates/interview-scheduled.template';
 import { generateCompletionToken } from './completion-token.util';
+import { missingApplicationItems } from './application-checklist';
 import { CreateTeacherApplicationDto } from './dto/create-teacher-application.dto';
 import { ListTeacherApplicationsQueryDto } from './dto/list-teacher-applications-query.dto';
 import { UpdateTeacherApplicationProfileDto } from './dto/update-teacher-application-profile.dto';
@@ -178,28 +179,6 @@ export class TeacherApplicationsService {
     }
   }
 
-  private listMissingItems(application: {
-    bio: string | null;
-    documents: { type: string }[];
-  }): string[] {
-    const missing: string[] = [];
-    if (!application.bio || application.bio.trim().length < 20) {
-      missing.push('Présentation (20 caractères minimum)');
-    }
-    // Inscription en deux temps : candidature rapide (bio + coordonnees),
-    // puis dossier complete avant validation — CV, piece d'identite, diplome
-    // et casier judiciaire sont tous facultatifs au depart et requis ici.
-    if (!application.documents.some((doc) => doc.type === 'cv')) missing.push('CV');
-    if (!application.documents.some((doc) => doc.type === 'piece_identite')) {
-      missing.push("Pièce d'identité");
-    }
-    if (!application.documents.some((doc) => doc.type === 'diplome')) missing.push('Diplôme');
-    if (!application.documents.some((doc) => doc.type === 'casier_judiciaire')) {
-      missing.push('Casier judiciaire (bulletin n°3)');
-    }
-    return missing;
-  }
-
   async decide(
     id: string,
     status: 'valide' | 'refuse' | 'documents_requis',
@@ -213,10 +192,10 @@ export class TeacherApplicationsService {
       );
     }
 
-    const missingItems = status === 'documents_requis' ? this.listMissingItems(existing) : [];
+    const missingItems = status === 'documents_requis' ? missingApplicationItems(existing) : [];
     if (status === 'documents_requis' && missingItems.length === 0) {
       throw new BadRequestException(
-        'Le dossier est déjà complet : il ne manque aucun document, ni photo, ni présentation',
+        'Le dossier est déjà complet : il ne manque ni document ni présentation',
       );
     }
 

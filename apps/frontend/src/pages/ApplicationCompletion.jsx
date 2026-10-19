@@ -13,6 +13,7 @@ const STATUS_LABELS = {
   entretien_planifie: 'Entretien planifié',
   entretien_realise: 'Entretien réalisé',
   documents_requis: 'Documents requis',
+  dossier_complete: 'Dossier complet, en cours de vérification',
   valide: 'Validée',
   refuse: 'Refusée',
 }
@@ -145,6 +146,12 @@ export default function ApplicationCompletion() {
         }
       }
     })
+
+    // Au moins un element bien recu : l'equipe Nafoore est prevenue (un seul
+    // email par envoi, avec ce qui a ete recu et ce qui manque encore).
+    if (succeededTypes.length > 0) {
+      await fetch(`${API_URL}/teacher-applications/public/${token}/submitted`, { method: 'POST' }).catch(() => {})
+    }
 
     try {
       const data = await fetchApplication()

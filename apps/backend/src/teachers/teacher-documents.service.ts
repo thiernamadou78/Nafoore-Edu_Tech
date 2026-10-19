@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
 import { loadDocumentForView } from '../common/document-view';
 import { assertFileSignature, DOCUMENT_MIME_TYPES, safeFileName } from '../common/file-signature';
+import { assertNoDuplicateDocuments, fileHash } from '../common/file-hash';
 import { CreateTeacherDocumentDto } from './dto/create-teacher-document.dto';
 
 const BUCKET = 'teacher-documents';
@@ -36,6 +37,23 @@ export class TeacherDocumentsService {
     // Documents consultables a l'ecran : PDF, JPG ou PNG verifies sur leur
     // contenu reel (pas seulement l'extension).
     const contentType = assertFileSignature(file, DOCUMENT_MIME_TYPES, 'PDF, JPG ou PNG');
+    // Meme fichier deja dans le dossier (documents de l'enseignant ou de sa
+    // candidature) : refuse, quel que soit son nom.
+    const hash = fileHash(file.buffer);
+    const [own, application] = await Promise.all([
+      this.prisma.teacherDocument.findMany({
+        where: { teacherId },
+        select: { contentHash: true, type: true, fileName: true },
+      }),
+      this.prisma.teacherApplication.findFirst({
+        where: { createdTeacherId: teacherId },
+        select: { documents: { select: { contentHash: true, type: true, fileName: true } } },
+      }),
+    ]);
+    assertNoDuplicateDocuments(
+      [{ hash, type: dto.type, fileName: file.originalname }],
+      [...own, ...(application?.documents ?? [])],
+    );
     const filePath = `${teacherId}/${randomUUID()}-${safeFileName(file.originalname)}`;
 
     const { error } = await this.supabaseAdmin.client.storage
@@ -52,6 +70,7 @@ export class TeacherDocumentsService {
         type: dto.type,
         fileName: file.originalname,
         filePath,
+        contentHash: hash,
       },
       include: uploaderSelect,
     });

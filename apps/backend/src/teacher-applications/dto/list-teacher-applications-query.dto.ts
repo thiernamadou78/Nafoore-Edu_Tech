@@ -7,6 +7,7 @@ const APPLICATION_STATUSES = [
   'valide',
   'refuse',
   'documents_requis',
+  'dossier_complete',
 ] as const;
 
 export class ListTeacherApplicationsQueryDto {

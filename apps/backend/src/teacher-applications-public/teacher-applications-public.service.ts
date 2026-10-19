@@ -10,6 +10,8 @@ import { AdminNotificationService } from '../email/admin-notification.service';
 import { renderApplicationReceivedEmail } from '../email/templates/application-received.template';
 import { generateCompletionToken } from '../teacher-applications/completion-token.util';
 import { assertFileSignature, DOCUMENT_MIME_TYPES, safeFileName } from '../common/file-signature';
+import { assertNoDuplicateDocuments, fileHash } from '../common/file-hash';
+import { missingApplicationItems } from '../teacher-applications/application-checklist';
 import { CreatePublicTeacherApplicationDto } from './dto/create-public-teacher-application.dto';
 import { UpdateCompletionProfileDto } from './dto/update-completion-profile.dto';
 
@@ -53,10 +55,62 @@ export class TeacherApplicationsPublicService {
     }
   }
 
+  // Page de completion : uniquement ce qu'elle affiche (jamais les notes
+  // d'entretien ni les autres donnees internes de la candidature).
   async getByToken(token: string) {
     const application = await this.findByToken(token);
-    const photoUrl = await this.photos.signUrl(application.photoPath);
-    return { ...application, photoUrl };
+    return {
+      candidateName: application.candidateName,
+      status: application.status,
+      bio: application.bio,
+      documents: application.documents.map((doc) => ({
+        id: doc.id,
+        type: doc.type,
+        fileName: doc.fileName,
+        createdAt: doc.createdAt,
+      })),
+    };
+  }
+
+  // Le candidat a envoye ses complements : l'equipe (et le delegue de la
+  // zone) est prevenue, avec ce qui a ete recu et ce qui manque encore. Un
+  // dossier devenu complet apres "Documents requis" passe a "Dossier complete".
+  async submitted(token: string) {
+    const application = await this.findByToken(token);
+    this.assertEditable(application.status);
+    const missing = missingApplicationItems(application);
+    const complete = missing.length === 0;
+    if (complete && application.status === 'documents_requis') {
+      await this.prisma.teacherApplication.update({
+        where: { id: application.id },
+        data: { status: 'dossier_complete' },
+      });
+    }
+    const TYPE_LABELS: Record<string, string> = {
+      cv: 'CV',
+      piece_identite: "Pièce d'identité",
+      diplome: 'Diplôme',
+      casier_judiciaire: 'Casier judiciaire',
+    };
+    const since = new Date(Date.now() - 60 * 60_000);
+    const received = application.documents
+      .filter((doc) => doc.createdAt >= since)
+      .map((doc) => `${TYPE_LABELS[doc.type] ?? doc.type} : ${doc.fileName}`);
+    this.adminNotification.notify({
+      subject: complete
+        ? `Dossier complété : ${application.candidateName}`
+        : `Documents ajoutés : ${application.candidateName}`,
+      title: complete ? 'Dossier de candidature complet' : 'Dossier de candidature mis à jour',
+      lines: [
+        `${application.candidateName} a complété son dossier depuis le lien reçu par email.`,
+        received.length > 0 ? `Reçu : ${received.join(' ; ')}` : 'Présentation mise à jour.',
+        complete
+          ? 'Le dossier est complet : la candidature peut être validée.'
+          : `Il manque encore : ${missing.join(', ')}.`,
+      ],
+      path: `/recrutement/${application.id}`,
+    });
+    return { complete, missing };
   }
 
   async updateProfile(token: string, dto: UpdateCompletionProfileDto) {
@@ -72,6 +126,7 @@ export class TeacherApplicationsPublicService {
     const application = await this.findByToken(token);
     this.assertEditable(application.status);
     const uploads = this.checkUploads(files);
+    assertNoDuplicateDocuments(uploads, application.documents);
     await this.uploadDocuments(application.id, uploads);
     return this.findByToken(token);
   }
@@ -87,14 +142,16 @@ export class TeacherApplicationsPublicService {
     ].map((upload) => ({
       ...upload,
       contentType: assertFileSignature(upload.file, DOCUMENT_MIME_TYPES, 'PDF, JPG ou PNG'),
+      hash: fileHash(upload.file.buffer),
+      fileName: upload.file.originalname,
     }));
   }
 
   private async uploadDocuments(
     applicationId: string,
-    uploads: Array<{ file: Express.Multer.File; type: string; contentType: string }>,
+    uploads: Array<{ file: Express.Multer.File; type: string; contentType: string; hash: string }>,
   ) {
-    for (const { file, type, contentType } of uploads) {
+    for (const { file, type, contentType, hash } of uploads) {
       const filePath = `${applicationId}/${randomUUID()}-${safeFileName(file.originalname)}`;
       const { error } = await this.supabaseAdmin.client.storage
         .from(BUCKET)
@@ -111,6 +168,7 @@ export class TeacherApplicationsPublicService {
           type,
           fileName: file.originalname,
           filePath,
+          contentHash: hash,
         },
       });
     }
@@ -118,6 +176,7 @@ export class TeacherApplicationsPublicService {
 
   async create(dto: CreatePublicTeacherApplicationDto, files: TeacherApplicationUploadedFiles) {
     const uploads = this.checkUploads(files);
+    assertNoDuplicateDocuments(uploads, []);
     const schoolSubjects = await this.prisma.subject.count({
       where: { name: { in: dto.subjects }, category: 'scolaire' },
     });

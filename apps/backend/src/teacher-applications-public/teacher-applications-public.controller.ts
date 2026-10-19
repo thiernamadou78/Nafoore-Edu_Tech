@@ -57,6 +57,15 @@ export class TeacherApplicationsPublicController {
     return this.service.getByToken(token);
   }
 
+  // Fin d'envoi des complements depuis la page de completion : previent
+  // l'equipe (un seul email par envoi).
+  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
+  @Post(':token/submitted')
+  @HttpCode(HttpStatus.OK)
+  submitted(@Param('token') token: string) {
+    return this.service.submitted(token);
+  }
+
   @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
   @Patch(':token/profile')
   updateProfile(@Param('token') token: string, @Body() dto: UpdateCompletionProfileDto) {

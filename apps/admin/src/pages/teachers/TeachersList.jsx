@@ -256,6 +256,17 @@ export function TeachersList() {
       setError('Choisissez au moins un jour de disponibilité.')
       return
     }
+    // Meme fichier choisi dans deux emplacements (le serveur le refuserait
+    // apres coup, sans que l'admin le voie : les documents partent apres la
+    // creation du prof).
+    const picked = [...cvFiles, ...identityFiles, ...diplomaFiles, ...criminalRecordFiles]
+    const twin = picked.find((file, i) =>
+      picked.some((other, j) => j < i && other.name === file.name && other.size === file.size),
+    )
+    if (twin) {
+      setError(`« ${twin.name} » est choisi plusieurs fois : chaque document doit être différent.`)
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {

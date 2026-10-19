@@ -5,6 +5,7 @@ export const STATUS_LABELS = {
   valide: 'Validé',
   refuse: 'Refusé',
   documents_requis: 'Documents requis',
+  dossier_complete: 'Dossier complété',
 }
 
 export const STATUS_TONES = {
@@ -14,4 +15,5 @@ export const STATUS_TONES = {
   valide: 'green',
   refuse: 'red',
   documents_requis: 'amber',
+  dossier_complete: 'blue',
 }

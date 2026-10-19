@@ -431,6 +431,8 @@ model TeacherApplicationDocument {
   // diplome | casier_judiciaire | autre
   fileName             String             @map("file_name")
   filePath             String             @map("file_path")
+  // Empreinte SHA-256 du contenu (detection des doublons).
+  contentHash          String?            @map("content_hash")
   createdAt            DateTime           @default(now()) @map("created_at")
 
   @@map("teacher_application_documents")
@@ -672,6 +674,8 @@ model TeacherDocument {
   // cv | piece_identite | diplome | casier_judiciaire | autre
   fileName     String       @map("file_name")
   filePath     String       @map("file_path")
+  // Empreinte SHA-256 du contenu (detection des doublons).
+  contentHash  String?      @map("content_hash")
   createdAt    DateTime     @default(now()) @map("created_at")
 
   @@map("teacher_documents")
