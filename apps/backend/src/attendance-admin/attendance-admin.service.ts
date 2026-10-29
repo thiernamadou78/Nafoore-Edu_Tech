@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { AdminNotificationService } from '../email/admin-notification.service';
 import { EmailService } from '../email/email.service';
 import { renderNoticeEmail } from '../email/templates/notice.template';
 import { resolvePortalUrl } from '../email/portal-url.util';
@@ -38,7 +40,56 @@ export class AttendanceAdminService {
     private readonly zone: ZoneService,
     private readonly email: EmailService,
     private readonly sessionChanges: SessionChangesService,
+    private readonly adminNotification: AdminNotificationService,
   ) {}
+
+  // Compte-rendu toujours absent 2 h apres la fin prevue de la seance :
+  // l'equipe (et le delegue de la zone) est prevenue une fois, avec un lien
+  // vers le suivi des pointages pour relancer le prof.
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async alertMissingReports() {
+    const now = new Date();
+    const sessions = await this.prisma.session.findMany({
+      where: {
+        status: { in: ['planifiee', 'confirmee'] },
+        teacherId: { not: null },
+        reportAdminAlertSentAt: null,
+        // Fenetre : seances de la derniere semaine (pas d'alerte en rafale
+        // sur un historique ancien).
+        date: { gte: new Date(now.getTime() - 7 * 24 * 3_600_000), lt: now },
+      },
+      include: {
+        ...sessionInclude,
+        attendanceLogs: {
+          where: { verificationStatus: 'valid' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { checkinAt: true, checkoutAt: true },
+        },
+      },
+    });
+    for (const session of sessions) {
+      const end = session.date.getTime() + (session.plannedDurationMinutes ?? session.durationMinutes) * 60_000;
+      if (end > now.getTime() - GRACE_HOURS * 3_600_000) continue;
+      const log = session.attendanceLogs[0];
+      const pointage = log?.checkinAt
+        ? `Pointage : ${hour(log.checkinAt)} → ${log.checkoutAt ? hour(log.checkoutAt) : 'départ non pointé'}.`
+        : "Aucun pointage : la séance n'a peut-être pas eu lieu.";
+      // Marque avant l'envoi : jamais deux alertes pour la meme seance.
+      await this.prisma.session.update({ where: { id: session.id }, data: { reportAdminAlertSentAt: now } });
+      this.adminNotification.notify({
+        subject: `Compte-rendu manquant : ${session.teacher?.name ?? 'enseignant'} · ${session.student.name}`,
+        title: 'Compte-rendu non rédigé',
+        lines: [
+          `${session.teacher?.name ?? "L'enseignant"} n'a pas rédigé le compte-rendu de la séance de ${session.subject ?? 'cours'} avec ${session.student.name}, prévue le ${when(session.date)}.`,
+          pointage,
+          'Depuis le suivi des pointages, vous pouvez relancer l’enseignant par email en un clic.',
+        ],
+        path: '/pointages',
+        scope: { module: 'attendance', kind: 'student', id: session.studentId },
+      });
+    }
+  }
 
   private async loadSession(admin: AuthenticatedAdmin, sessionId: string) {
     const session = await this.prisma.session.findUnique({ where: { id: sessionId }, include: sessionInclude });

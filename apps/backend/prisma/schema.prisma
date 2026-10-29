@@ -562,6 +562,8 @@ model Session {
   // Evite de renvoyer plusieurs fois l'email "compte-rendu manquant" pour la
   // meme seance (cron horaire, cf. TeacherService.remindMissingReports).
   reportReminderSentAt   DateTime? @map("report_reminder_sent_at")
+  // Alerte "compte-rendu manquant" envoyee a l'equipe (2 h apres la fin).
+  reportAdminAlertSentAt DateTime? @map("report_admin_alert_sent_at")
   // Rappel par email (prof + famille) ~5h avant le debut de la seance —
   // distinct des rappels push de pointage (10 min avant), cf.
   // SessionReminderService.sendUpcomingSessionEmails.
