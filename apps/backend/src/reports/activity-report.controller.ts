@@ -11,24 +11,27 @@ import { ActivityReportService, ReportKind } from './activity-report.service';
 export class ActivityReportController {
   constructor(private readonly reports: ActivityReportService) {}
 
-  private kind(raw?: string): ReportKind {
-    if (raw !== undefined && raw !== 'weekly' && raw !== 'monthly') throw new BadRequestException('Type de rapport invalide');
-    return (raw as ReportKind | undefined) ?? 'weekly';
+  // Semaine / mois contenant `date` (AAAA-MM-JJ), par defaut la derniere
+  // periode terminee ; ou intervalle libre `from` / `to` (kind=custom).
+  private load(rawKind?: string, date?: string, from?: string, to?: string) {
+    if (rawKind === 'custom') {
+      const { start, end } = this.reports.parseRange(from, to);
+      return this.reports.buildRange(start, end);
+    }
+    if (rawKind !== undefined && rawKind !== 'weekly' && rawKind !== 'monthly') {
+      throw new BadRequestException('Type de rapport invalide');
+    }
+    const kind = (rawKind as ReportKind | undefined) ?? 'weekly';
+    return this.reports.build(kind, this.reports.parseAnchor(date) ?? this.reports.defaultAnchor(kind));
   }
 
-  // Rapport de la periode contenant `date` (AAAA-MM-JJ) ; par defaut, la
-  // derniere periode terminee.
   @Get()
-  get(@Query('kind') rawKind?: string, @Query('date') date?: string) {
-    const kind = this.kind(rawKind);
-    const anchor = this.reports.parseAnchor(date) ?? this.reports.defaultAnchor(kind);
-    return this.reports.build(kind, anchor);
+  get(@Query('kind') kind?: string, @Query('date') date?: string, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.load(kind, date, from, to);
   }
 
   @Get('csv')
-  async csv(@Query('kind') rawKind?: string, @Query('date') date?: string) {
-    const kind = this.kind(rawKind);
-    const anchor = this.reports.parseAnchor(date) ?? this.reports.defaultAnchor(kind);
-    return { csv: this.reports.toCsv(await this.reports.build(kind, anchor)) };
+  async csv(@Query('kind') kind?: string, @Query('date') date?: string, @Query('from') from?: string, @Query('to') to?: string) {
+    return { csv: this.reports.toCsv(await this.load(kind, date, from, to)) };
   }
 }

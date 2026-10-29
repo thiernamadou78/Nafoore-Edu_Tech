@@ -11,6 +11,8 @@ import { LATE_CHANGE_HOURS } from '../session-changes/session-changes.service';
 import { renderActivityReportEmail } from './activity-report.template';
 
 export type ReportKind = 'weekly' | 'monthly';
+// Intervalle libre choisi dans la page Rapports (jamais envoye par email).
+export type ReportView = ReportKind | 'custom';
 
 // Une seance passee n'est comptee "non pointee" / "sans compte-rendu"
 // qu'apres ce delai (meme regle que le suivi des pointages).
@@ -47,7 +49,15 @@ export function periodOf(kind: ReportKind, anchor: Date) {
   return { start: zonedTimeToUtc(p.year, p.month, 1, 0, 0), end: zonedTimeToUtc(p.year, p.month + 1, 1, 0, 0) };
 }
 
-export function periodLabel(kind: ReportKind, start: Date, end: Date) {
+export function periodLabel(kind: ReportView, start: Date, end: Date) {
+  if (kind === 'custom') {
+    const last = new Date(end.getTime() - DAY / 2);
+    return `Du ${formatInPlatformTz(start, { day: 'numeric', month: 'long', year: 'numeric' })} au ${formatInPlatformTz(last, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })}`;
+  }
   if (kind === 'monthly') {
     const label = formatInPlatformTz(start, { month: 'long', year: 'numeric' });
     return label.charAt(0).toUpperCase() + label.slice(1);
@@ -242,7 +252,16 @@ export class ActivityReportService {
 
   async build(kind: ReportKind, anchor: Date, now = new Date()) {
     const { start, end } = periodOf(kind, anchor);
-    const previous = periodOf(kind, new Date(start.getTime() - DAY / 2));
+    return this.assemble(kind, start, end, periodOf(kind, new Date(start.getTime() - DAY / 2)), now);
+  }
+
+  // Intervalle libre : compare a la periode de meme duree juste avant.
+  buildRange(start: Date, end: Date, now = new Date()) {
+    const length = end.getTime() - start.getTime();
+    return this.assemble('custom', start, end, { start: new Date(start.getTime() - length), end: start }, now);
+  }
+
+  private async assemble(kind: ReportView, start: Date, end: Date, previous: { start: Date; end: Date }, now: Date) {
     const [current, before, progression, renewalsDue, activeAssignments, pendingRequests, dossiersToValidate, sent] =
       await Promise.all([
         this.metrics(start, end, now),
@@ -263,7 +282,9 @@ export class ActivityReportService {
           orderBy: { createdAt: 'asc' },
         }),
         this.prisma.teacherApplication.count({ where: { status: 'dossier_complete' } }),
-        this.prisma.activityReport.findUnique({ where: { kind_periodStart: { kind, periodStart: start } } }),
+        kind === 'custom'
+          ? null
+          : this.prisma.activityReport.findUnique({ where: { kind_periodStart: { kind, periodStart: start } } }),
       ]);
 
     // Eleves suivis sans seance (ni passee ni prevue) depuis 2 semaines.
@@ -440,11 +461,23 @@ export class ActivityReportService {
     this.logger.log(`Rapport ${kind} envoyé : ${report.label}`);
   }
 
-  parseAnchor(raw?: string) {
+  parseAnchor(raw?: string, hour = 12) {
     if (!raw) return null;
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
     if (!match) throw new BadRequestException('Date invalide');
-    return zonedTimeToUtc(Number(match[1]), Number(match[2]), Number(match[3]), 12, 0);
+    return zonedTimeToUtc(Number(match[1]), Number(match[2]), Number(match[3]), hour, 0);
+  }
+
+  // Intervalle "du ... au ..." (jours inclus), au plus un an.
+  parseRange(from?: string, to?: string) {
+    const start = this.parseAnchor(from, 0);
+    const lastDay = this.parseAnchor(to, 0);
+    if (!start || !lastDay) throw new BadRequestException("Choisissez les dates de début et de fin de l'intervalle");
+    const p = zonedParts(new Date(lastDay.getTime() + 3_600_000));
+    const end = zonedTimeToUtc(p.year, p.month, p.day + 1, 0, 0);
+    if (end <= start) throw new BadRequestException('La date de fin doit être après la date de début');
+    if (end.getTime() - start.getTime() > 367 * DAY) throw new BadRequestException("L'intervalle ne peut pas dépasser un an");
+    return { start, end };
   }
 
   // Periode affichee par defaut : la derniere periode terminee.
