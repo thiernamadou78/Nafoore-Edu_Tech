@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   BookOpen,
   FileCheck2,
   Building2,
@@ -51,6 +52,7 @@ export const NAV_ITEMS = [
   { group: 'suivi', label: 'Conversations', path: '/conversations', module: 'messaging', icon: MessageSquare },
   { group: 'suivi', label: 'Pointages', path: '/pointages', module: 'attendance', icon: RadioTower },
   { group: 'suivi', label: 'Support', path: '/support-tickets', module: 'support', icon: LifeBuoy },
+  { group: 'suivi', label: 'Rapports', path: '/rapports', superAdminOnly: true, icon: BarChart3 },
 
   { group: 'entreprises', label: 'Entreprises', path: '/entreprises', module: 'enterprises', icon: Building2 },
   { group: 'entreprises', label: 'Formules', path: '/formules', module: 'formulas', icon: LayoutList },

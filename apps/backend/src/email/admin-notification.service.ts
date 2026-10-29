@@ -54,7 +54,7 @@ export class AdminNotificationService {
   ) {}
 
   // Boite(s) de Nafoore (Super Admin) : recoivent toutes les notifications.
-  private recipients(): string[] {
+  recipients(): string[] {
     const configured = process.env.ADMIN_NOTIFICATION_EMAIL;
     const list = (configured || DEFAULT_RECIPIENT)
       .split(',')

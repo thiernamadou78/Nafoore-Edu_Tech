@@ -19,7 +19,7 @@ export class ResendEmailService extends EmailService {
     this.fromEmail = process.env.RESEND_FROM_EMAIL || 'contact@education.nafoore.com';
   }
 
-  async send({ to, subject, html }: SendEmailInput): Promise<SendEmailResult> {
+  async send({ to, subject, html, attachments }: SendEmailInput): Promise<SendEmailResult> {
     if (!this.client) {
       this.logger.warn(
         `[EmailService] RESEND_API_KEY absente — email non envoyé. To: ${to} | Subject: ${subject}\n${html}`,
@@ -32,6 +32,9 @@ export class ResendEmailService extends EmailService {
       to,
       subject,
       html,
+      ...(attachments?.length
+        ? { attachments: attachments.map((a) => ({ filename: a.filename, content: Buffer.from(a.content, 'utf-8') })) }
+        : {}),
     });
 
     if (error) {

@@ -564,6 +564,10 @@ model Session {
   reportReminderSentAt   DateTime? @map("report_reminder_sent_at")
   // Alerte "compte-rendu manquant" envoyee a l'equipe (2 h apres la fin).
   reportAdminAlertSentAt DateTime? @map("report_admin_alert_sent_at")
+  // Alertes a l'equipe : seance non demarree (30 min apres le debut) et
+  // depart non pointe (1 h apres la fin), une seule fois par seance.
+  startAlertSentAt       DateTime? @map("start_alert_sent_at")
+  checkoutAlertSentAt    DateTime? @map("checkout_alert_sent_at")
   // Rappel par email (prof + famille) ~5h avant le debut de la seance —
   // distinct des rappels push de pointage (10 min avant), cf.
   // SessionReminderService.sendUpcomingSessionEmails.
@@ -1060,4 +1064,18 @@ model AttendanceCorrection {
 
   @@index([sessionId])
   @@map("attendance_corrections")
+}
+
+// Rapport d'activite (hebdomadaire / mensuel) envoye a l'equipe : un seul
+// envoi par periode.
+model ActivityReport {
+  id          String    @id @default(cuid())
+  kind        String    // weekly | monthly
+  periodStart DateTime  @map("period_start")
+  periodEnd   DateTime  @map("period_end")
+  sentAt      DateTime? @map("sent_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([kind, periodStart])
+  @@map("activity_reports")
 }

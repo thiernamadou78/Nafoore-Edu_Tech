@@ -15,6 +15,10 @@ export const LATE_THRESHOLD_MINUTES = 15;
 // Une seance passee n'est en anomalie qu'apres ce delai (le prof a le temps
 // de pointer et de rediger).
 const GRACE_HOURS = 2;
+// Alertes a l'equipe : seance non demarree (aucune arrivee 30 min apres le
+// debut) et depart non pointe (1 h apres la fin prevue).
+const START_ALERT_MINUTES = 30;
+const CHECKOUT_ALERT_MINUTES = 60;
 
 const sessionInclude = {
   student: { select: { id: true, name: true } },
@@ -43,9 +47,92 @@ export class AttendanceAdminService {
     private readonly adminNotification: AdminNotificationService,
   ) {}
 
-  // Compte-rendu toujours absent 2 h apres la fin prevue de la seance :
-  // l'equipe (et le delegue de la zone) est prevenue une fois, avec un lien
-  // vers le suivi des pointages pour relancer le prof.
+  // Seances non demarrees et departs non pointes : un seul email groupe par
+  // passage (toutes les 10 min) pour ne pas noyer la boite de l'equipe, et
+  // une seule alerte par seance. Pendant la seance, l'equipe peut encore
+  // appeler le prof ou la famille.
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async alertUnpointedSessions() {
+    const now = new Date();
+    const valid = { verificationStatus: 'valid', checkinAt: { not: null } };
+    const [notStarted, openLogs] = await Promise.all([
+      this.prisma.session.findMany({
+        where: {
+          status: { in: ['planifiee', 'confirmee'] },
+          teacherId: { not: null },
+          startAlertSentAt: null,
+          // Fenetre courte : seules les seances du jour meritent un appel.
+          date: { gte: new Date(now.getTime() - 6 * 3_600_000), lte: new Date(now.getTime() - START_ALERT_MINUTES * 60_000) },
+          attendanceLogs: { none: valid },
+        },
+        include: sessionInclude,
+        orderBy: { date: 'asc' },
+      }),
+      this.prisma.session.findMany({
+        where: {
+          status: { in: ['planifiee', 'confirmee'] },
+          checkoutAlertSentAt: null,
+          date: { gte: new Date(now.getTime() - 24 * 3_600_000), lt: now },
+          attendanceLogs: { some: { ...valid, checkoutAt: null } },
+        },
+        include: {
+          ...sessionInclude,
+          attendanceLogs: {
+            where: { ...valid, checkoutAt: null },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { checkinAt: true },
+          },
+        },
+        orderBy: { date: 'asc' },
+      }),
+    ]);
+    const notClosed = openLogs.filter(
+      (s) =>
+        s.date.getTime() + ((s.plannedDurationMinutes ?? s.durationMinutes) + CHECKOUT_ALERT_MINUTES) * 60_000 <=
+        now.getTime(),
+    );
+    if (notStarted.length === 0 && notClosed.length === 0) return;
+
+    // Marque avant l'envoi : jamais deux alertes pour la meme seance.
+    if (notStarted.length) {
+      await this.prisma.session.updateMany({ where: { id: { in: notStarted.map((s) => s.id) } }, data: { startAlertSentAt: now } });
+    }
+    if (notClosed.length) {
+      await this.prisma.session.updateMany({ where: { id: { in: notClosed.map((s) => s.id) } }, data: { checkoutAlertSentAt: now } });
+    }
+
+    const who = (s: { teacher: { name: string } | null; student: { name: string }; subject: string | null }) =>
+      `${s.teacher?.name ?? 'Enseignant'} · ${s.student.name}${s.subject ? ` (${s.subject})` : ''}`;
+    const lines = [
+      ...notStarted.map(
+        (s) => `Non démarrée — ${who(s)} : prévue à ${hour(s.date)}, aucune arrivée pointée.`,
+      ),
+      ...notClosed.map((s) => {
+        const end = new Date(s.date.getTime() + (s.plannedDurationMinutes ?? s.durationMinutes) * 60_000);
+        const checkin = s.attendanceLogs[0]?.checkinAt;
+        return `Départ non pointé — ${who(s)} : arrivée ${checkin ? hour(checkin) : '—'}, fin prévue ${hour(end)}.`;
+      }),
+      notStarted.length
+        ? 'Une séance non démarrée peut signaler un retard ou une absence : un appel au prof ou à la famille permet de lever le doute.'
+        : 'Depuis le suivi des pointages, vous pouvez clôturer la séance ou relancer le prof.',
+    ];
+    const parts = [
+      notStarted.length ? `${notStarted.length} séance${notStarted.length > 1 ? 's' : ''} non démarrée${notStarted.length > 1 ? 's' : ''}` : null,
+      notClosed.length ? `${notClosed.length} départ${notClosed.length > 1 ? 's' : ''} non pointé${notClosed.length > 1 ? 's' : ''}` : null,
+    ].filter(Boolean);
+    this.adminNotification.notify({
+      subject: `Pointages : ${parts.join(', ')}`,
+      title: 'Pointages à vérifier',
+      lines,
+      path: '/pointages',
+    });
+  }
+
+  // Compte-rendu toujours absent 2 h apres la fin prevue d'une seance
+  // pointee : l'equipe est prevenue une fois, avec un lien vers le suivi des
+  // pointages pour relancer le prof. Les seances non pointees relevent de
+  // l'alerte ci-dessus (pas de double email).
   @Cron(CronExpression.EVERY_10_MINUTES)
   async alertMissingReports() {
     const now = new Date();
@@ -54,6 +141,7 @@ export class AttendanceAdminService {
         status: { in: ['planifiee', 'confirmee'] },
         teacherId: { not: null },
         reportAdminAlertSentAt: null,
+        attendanceLogs: { some: { verificationStatus: 'valid', checkoutAt: { not: null } } },
         // Fenetre : seances de la derniere semaine (pas d'alerte en rafale
         // sur un historique ancien).
         date: { gte: new Date(now.getTime() - 7 * 24 * 3_600_000), lt: now },
@@ -74,7 +162,7 @@ export class AttendanceAdminService {
       const log = session.attendanceLogs[0];
       const pointage = log?.checkinAt
         ? `Pointage : ${hour(log.checkinAt)} → ${log.checkoutAt ? hour(log.checkoutAt) : 'départ non pointé'}.`
-        : "Aucun pointage : la séance n'a peut-être pas eu lieu.";
+        : 'Pointage : —.';
       // Marque avant l'envoi : jamais deux alertes pour la meme seance.
       await this.prisma.session.update({ where: { id: session.id }, data: { reportAdminAlertSentAt: now } });
       this.adminNotification.notify({
