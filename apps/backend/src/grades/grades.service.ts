@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedTeacherAccount } from '../auth/teacher-auth.guard';
 import { AuthenticatedPortalAccount } from '../auth/portal-auth.guard';
+import { AuthenticatedAdmin } from '../auth/supabase-auth.guard';
 import { CreateGradeDto } from './dto/create-grade.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
 
@@ -72,6 +73,7 @@ export class GradesService {
             evaluatedAt: g.evaluatedAt,
             comment: g.comment,
             teacherName: g.teacher?.name ?? null,
+            enteredByTeam: Boolean(g.enteredByAdminId),
           })),
       };
     });
@@ -145,6 +147,14 @@ export class GradesService {
     dto: CreateGradeDto,
   ) {
     await this.assertTeacherOfStudent(teacherAccount, studentId);
+    return this.createGrade(studentId, dto, { teacherId: teacherAccount.teacherId });
+  }
+
+  private createGrade(
+    studentId: string,
+    dto: CreateGradeDto,
+    author: { teacherId?: string | null; enteredByAdminId?: string },
+  ) {
     const label = dto.label.trim();
     if (!label) throw new BadRequestException('La dénomination de la note est obligatoire');
     if (dto.value > dto.scale) {
@@ -158,7 +168,8 @@ export class GradesService {
     return this.prisma.grade.create({
       data: {
         studentId,
-        teacherId: teacherAccount.teacherId,
+        teacherId: author.teacherId ?? null,
+        enteredByAdminId: author.enteredByAdminId ?? null,
         subject: dto.subject,
         kind: dto.kind,
         label,
@@ -176,6 +187,11 @@ export class GradesService {
     if (!grade || !teacherAccount.teacherId || grade.teacherId !== teacherAccount.teacherId) {
       throw new NotFoundException('Note introuvable');
     }
+    return this.applyUpdate(grade, dto);
+  }
+
+  private applyUpdate(grade: { id: string; value: number; scale: number }, dto: UpdateGradeDto) {
+    const gradeId = grade.id;
     const label = dto.label === undefined ? undefined : dto.label.trim();
     if (label === '') throw new BadRequestException('La dénomination de la note est obligatoire');
     const value = dto.value ?? grade.value;
@@ -203,6 +219,31 @@ export class GradesService {
     if (!grade || !teacherAccount.teacherId || grade.teacherId !== teacherAccount.teacherId) {
       throw new NotFoundException('Note introuvable');
     }
+    await this.prisma.grade.delete({ where: { id: gradeId } });
+  }
+
+  // ------------------------------------------------------------------ admin
+  // L'equipe peut saisir une note (bulletin transmis par la famille, aide a un
+  // prof...) et corriger ou supprimer n'importe quelle note de l'eleve.
+
+  async adminAddGrade(admin: AuthenticatedAdmin, studentId: string, dto: CreateGradeDto) {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId }, select: { id: true } });
+    if (!student) throw new NotFoundException('Élève introuvable');
+    return this.createGrade(studentId, dto, { enteredByAdminId: admin.id });
+  }
+
+  private async findStudentGrade(studentId: string, gradeId: string) {
+    const grade = await this.prisma.grade.findUnique({ where: { id: gradeId } });
+    if (!grade || grade.studentId !== studentId) throw new NotFoundException('Note introuvable');
+    return grade;
+  }
+
+  async adminUpdateGrade(studentId: string, gradeId: string, dto: UpdateGradeDto) {
+    return this.applyUpdate(await this.findStudentGrade(studentId, gradeId), dto);
+  }
+
+  async adminDeleteGrade(studentId: string, gradeId: string) {
+    await this.findStudentGrade(studentId, gradeId);
     await this.prisma.grade.delete({ where: { id: gradeId } });
   }
 

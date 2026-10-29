@@ -2,7 +2,8 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post
 import { Permission } from '../auth/permissions';
 import { ZoneParams } from '../auth/zone.service';
 import { RolesGuard } from '../auth/roles.guard';
-import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { AuthenticatedAdmin, SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { CurrentAdmin } from '../auth/current-admin.decorator';
 import { CurrentPortalAccount } from '../auth/current-portal-account.decorator';
 import { AuthenticatedPortalAccount, PortalAuthGuard } from '../auth/portal-auth.guard';
 import { PortalRoles } from '../auth/portal-roles.decorator';
@@ -79,5 +80,21 @@ export class AdminGradesController {
   @Get(':id/progress')
   progress(@Param('id') id: string) {
     return this.grades.computeProgress(id);
+  }
+
+  @Post(':id/grades')
+  add(@Param('id') id: string, @Body() dto: CreateGradeDto, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.grades.adminAddGrade(admin, id, dto);
+  }
+
+  @Patch(':id/grades/:gradeId')
+  update(@Param('id') id: string, @Param('gradeId') gradeId: string, @Body() dto: UpdateGradeDto) {
+    return this.grades.adminUpdateGrade(id, gradeId, dto);
+  }
+
+  @Delete(':id/grades/:gradeId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param('id') id: string, @Param('gradeId') gradeId: string) {
+    return this.grades.adminDeleteGrade(id, gradeId);
   }
 }

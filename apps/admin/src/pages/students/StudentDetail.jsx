@@ -28,6 +28,7 @@ import { PaginationControls } from '../../components/ui/PaginationControls'
 import { PlanningCalendar } from '../../components/ui/PlanningCalendar'
 import { useSubjects } from '../../lib/useSubjects'
 import { StudentProgressCard } from '../../components/StudentProgressCard'
+import { AdminGradesCard } from '../../components/AdminGradesCard'
 import { SessionReport } from '../../components/SessionReport'
 import { PhotoUploader } from '../../components/ui/PhotoUploader'
 import { Timeline } from '../../components/ui/Timeline'
@@ -558,6 +559,9 @@ export function StudentDetail() {
   const [student, setStudent] = useState(null)
   const [teachers, setTeachers] = useState([])
   const [tab, setTab] = useState('fiche')
+  // Rafraichit la carte Progression apres une note saisie / corrigee.
+  const [gradesVersion, setGradesVersion] = useState(0)
+  const subjectCatalog = useSubjects()
   const [form, setForm] = useState({ name: '', level: 'college', classe: '', subjects: '', objectives: '' })
   // { [teacherId]: string[] } — matieres couvertes par ce prof pour cet eleve.
   // Un prof present dans cette map (avec au moins 1 matiere) est "assigne".
@@ -1173,7 +1177,13 @@ export function StudentDetail() {
 
           {tab === 'bilans' && (
             <div className="space-y-6">
-              <StudentProgressCard studentId={id} sessions={student.sessions} />
+              <StudentProgressCard key={gradesVersion} studentId={id} sessions={student.sessions} />
+              <AdminGradesCard
+                studentId={id}
+                subjects={student.subjects?.length ? student.subjects : subjectCatalog.map((s) => s.name)}
+                canEdit={can('students', 'edit')}
+                onChanged={() => setGradesVersion((v) => v + 1)}
+              />
               <Card className="p-6">
                 <h2 className="mb-3 font-semibold text-gray-900">Bilans des séances</h2>
                 {(() => {
