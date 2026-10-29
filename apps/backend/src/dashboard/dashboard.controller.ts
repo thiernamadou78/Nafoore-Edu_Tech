@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, Get, NotFoundException, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, ForbiddenException, Get, NotFoundException, Query, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Permission } from '../auth/permissions';
 import { RolesGuard } from '../auth/roles.guard';
@@ -58,10 +58,32 @@ export class DashboardController {
 
   @Permission('attendance')
   @Get('attendance-alerts')
-  getAttendanceAlerts(@CurrentAdmin() admin: AuthenticatedAdmin, @Query('days') days?: string) {
-    // Periode du journal des pointages : 1 a 92 jours (7 par defaut).
+  getAttendanceAlerts(
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    // Periode du journal des pointages : intervalle de dates (from/to, bornes
+    // incluses, 1 an maximum) ou N derniers jours (1 a 92, 7 par defaut).
+    if (from || to) {
+      const start = from ? new Date(from) : null;
+      const end = to ? new Date(to) : null;
+      if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        throw new BadRequestException('Intervalle invalide : indiquez une date de début et une date de fin');
+      }
+      if (end <= start) throw new BadRequestException('La date de fin doit être après la date de début');
+      if (end.getTime() - start.getTime() > 367 * 24 * 3_600_000) {
+        throw new BadRequestException('Intervalle trop long (1 an maximum)');
+      }
+      return this.dashboardService.getAttendanceAlerts(admin, { start, end });
+    }
     const parsed = Number.parseInt(days ?? '', 10);
     const period = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 92) : 7;
-    return this.dashboardService.getAttendanceAlerts(admin, period);
+    const end = new Date();
+    return this.dashboardService.getAttendanceAlerts(admin, {
+      start: new Date(end.getTime() - period * 24 * 3_600_000),
+      end,
+    });
   }
 }

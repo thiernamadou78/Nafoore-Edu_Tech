@@ -118,13 +118,12 @@ export class DashboardService {
   // pointage QR/compte-rendu qui a mal tourné ou n'a jamais eu lieu — aucune
   // de ces situations n'était visible auparavant en dehors de la fiche élève
   // consultée une par une.
-  async getAttendanceAlerts(admin: AuthenticatedAdmin, days = 7) {
+  async getAttendanceAlerts(admin: AuthenticatedAdmin, period: { start: Date; end: Date }) {
     const zs = await this.zone.where(admin, 'student');
     const byStudent = zs && { student: zs };
     const now = new Date();
     const graceThreshold = new Date(now.getTime() - ATTENDANCE_ALERT_GRACE_HOURS * 3_600_000);
 
-    const periodStart = new Date(now.getTime() - days * 24 * 3_600_000);
 
     const [openLogs, recentLogs, pastSessions] = await Promise.all([
       // Check-in scanné mais jamais de check-out : séance restée "en cours".
@@ -143,7 +142,7 @@ export class DashboardService {
         where: inZone(
           {
             verificationStatus: 'valid',
-            checkinAt: { not: null, gte: periodStart },
+            checkinAt: { not: null, gte: period.start, lt: period.end },
             sessionId: { not: null },
           },
           byStudent,

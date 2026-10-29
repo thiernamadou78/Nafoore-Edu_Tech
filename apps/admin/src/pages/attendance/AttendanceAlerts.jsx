@@ -20,13 +20,42 @@ const PERIODS = [
   { days: 90, label: '3 mois' },
 ]
 const PERIOD_KEY = 'nafoore.pointages.period'
+const RANGE_KEY = 'nafoore.pointages.range'
 
+// Date du jour au format AAAA-MM-JJ (heure locale), pour <input type="date">.
+const isoDay = (date) => {
+  const d = new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const dayLabel = (value) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+
+// Periode : nombre de jours, ou 'range' (intervalle de dates choisi).
 function readPeriod() {
   try {
-    const saved = Number(localStorage.getItem(PERIOD_KEY))
-    return PERIODS.some((p) => p.days === saved) ? saved : 7
+    const saved = localStorage.getItem(PERIOD_KEY)
+    if (saved === 'range') return 'range'
+    return PERIODS.some((p) => p.days === Number(saved)) ? Number(saved) : 7
   } catch {
     return 7
+  }
+}
+
+function readRange() {
+  const fallback = { from: isoDay(Date.now() - 6 * 86_400_000), to: isoDay(Date.now()) }
+  try {
+    const saved = JSON.parse(localStorage.getItem(RANGE_KEY) ?? 'null')
+    return saved?.from && saved?.to ? saved : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function store(key, value) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // stockage indisponible : le choix n'est simplement pas memorise
   }
 }
 
@@ -51,7 +80,7 @@ const timeOf = (date) =>
 
 // Journal des pointages de la periode choisie : arrivee, depart, duree reelle
 // et etat du compte-rendu, avec un resume (nombre, heures, part du scan QR).
-function RecentPointages({ items, days, onDaysChange, loading }) {
+function RecentPointages({ items, days, onDaysChange, range, onRangeChange, loading }) {
   const page = usePagination(items, 20)
   const minutesOf = (item) =>
     item.checkoutAt && item.checkinAt
@@ -60,7 +89,11 @@ function RecentPointages({ items, days, onDaysChange, loading }) {
   const closed = items.filter((item) => item.checkoutAt)
   const totalMinutes = closed.reduce((sum, item) => sum + minutesOf(item), 0)
   const qrShare = items.length ? Math.round((items.filter((i) => i.method === 'qr_scan').length / items.length) * 100) : null
-  const periodLabel = PERIODS.find((p) => p.days === days)?.label ?? `${days} jours`
+  const periodLabel =
+    days === 'range'
+      ? `du ${dayLabel(range.from)} au ${dayLabel(range.to)}`
+      : (PERIODS.find((p) => p.days === days)?.label ?? `${days} jours`)
+  const rangeInvalid = days === 'range' && range.from > range.to
 
   return (
     <Card className="p-5">
@@ -84,8 +117,53 @@ function RecentPointages({ items, days, onDaysChange, loading }) {
               {p.label}
             </button>
           ))}
+          <button
+            type="button"
+            aria-pressed={days === 'range'}
+            onClick={() => onDaysChange('range')}
+            className={`rounded-full px-3 py-1.5 font-medium transition-colors ${
+              days === 'range' ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Intervalle
+          </button>
         </div>
       </div>
+
+      {days === 'range' && (
+        <div className="mb-3 flex flex-wrap items-end gap-3 rounded-lg bg-gray-50 p-3 text-sm">
+          <div>
+            <label htmlFor="range-from" className="mb-1 block text-xs font-medium text-gray-500">
+              Du
+            </label>
+            <input
+              id="range-from"
+              type="date"
+              value={range.from}
+              max={isoDay(Date.now())}
+              onChange={(e) => e.target.value && onRangeChange({ ...range, from: e.target.value })}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
+            />
+          </div>
+          <div>
+            <label htmlFor="range-to" className="mb-1 block text-xs font-medium text-gray-500">
+              Au
+            </label>
+            <input
+              id="range-to"
+              type="date"
+              value={range.to}
+              min={range.from}
+              max={isoDay(Date.now())}
+              onChange={(e) => e.target.value && onRangeChange({ ...range, to: e.target.value })}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
+            />
+          </div>
+          <p className={`pb-2 text-xs ${rangeInvalid ? 'text-red-600' : 'text-gray-400'}`}>
+            {rangeInvalid ? 'La date de fin doit être après la date de début.' : 'Bornes incluses, 1 an maximum.'}
+          </p>
+        </div>
+      )}
 
       <div className="mb-4 flex flex-wrap gap-2 text-xs">
         <span className="rounded-full bg-navy/5 px-3 py-1 font-medium text-navy">
@@ -168,9 +246,21 @@ export function AttendanceAlerts() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [days, setDays] = useState(readPeriod)
+  const [range, setRange] = useState(readRange)
   const [loading, setLoading] = useState(false)
+  // Erreur liee a la periode (ex. intervalle invalide) : affichee sans
+  // masquer la page.
+  const [rangeError, setRangeError] = useState(null)
 
-  const fetchData = useCallback(() => api.get(`/dashboard/attendance-alerts?days=${days}`), [days])
+  const fetchData = useCallback(() => {
+    if (days !== 'range') return api.get(`/dashboard/attendance-alerts?days=${days}`)
+    // Bornes incluses : du debut du 1er jour au debut du lendemain du dernier.
+    const from = new Date(`${range.from}T00:00:00`)
+    const to = new Date(`${range.to}T00:00:00`)
+    to.setDate(to.getDate() + 1)
+    if (to <= from) return Promise.reject(new Error('La date de fin doit être après la date de début.'))
+    return api.get(`/dashboard/attendance-alerts?from=${from.toISOString()}&to=${to.toISOString()}`)
+  }, [days, range])
 
   useEffect(() => {
     setLoading(true)
@@ -178,22 +268,31 @@ export function AttendanceAlerts() {
       .then((result) => {
         setData(result)
         setError(null)
+        setRangeError(null)
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => (data ? setRangeError(err.message) : setError(err.message)))
       .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData])
 
   useAutoRefresh(() => {
-    fetchData().then(setData).catch(() => {})
+    fetchData()
+      .then((result) => {
+        setData(result)
+        setRangeError(null)
+      })
+      .catch(() => {})
   })
 
   const changePeriod = (value) => {
     setDays(value)
-    try {
-      localStorage.setItem(PERIOD_KEY, String(value))
-    } catch {
-      // stockage indisponible : la periode n'est simplement pas memorisee
-    }
+    setRangeError(null)
+    store(PERIOD_KEY, String(value))
+  }
+  const changeRange = (value) => {
+    setRange(value)
+    setRangeError(null)
+    store(RANGE_KEY, JSON.stringify(value))
   }
 
   if (error) return <Alert>{error}</Alert>
@@ -210,7 +309,15 @@ export function AttendanceAlerts() {
       </div>
 
       <div className="mb-5">
-        <RecentPointages items={recentPointages} days={days} onDaysChange={changePeriod} loading={loading} />
+        {rangeError && <Alert className="mb-3">{rangeError}</Alert>}
+        <RecentPointages
+          items={recentPointages}
+          days={days}
+          onDaysChange={changePeriod}
+          range={range}
+          onRangeChange={changeRange}
+          loading={loading}
+        />
       </div>
 
       {total === 0 ? (
