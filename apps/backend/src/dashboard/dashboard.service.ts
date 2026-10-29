@@ -118,13 +118,13 @@ export class DashboardService {
   // pointage QR/compte-rendu qui a mal tourné ou n'a jamais eu lieu — aucune
   // de ces situations n'était visible auparavant en dehors de la fiche élève
   // consultée une par une.
-  async getAttendanceAlerts(admin: AuthenticatedAdmin) {
+  async getAttendanceAlerts(admin: AuthenticatedAdmin, days = 7) {
     const zs = await this.zone.where(admin, 'student');
     const byStudent = zs && { student: zs };
     const now = new Date();
     const graceThreshold = new Date(now.getTime() - ATTENDANCE_ALERT_GRACE_HOURS * 3_600_000);
 
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 3_600_000);
+    const periodStart = new Date(now.getTime() - days * 24 * 3_600_000);
 
     const [openLogs, recentLogs, pastSessions] = await Promise.all([
       // Check-in scanné mais jamais de check-out : séance restée "en cours".
@@ -137,19 +137,19 @@ export class DashboardService {
         },
         orderBy: { checkinAt: 'asc' },
       }),
-      // Journal des pointages de la semaine (les normaux comme les anormaux) :
-      // sans lui, un pointage sans souci n'apparaissait nulle part.
+      // Journal des pointages de la periode choisie (les normaux comme les
+      // anormaux) : sans lui, un pointage sans souci n'apparaissait nulle part.
       this.prisma.attendanceLog.findMany({
         where: inZone(
           {
             verificationStatus: 'valid',
-            checkinAt: { not: null, gte: weekAgo },
+            checkinAt: { not: null, gte: periodStart },
             sessionId: { not: null },
           },
           byStudent,
         ),
         orderBy: { checkinAt: 'desc' },
-        take: 50,
+        take: 1000,
         include: {
           student: { select: { id: true, name: true } },
           teacher: { select: { id: true, name: true } },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, CalendarX, FileWarning, RadioTower } from 'lucide-react'
 import { api } from '../../lib/api'
@@ -8,6 +8,34 @@ import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { PaginationControls } from '../../components/ui/PaginationControls'
+import { usePagination } from '../../lib/usePagination'
+
+// Periodes du journal des pointages (en jours).
+const PERIODS = [
+  { days: 1, label: '24 h' },
+  { days: 3, label: '3 jours' },
+  { days: 7, label: '7 jours' },
+  { days: 30, label: '1 mois' },
+  { days: 90, label: '3 mois' },
+]
+const PERIOD_KEY = 'nafoore.pointages.period'
+
+function readPeriod() {
+  try {
+    const saved = Number(localStorage.getItem(PERIOD_KEY))
+    return PERIODS.some((p) => p.days === saved) ? saved : 7
+  } catch {
+    return 7
+  }
+}
+
+function formatHours(minutes) {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h === 0) return `${m} min`
+  return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`
+}
 
 function timeRangeLabel(date, durationMinutes) {
   if (!date) return '—'
@@ -21,56 +49,98 @@ function timeRangeLabel(date, durationMinutes) {
 const timeOf = (date) =>
   new Date(date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 
-// Journal des pointages : arrivee, depart, duree reelle et etat du compte-rendu.
-function RecentPointages({ items }) {
+// Journal des pointages de la periode choisie : arrivee, depart, duree reelle
+// et etat du compte-rendu, avec un resume (nombre, heures, part du scan QR).
+function RecentPointages({ items, days, onDaysChange, loading }) {
+  const page = usePagination(items, 20)
+  const minutesOf = (item) =>
+    item.checkoutAt && item.checkinAt
+      ? Math.max(0, Math.round((new Date(item.checkoutAt) - new Date(item.checkinAt)) / 60000))
+      : 0
+  const closed = items.filter((item) => item.checkoutAt)
+  const totalMinutes = closed.reduce((sum, item) => sum + minutesOf(item), 0)
+  const qrShare = items.length ? Math.round((items.filter((i) => i.method === 'qr_scan').length / items.length) * 100) : null
+  const periodLabel = PERIODS.find((p) => p.days === days)?.label ?? `${days} jours`
+
   return (
     <Card className="p-5">
-      <div className="mb-1 flex items-center gap-2">
-        <RadioTower size={18} className="text-navy" />
-        <h2 className="font-semibold text-gray-900">Pointages récents (7 derniers jours)</h2>
-        <Badge tone="gray">{items.length}</Badge>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <RadioTower size={18} className="text-navy" />
+          <h2 className="font-semibold text-gray-900">Pointages</h2>
+          <Badge tone="gray">{items.length}</Badge>
+        </div>
+        <div className="inline-flex flex-wrap rounded-full bg-gray-100 p-1 text-xs" role="group" aria-label="Période">
+          {PERIODS.map((p) => (
+            <button
+              key={p.days}
+              type="button"
+              aria-pressed={days === p.days}
+              onClick={() => onDaysChange(p.days)}
+              className={`rounded-full px-3 py-1.5 font-medium transition-colors ${
+                days === p.days ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
-      <p className="mb-4 text-sm text-gray-500">
-        Arrivée et départ enregistrés par les enseignants (scan QR ou pointage manuel).
-      </p>
+
+      <div className="mb-4 flex flex-wrap gap-2 text-xs">
+        <span className="rounded-full bg-navy/5 px-3 py-1 font-medium text-navy">
+          {items.length} pointage{items.length > 1 ? 's' : ''} · {periodLabel}
+        </span>
+        <span className="rounded-full bg-green-50 px-3 py-1 text-green-700">{formatHours(totalMinutes)} pointées</span>
+        {items.length - closed.length > 0 && (
+          <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-800">
+            {items.length - closed.length} en cours
+          </span>
+        )}
+        {qrShare !== null && (
+          <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-600">{qrShare} % par scan QR</span>
+        )}
+        {loading && <span className="px-1 py-1 text-gray-400">Chargement…</span>}
+      </div>
+
       {items.length === 0 ? (
-        <p className="py-4 text-center text-sm text-gray-400">Aucun pointage cette semaine.</p>
+        <p className="py-4 text-center text-sm text-gray-400">Aucun pointage sur cette période.</p>
       ) : (
-        <ul className="divide-y divide-gray-100">
-          {items.map((item) => {
-            const minutes =
-              item.checkoutAt && item.checkinAt
-                ? Math.round((new Date(item.checkoutAt) - new Date(item.checkinAt)) / 60000)
-                : null
-            return (
-              <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-                <div>
-                  <Link to={`/eleves/${item.student.id}`} className="font-medium text-navy hover:underline">
-                    {item.student.name}
-                  </Link>
-                  <p className="text-xs text-gray-500">
-                    {item.teacher.name}
-                    {item.subject ? ` · ${item.subject}` : ''} —{' '}
-                    {item.scheduledDate ? formatDateTime(item.scheduledDate) : ''}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone="green">
-                    {timeOf(item.checkinAt)} →{' '}
-                    {item.checkoutAt ? timeOf(item.checkoutAt) : 'en cours'}
-                    {minutes !== null && minutes > 0 ? ` (${minutes} min)` : ''}
-                  </Badge>
-                  <Badge tone="gray">{item.method === 'qr_scan' ? 'Scan QR' : 'Manuel'}</Badge>
-                  {item.checkoutAt && (
-                    <Badge tone={item.hasReport ? 'green' : 'amber'}>
-                      {item.hasReport ? 'Compte-rendu rédigé' : 'Compte-rendu à rédiger'}
+        <>
+          <ul className="divide-y divide-gray-100">
+            {page.visible.map((item) => {
+              const minutes = minutesOf(item)
+              return (
+                <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                  <div>
+                    <Link to={`/eleves/${item.student.id}`} className="font-medium text-navy hover:underline">
+                      {item.student.name}
+                    </Link>
+                    <p className="text-xs text-gray-500">
+                      {item.teacher.name}
+                      {item.subject ? ` · ${item.subject}` : ''} —{' '}
+                      {item.scheduledDate ? formatDateTime(item.scheduledDate) : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="green">
+                      {timeOf(item.checkinAt)} →{' '}
+                      {item.checkoutAt ? timeOf(item.checkoutAt) : 'en cours'}
+                      {minutes > 0 ? ` (${minutes} min)` : ''}
                     </Badge>
-                  )}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+                    <Badge tone="gray">{item.method === 'qr_scan' ? 'Scan QR' : 'Manuel'}</Badge>
+                    {item.checkoutAt && (
+                      <Badge tone={item.hasReport ? 'green' : 'amber'}>
+                        {item.hasReport ? 'Compte-rendu rédigé' : 'Compte-rendu à rédiger'}
+                      </Badge>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+          <PaginationControls {...page} onShowMore={page.showMore} onCollapse={page.collapse} className="pt-2" />
+        </>
       )}
     </Card>
   )
@@ -97,14 +167,34 @@ function AlertSection({ icon: Icon, tone, title, description, items, renderItem,
 export function AttendanceAlerts() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
+  const [days, setDays] = useState(readPeriod)
+  const [loading, setLoading] = useState(false)
+
+  const fetchData = useCallback(() => api.get(`/dashboard/attendance-alerts?days=${days}`), [days])
 
   useEffect(() => {
-    api.get('/dashboard/attendance-alerts').then(setData).catch((err) => setError(err.message))
-  }, [])
+    setLoading(true)
+    fetchData()
+      .then((result) => {
+        setData(result)
+        setError(null)
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [fetchData])
 
   useAutoRefresh(() => {
-    api.get('/dashboard/attendance-alerts').then(setData).catch(() => {})
+    fetchData().then(setData).catch(() => {})
   })
+
+  const changePeriod = (value) => {
+    setDays(value)
+    try {
+      localStorage.setItem(PERIOD_KEY, String(value))
+    } catch {
+      // stockage indisponible : la periode n'est simplement pas memorisee
+    }
+  }
 
   if (error) return <Alert>{error}</Alert>
   if (!data) return <p className="text-gray-500">Chargement…</p>
@@ -120,7 +210,7 @@ export function AttendanceAlerts() {
       </div>
 
       <div className="mb-5">
-        <RecentPointages items={recentPointages} />
+        <RecentPointages items={recentPointages} days={days} onDaysChange={changePeriod} loading={loading} />
       </div>
 
       {total === 0 ? (

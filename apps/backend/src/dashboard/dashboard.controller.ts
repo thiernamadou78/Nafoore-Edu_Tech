@@ -58,7 +58,10 @@ export class DashboardController {
 
   @Permission('attendance')
   @Get('attendance-alerts')
-  getAttendanceAlerts(@CurrentAdmin() admin: AuthenticatedAdmin) {
-    return this.dashboardService.getAttendanceAlerts(admin);
+  getAttendanceAlerts(@CurrentAdmin() admin: AuthenticatedAdmin, @Query('days') days?: string) {
+    // Periode du journal des pointages : 1 a 92 jours (7 par defaut).
+    const parsed = Number.parseInt(days ?? '', 10);
+    const period = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 92) : 7;
+    return this.dashboardService.getAttendanceAlerts(admin, period);
   }
 }
