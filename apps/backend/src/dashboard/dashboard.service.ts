@@ -148,9 +148,17 @@ export class DashboardService {
           byStudent,
         ),
         orderBy: { checkinAt: 'desc' },
-        take: 1000,
+        take: 2000,
         include: {
-          student: { select: { id: true, name: true } },
+          student: {
+            select: {
+              id: true,
+              name: true,
+              parentLead: {
+                select: { id: true, name: true, portalAccount: { select: { familyName: true } } },
+              },
+            },
+          },
           teacher: { select: { id: true, name: true } },
           session: {
             select: { date: true, durationMinutes: true, subject: true, status: true, notes: true },
@@ -221,7 +229,14 @@ export class DashboardService {
 
     const recentPointages = recentLogs.map((log) => ({
       id: log.id,
-      student: log.student,
+      student: { id: log.student.id, name: log.student.name },
+      // Famille de l'eleve : vue globale par famille.
+      family: log.student.parentLead
+        ? {
+            id: log.student.parentLead.id,
+            name: log.student.parentLead.portalAccount?.familyName || log.student.parentLead.name,
+          }
+        : null,
       teacher: log.teacher,
       subject: log.session?.subject ?? null,
       scheduledDate: log.session?.date ?? null,

@@ -8,63 +8,7 @@ import { Alert } from '../../components/ui/Alert'
 import { Badge } from '../../components/ui/Badge'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { PaginationControls } from '../../components/ui/PaginationControls'
-import { usePagination } from '../../lib/usePagination'
-
-// Periodes du journal des pointages (en jours).
-const PERIODS = [
-  { days: 1, label: '24 h' },
-  { days: 3, label: '3 jours' },
-  { days: 7, label: '7 jours' },
-  { days: 30, label: '1 mois' },
-  { days: 90, label: '3 mois' },
-]
-const PERIOD_KEY = 'nafoore.pointages.period'
-const RANGE_KEY = 'nafoore.pointages.range'
-
-// Date du jour au format AAAA-MM-JJ (heure locale), pour <input type="date">.
-const isoDay = (date) => {
-  const d = new Date(date)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-const dayLabel = (value) =>
-  new Date(`${value}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-
-// Periode : nombre de jours, ou 'range' (intervalle de dates choisi).
-function readPeriod() {
-  try {
-    const saved = localStorage.getItem(PERIOD_KEY)
-    if (saved === 'range') return 'range'
-    return PERIODS.some((p) => p.days === Number(saved)) ? Number(saved) : 7
-  } catch {
-    return 7
-  }
-}
-
-function readRange() {
-  const fallback = { from: isoDay(Date.now() - 6 * 86_400_000), to: isoDay(Date.now()) }
-  try {
-    const saved = JSON.parse(localStorage.getItem(RANGE_KEY) ?? 'null')
-    return saved?.from && saved?.to ? saved : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function store(key, value) {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // stockage indisponible : le choix n'est simplement pas memorise
-  }
-}
-
-function formatHours(minutes) {
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  if (h === 0) return `${m} min`
-  return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`
-}
+import { PointagesJournal, periodQuery, readPeriod, readRange, savePeriod, saveRange } from './PointagesJournal'
 
 function timeRangeLabel(date, durationMinutes) {
   if (!date) return '—'
@@ -73,155 +17,6 @@ function timeRangeLabel(date, durationMinutes) {
   const startLabel = formatDateTime(start)
   const endLabel = end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   return `${startLabel} – ${endLabel}`
-}
-
-const timeOf = (date) =>
-  new Date(date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-
-// Journal des pointages de la periode choisie : arrivee, depart, duree reelle
-// et etat du compte-rendu, avec un resume (nombre, heures, part du scan QR).
-function RecentPointages({ items, days, onDaysChange, range, onRangeChange, loading }) {
-  const page = usePagination(items, 20)
-  const minutesOf = (item) =>
-    item.checkoutAt && item.checkinAt
-      ? Math.max(0, Math.round((new Date(item.checkoutAt) - new Date(item.checkinAt)) / 60000))
-      : 0
-  const closed = items.filter((item) => item.checkoutAt)
-  const totalMinutes = closed.reduce((sum, item) => sum + minutesOf(item), 0)
-  const qrShare = items.length ? Math.round((items.filter((i) => i.method === 'qr_scan').length / items.length) * 100) : null
-  const periodLabel =
-    days === 'range'
-      ? `du ${dayLabel(range.from)} au ${dayLabel(range.to)}`
-      : (PERIODS.find((p) => p.days === days)?.label ?? `${days} jours`)
-  const rangeInvalid = days === 'range' && range.from > range.to
-
-  return (
-    <Card className="p-5">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <RadioTower size={18} className="text-navy" />
-          <h2 className="font-semibold text-gray-900">Pointages</h2>
-          <Badge tone="gray">{items.length}</Badge>
-        </div>
-        <div className="inline-flex flex-wrap rounded-full bg-gray-100 p-1 text-xs" role="group" aria-label="Période">
-          {PERIODS.map((p) => (
-            <button
-              key={p.days}
-              type="button"
-              aria-pressed={days === p.days}
-              onClick={() => onDaysChange(p.days)}
-              className={`rounded-full px-3 py-1.5 font-medium transition-colors ${
-                days === p.days ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            aria-pressed={days === 'range'}
-            onClick={() => onDaysChange('range')}
-            className={`rounded-full px-3 py-1.5 font-medium transition-colors ${
-              days === 'range' ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Intervalle
-          </button>
-        </div>
-      </div>
-
-      {days === 'range' && (
-        <div className="mb-3 flex flex-wrap items-end gap-3 rounded-lg bg-gray-50 p-3 text-sm">
-          <div>
-            <label htmlFor="range-from" className="mb-1 block text-xs font-medium text-gray-500">
-              Du
-            </label>
-            <input
-              id="range-from"
-              type="date"
-              value={range.from}
-              max={isoDay(Date.now())}
-              onChange={(e) => e.target.value && onRangeChange({ ...range, from: e.target.value })}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
-            />
-          </div>
-          <div>
-            <label htmlFor="range-to" className="mb-1 block text-xs font-medium text-gray-500">
-              Au
-            </label>
-            <input
-              id="range-to"
-              type="date"
-              value={range.to}
-              min={range.from}
-              max={isoDay(Date.now())}
-              onChange={(e) => e.target.value && onRangeChange({ ...range, to: e.target.value })}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
-            />
-          </div>
-          <p className={`pb-2 text-xs ${rangeInvalid ? 'text-red-600' : 'text-gray-400'}`}>
-            {rangeInvalid ? 'La date de fin doit être après la date de début.' : 'Bornes incluses, 1 an maximum.'}
-          </p>
-        </div>
-      )}
-
-      <div className="mb-4 flex flex-wrap gap-2 text-xs">
-        <span className="rounded-full bg-navy/5 px-3 py-1 font-medium text-navy">
-          {items.length} pointage{items.length > 1 ? 's' : ''} · {periodLabel}
-        </span>
-        <span className="rounded-full bg-green-50 px-3 py-1 text-green-700">{formatHours(totalMinutes)} pointées</span>
-        {items.length - closed.length > 0 && (
-          <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-800">
-            {items.length - closed.length} en cours
-          </span>
-        )}
-        {qrShare !== null && (
-          <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-600">{qrShare} % par scan QR</span>
-        )}
-        {loading && <span className="px-1 py-1 text-gray-400">Chargement…</span>}
-      </div>
-
-      {items.length === 0 ? (
-        <p className="py-4 text-center text-sm text-gray-400">Aucun pointage sur cette période.</p>
-      ) : (
-        <>
-          <ul className="divide-y divide-gray-100">
-            {page.visible.map((item) => {
-              const minutes = minutesOf(item)
-              return (
-                <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-                  <div>
-                    <Link to={`/eleves/${item.student.id}`} className="font-medium text-navy hover:underline">
-                      {item.student.name}
-                    </Link>
-                    <p className="text-xs text-gray-500">
-                      {item.teacher.name}
-                      {item.subject ? ` · ${item.subject}` : ''} —{' '}
-                      {item.scheduledDate ? formatDateTime(item.scheduledDate) : ''}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="green">
-                      {timeOf(item.checkinAt)} →{' '}
-                      {item.checkoutAt ? timeOf(item.checkoutAt) : 'en cours'}
-                      {minutes > 0 ? ` (${minutes} min)` : ''}
-                    </Badge>
-                    <Badge tone="gray">{item.method === 'qr_scan' ? 'Scan QR' : 'Manuel'}</Badge>
-                    {item.checkoutAt && (
-                      <Badge tone={item.hasReport ? 'green' : 'amber'}>
-                        {item.hasReport ? 'Compte-rendu rédigé' : 'Compte-rendu à rédiger'}
-                      </Badge>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-          <PaginationControls {...page} onShowMore={page.showMore} onCollapse={page.collapse} className="pt-2" />
-        </>
-      )}
-    </Card>
-  )
 }
 
 function AlertSection({ icon: Icon, tone, title, description, items, renderItem, emptyLabel }) {
@@ -245,7 +40,7 @@ function AlertSection({ icon: Icon, tone, title, description, items, renderItem,
 export function AttendanceAlerts() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
-  const [days, setDays] = useState(readPeriod)
+  const [period, setPeriod] = useState(readPeriod)
   const [range, setRange] = useState(readRange)
   const [loading, setLoading] = useState(false)
   // Erreur liee a la periode (ex. intervalle invalide) : affichee sans
@@ -253,14 +48,12 @@ export function AttendanceAlerts() {
   const [rangeError, setRangeError] = useState(null)
 
   const fetchData = useCallback(() => {
-    if (days !== 'range') return api.get(`/dashboard/attendance-alerts?days=${days}`)
-    // Bornes incluses : du debut du 1er jour au debut du lendemain du dernier.
-    const from = new Date(`${range.from}T00:00:00`)
-    const to = new Date(`${range.to}T00:00:00`)
-    to.setDate(to.getDate() + 1)
-    if (to <= from) return Promise.reject(new Error('La date de fin doit être après la date de début.'))
-    return api.get(`/dashboard/attendance-alerts?from=${from.toISOString()}&to=${to.toISOString()}`)
-  }, [days, range])
+    try {
+      return api.get(`/dashboard/attendance-alerts?${periodQuery(period, range)}`)
+    } catch (err) {
+      return Promise.reject(err)
+    }
+  }, [period, range])
 
   useEffect(() => {
     setLoading(true)
@@ -285,14 +78,14 @@ export function AttendanceAlerts() {
   })
 
   const changePeriod = (value) => {
-    setDays(value)
+    setPeriod(value)
     setRangeError(null)
-    store(PERIOD_KEY, String(value))
+    savePeriod(value)
   }
   const changeRange = (value) => {
     setRange(value)
     setRangeError(null)
-    store(RANGE_KEY, JSON.stringify(value))
+    saveRange(value)
   }
 
   if (error) return <Alert>{error}</Alert>
@@ -310,10 +103,10 @@ export function AttendanceAlerts() {
 
       <div className="mb-5">
         {rangeError && <Alert className="mb-3">{rangeError}</Alert>}
-        <RecentPointages
+        <PointagesJournal
           items={recentPointages}
-          days={days}
-          onDaysChange={changePeriod}
+          period={period}
+          onPeriodChange={changePeriod}
           range={range}
           onRangeChange={changeRange}
           loading={loading}
