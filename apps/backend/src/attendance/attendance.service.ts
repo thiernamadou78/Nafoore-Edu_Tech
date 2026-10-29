@@ -148,7 +148,7 @@ export class AttendanceService {
     // être documentée resterait indéfiniment invisible comme "manquante".
     await this.prisma.session.update({
       where: { id: session.id },
-      data: { durationMinutes },
+      data: { durationMinutes, plannedDurationMinutes: session.plannedDurationMinutes ?? session.durationMinutes },
     });
 
     return {
@@ -190,7 +190,7 @@ export class AttendanceService {
     // "realisee", la fin anticipée clôture seulement la présence.
     await this.prisma.session.update({
       where: { id: session.id },
-      data: { durationMinutes },
+      data: { durationMinutes, plannedDurationMinutes: session.plannedDurationMinutes ?? session.durationMinutes },
     });
 
     return {
@@ -233,7 +233,7 @@ export class AttendanceService {
         where: { id: openLog.id },
         data: { checkoutAt: now, manualReason: dto.manualReason },
       });
-      await this.prisma.session.update({ where: { id: session.id }, data: { durationMinutes } });
+      await this.prisma.session.update({ where: { id: session.id }, data: { durationMinutes, plannedDurationMinutes: session.plannedDurationMinutes ?? session.durationMinutes } });
       return closed;
     }
 

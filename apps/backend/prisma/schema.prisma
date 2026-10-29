@@ -526,6 +526,11 @@ model Session {
   // du tarif ne reprix pas les seances deja donnees.
   hourlyRate Float? @map("hourly_rate")
   durationMinutes Int @default(60) @map("duration_minutes")
+  // Duree prevue, conservee au pointage de fin (durationMinutes devient alors
+  // la duree reelle) : sert a mesurer l'ecart prevu / reel.
+  plannedDurationMinutes Int? @map("planned_duration_minutes")
+  // Date de cloture par le compte-rendu (delai de redaction).
+  reportedAt DateTime? @map("reported_at")
   subject   String?
   status    String    @default("planifiee")
   // planifiee | confirmee | realisee | annulee | reportee
@@ -960,7 +965,7 @@ model AttendanceLog {
   verificationStatus String    @map("verification_status")
   // valid | funding_expired | pass_revoked | no_session_found
   method             String
-  // qr_scan | manuel
+  // qr_scan | manuel | admin (saisi par l'equipe)
   manualReason       String?   @map("manual_reason")
   // qr_oublie | probleme_technique | autre
   earlyEndReason     String?   @map("early_end_reason")
@@ -1036,3 +1041,21 @@ model Subject {
   @@map("subjects")
 }
 
+
+// Corrections de pointage faites par l'equipe Nafoore (tracabilite).
+model AttendanceCorrection {
+  id                 String    @id @default(cuid())
+  attendanceLogId    String?   @map("attendance_log_id")
+  sessionId          String?   @map("session_id")
+  adminAccountId     String?   @map("admin_account_id")
+  action             String    // cloture | correction | saisie | non_donnee
+  previousCheckinAt  DateTime? @map("previous_checkin_at")
+  previousCheckoutAt DateTime? @map("previous_checkout_at")
+  newCheckinAt       DateTime? @map("new_checkin_at")
+  newCheckoutAt      DateTime? @map("new_checkout_at")
+  reason             String
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@map("attendance_corrections")
+}

@@ -3,6 +3,7 @@ import { hasPermission } from '../auth/permissions';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ZoneService } from '../auth/zone.service';
+import { AttendanceAdminService } from '../attendance-admin/attendance-admin.service';
 
 // Combine un filtre existant avec celui de la zone du delegue.
 function inZone<T extends object>(base: T, zone: object | undefined): T {
@@ -20,6 +21,7 @@ export class DashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly zone: ZoneService,
+    private readonly attendanceAdmin: AttendanceAdminService,
   ) {}
 
   async getSummary(admin: AuthenticatedAdmin) {
@@ -118,21 +120,35 @@ export class DashboardService {
   // pointage QR/compte-rendu qui a mal tourné ou n'a jamais eu lieu — aucune
   // de ces situations n'était visible auparavant en dehors de la fiche élève
   // consultée une par une.
-  async getAttendanceAlerts(admin: AuthenticatedAdmin, period: { start: Date; end: Date }) {
+  async getAttendanceAlerts(
+    admin: AuthenticatedAdmin,
+    period: { start: Date; end: Date },
+    alertDays: number | null = 30,
+  ) {
     const zs = await this.zone.where(admin, 'student');
     const byStudent = zs && { student: zs };
     const now = new Date();
     const graceThreshold = new Date(now.getTime() - ATTENDANCE_ALERT_GRACE_HOURS * 3_600_000);
+    // Anciennete maximale des anomalies listees (null : sans limite).
+    const alertsSince = alertDays ? new Date(now.getTime() - alertDays * 24 * 3_600_000) : null;
 
 
     const [openLogs, recentLogs, pastSessions] = await Promise.all([
       // Check-in scanné mais jamais de check-out : séance restée "en cours".
       this.prisma.attendanceLog.findMany({
-        where: inZone({ checkoutAt: null, sessionId: { not: null }, checkinAt: { not: null } }, byStudent),
+        where: inZone(
+          {
+            checkoutAt: null,
+            sessionId: { not: null },
+            checkinAt: { not: null },
+            ...(alertsSince ? { session: { date: { gte: alertsSince } } } : {}),
+          },
+          byStudent,
+        ),
         include: {
           student: { select: { id: true, name: true } },
           teacher: { select: { id: true, name: true } },
-          session: { select: { date: true, durationMinutes: true, subject: true } },
+          session: { select: { id: true, date: true, durationMinutes: true, subject: true } },
         },
         orderBy: { checkinAt: 'asc' },
       }),
@@ -161,7 +177,21 @@ export class DashboardService {
           },
           teacher: { select: { id: true, name: true } },
           session: {
-            select: { date: true, durationMinutes: true, subject: true, status: true, notes: true },
+            select: {
+              id: true,
+              date: true,
+              durationMinutes: true,
+              plannedDurationMinutes: true,
+              subject: true,
+              status: true,
+              notes: true,
+              chapter: true,
+              topics: true,
+              understanding: true,
+              participation: true,
+              difficulties: true,
+              homework: true,
+            },
           },
         },
       }),
@@ -169,7 +199,10 @@ export class DashboardService {
       // critère "jamais pointée" / "compte-rendu manquant" combine plusieurs
       // colonnes (statut, notes, présence d'un pointage clôturé, date).
       this.prisma.session.findMany({
-        where: inZone({ status: { not: 'annulee' }, date: { lt: now } }, byStudent),
+        where: inZone(
+          { status: { not: 'annulee' }, date: { lt: now, ...(alertsSince ? { gte: alertsSince } : {}) } },
+          byStudent,
+        ),
         select: {
           id: true,
           date: true,
@@ -196,10 +229,12 @@ export class DashboardService {
       .filter((log) => log.session && log.session.date < graceThreshold)
       .map((log) => ({
         attendanceLogId: log.id,
+        sessionId: log.session?.id ?? null,
         student: log.student,
         teacher: log.teacher,
         subject: log.session?.subject ?? null,
         scheduledDate: log.session?.date ?? null,
+        durationMinutes: log.session?.durationMinutes ?? null,
         checkinAt: log.checkinAt,
       }));
 
@@ -227,26 +262,69 @@ export class DashboardService {
       })
       .map(({ attendanceLogs, ...session }) => session);
 
-    const recentPointages = recentLogs.map((log) => ({
-      id: log.id,
-      student: { id: log.student.id, name: log.student.name },
-      // Famille de l'eleve : vue globale par famille.
-      family: log.student.parentLead
-        ? {
-            id: log.student.parentLead.id,
-            name: log.student.parentLead.portalAccount?.familyName || log.student.parentLead.name,
-          }
-        : null,
-      teacher: log.teacher,
-      subject: log.session?.subject ?? null,
-      scheduledDate: log.session?.date ?? null,
-      durationMinutes: log.session?.durationMinutes ?? null,
-      checkinAt: log.checkinAt,
-      checkoutAt: log.checkoutAt,
-      method: log.method,
-      sessionStatus: log.session?.status ?? null,
-      hasReport: Boolean(log.session?.notes?.trim()),
-    }));
+    const corrections = await this.attendanceAdmin.corrections(
+      [...new Set(recentLogs.map((log) => log.session?.id).filter((id): id is string => Boolean(id)))],
+    );
+    const recentPointages = recentLogs.map((log) => {
+      const session = log.session;
+      const planned = session ? session.plannedDurationMinutes ?? session.durationMinutes : null;
+      const lateMinutes =
+        session && log.checkinAt ? Math.round((log.checkinAt.getTime() - session.date.getTime()) / 60000) : null;
+      const actual =
+        log.checkinAt && log.checkoutAt
+          ? Math.max(0, Math.round((log.checkoutAt.getTime() - log.checkinAt.getTime()) / 60000))
+          : null;
+      return {
+        id: log.id,
+        sessionId: session?.id ?? null,
+        student: { id: log.student.id, name: log.student.name },
+        // Famille de l'eleve : vue globale par famille.
+        family: log.student.parentLead
+          ? {
+              id: log.student.parentLead.id,
+              name: log.student.parentLead.portalAccount?.familyName || log.student.parentLead.name,
+            }
+          : null,
+        teacher: log.teacher,
+        subject: session?.subject ?? null,
+        scheduledDate: session?.date ?? null,
+        plannedMinutes: planned,
+        lateMinutes,
+        gapMinutes: actual !== null && planned ? actual - planned : null,
+        checkinAt: log.checkinAt,
+        checkoutAt: log.checkoutAt,
+        method: log.method,
+        manualReason: log.manualReason,
+        earlyEndReason: log.earlyEndReason,
+        sessionStatus: session?.status ?? null,
+        hasReport: Boolean(session?.notes?.trim()),
+        report: session
+          ? {
+              subject: session.subject,
+              notes: session.notes,
+              chapter: session.chapter,
+              topics: session.topics,
+              understanding: session.understanding,
+              participation: session.participation,
+              difficulties: session.difficulties,
+              homework: session.homework,
+            }
+          : null,
+        corrections: corrections
+          .filter((c) => c.sessionId === session?.id)
+          .map((c) => ({
+            id: c.id,
+            action: c.action,
+            reason: c.reason,
+            adminName: c.adminName,
+            createdAt: c.createdAt,
+            previousCheckinAt: c.previousCheckinAt,
+            previousCheckoutAt: c.previousCheckoutAt,
+            newCheckinAt: c.newCheckinAt,
+            newCheckoutAt: c.newCheckoutAt,
+          })),
+      };
+    });
 
     return { staleOpenSessions, neverPointedSessions, missingReports, recentPointages };
   }

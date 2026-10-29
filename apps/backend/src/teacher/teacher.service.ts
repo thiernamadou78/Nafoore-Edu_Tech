@@ -619,6 +619,9 @@ export class TeacherService {
       where: { id: sessionId },
       data: {
         hourlyRate: closingRate,
+        // Premiere cloture par le compte-rendu : date retenue pour le delai
+        // de redaction.
+        reportedAt: dto.status === 'realisee' && !session.reportedAt ? new Date() : undefined,
         date: dto.date ? new Date(dto.date) : undefined,
         durationMinutes: dto.durationMinutes,
         status: dto.status,

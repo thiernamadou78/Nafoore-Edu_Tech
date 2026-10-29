@@ -88,6 +88,7 @@ export const VERIFICATION_STATUS_TONES = {
 export const ATTENDANCE_METHOD_LABELS = {
   qr_scan: 'Scan QR',
   manuel: 'Manuel',
+  admin: 'Saisi par l’équipe',
 }
 
 export const MANUAL_REASON_LABELS = {

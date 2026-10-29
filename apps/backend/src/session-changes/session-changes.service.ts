@@ -16,7 +16,7 @@ export type ChangeActor =
   | { kind: 'enseignant'; name: string }
   | { kind: 'admin'; name: string };
 
-type ChangeKind = 'postponed' | 'cancelled' | 'rescheduled';
+type ChangeKind = 'postponed' | 'cancelled' | 'rescheduled' | 'not_held';
 
 const sessionInclude = {
   student: {
@@ -160,7 +160,7 @@ export class SessionChangesService {
   // Seance deplacee ou annulee par l'equipe Nafoore : famille et enseignant
   // prevenus (qui, motif, delai), comme pour les autres acteurs.
   async notifyAdminChange(
-    kind: 'cancelled' | 'rescheduled',
+    kind: 'cancelled' | 'rescheduled' | 'not_held',
     sessionId: string,
     adminName: string,
     reason: string | undefined,
@@ -238,16 +238,21 @@ export class SessionChangesService {
       postponed: 'Séance à décaler',
       cancelled: delay.late ? 'Annulation tardive' : 'Séance annulée',
       rescheduled: 'Séance déplacée',
+      not_held: 'Séance non donnée',
     }[kind];
     const action = {
       postponed: `a demandé à décaler la séance de ${course} prévue le ${when}`,
       cancelled: `a annulé la séance de ${course} prévue le ${when}`,
       rescheduled: `a déplacé la séance de ${course} prévue le ${when} au ${formatDateTime(session.date)}`,
+      not_held: `a indiqué que la séance de ${course} prévue le ${when} n'a pas eu lieu`,
     }[kind];
 
     const paragraphs = [
       `${who.charAt(0).toUpperCase()}${who.slice(1)} ${action}.`,
-      `Délai : ${delay.text}${delay.late && kind !== 'rescheduled' ? ` (moins de ${LATE_CHANGE_HOURS} h avant).` : '.'}`,
+      // Seance passee non donnee : pas de delai de prevenance a afficher.
+      ...(kind === 'not_held'
+        ? []
+        : [`Délai : ${delay.text}${delay.late && kind !== 'rescheduled' ? ` (moins de ${LATE_CHANGE_HOURS} h avant).` : '.'}`]),
       reason?.trim() ? `Motif : ${reason.trim()}` : 'Aucun motif précisé.',
     ];
     if (kind === 'postponed') {

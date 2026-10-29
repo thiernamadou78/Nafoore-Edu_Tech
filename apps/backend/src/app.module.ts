@@ -26,6 +26,7 @@ import { RenewalsModule } from './renewals/renewals.module';
 import { GradesModule } from './grades/grades.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { LegalModule } from './legal/legal.module';
+import { AttendanceAdminModule } from './attendance-admin/attendance-admin.module';
 import { TeacherApplicationsPublicModule } from './teacher-applications-public/teacher-applications-public.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { AdminMessagingModule } from './admin-messaging/admin-messaging.module';
@@ -74,6 +75,7 @@ import { TestimonialsModule } from './testimonials/testimonials.module';
     GradesModule,
     ReviewsModule,
     LegalModule,
+    AttendanceAdminModule,
     TeacherModule,
     AdminMessagingModule,
     FormulasModule,

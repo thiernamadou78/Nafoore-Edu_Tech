@@ -63,7 +63,11 @@ export class DashboardController {
     @Query('days') days?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('alertDays') alertDays?: string,
   ) {
+    // Anciennete des anomalies listees : 30 jours par defaut, "all" = tout.
+    const alertParsed = Number.parseInt(alertDays ?? '', 10);
+    const alerts = alertDays === 'all' ? null : Number.isFinite(alertParsed) ? Math.min(Math.max(alertParsed, 1), 3650) : 30;
     // Periode du journal des pointages : intervalle de dates (from/to, bornes
     // incluses, 1 an maximum) ou N derniers jours (1 a 92, 7 par defaut).
     if (from || to) {
@@ -76,7 +80,7 @@ export class DashboardController {
       if (end.getTime() - start.getTime() > 367 * 24 * 3_600_000) {
         throw new BadRequestException('Intervalle trop long (1 an maximum)');
       }
-      return this.dashboardService.getAttendanceAlerts(admin, { start, end });
+      return this.dashboardService.getAttendanceAlerts(admin, { start, end }, alerts);
     }
     const parsed = Number.parseInt(days ?? '', 10);
     const period = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 92) : 7;
@@ -84,6 +88,6 @@ export class DashboardController {
     return this.dashboardService.getAttendanceAlerts(admin, {
       start: new Date(end.getTime() - period * 24 * 3_600_000),
       end,
-    });
+    }, alerts);
   }
 }

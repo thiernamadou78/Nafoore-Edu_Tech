@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { ChevronDown, Eye, LogOut } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { NAV_GROUPS, NAV_ITEMS } from '../config/navigation'
 import { ROLE_LABELS } from '../config/roles'
 import { initials } from '../lib/initials'
+import { api } from '../lib/api'
+import { useAutoRefresh } from '../lib/useAutoRefresh'
 import { NotificationBell } from './NotificationBell'
 import logoSrc from './IMG/Logo.png'
 
@@ -21,8 +23,13 @@ function readCollapsed() {
   }
 }
 
+// Compteurs affiches a cote des entrees du menu (ex. anomalies de pointage).
+const MenuBadges = createContext({})
+
 function NavItem({ item }) {
   const Icon = item.icon
+  const badges = useContext(MenuBadges)
+  const badge = badges[item.path]
   return (
     <NavLink
       to={item.path}
@@ -36,7 +43,12 @@ function NavItem({ item }) {
       }
     >
       <Icon size={17} strokeWidth={2} />
-      {item.label}
+      <span className="flex-1">{item.label}</span>
+      {badge > 0 && (
+        <span className="min-w-[20px] rounded-full bg-gold-400 px-1.5 text-center text-[11px] font-bold leading-5 text-navy">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
     </NavLink>
   )
 }
@@ -44,6 +56,17 @@ function NavItem({ item }) {
 export function AdminLayout() {
   const { adminAccount, signOut, can, isSuperAdmin } = useAuth()
   const location = useLocation()
+  const canAttendance = can('attendance')
+  const [attendanceAlerts, setAttendanceAlerts] = useState(0)
+  const loadBadges = () => {
+    if (!canAttendance) return
+    api
+      .get('/admin/attendance/alert-count')
+      .then((r) => setAttendanceAlerts(r.count ?? 0))
+      .catch(() => {})
+  }
+  useEffect(loadBadges, [canAttendance, location.pathname])
+  useAutoRefresh(loadBadges, 120_000)
   const visibleItems = NAV_ITEMS.filter((item) =>
     item.superAdminOnly ? isSuperAdmin : can(item.module),
   )
@@ -79,6 +102,7 @@ export function AdminLayout() {
     : []
 
   return (
+    <MenuBadges.Provider value={{ '/pointages': attendanceAlerts }}>
     <div className="min-h-screen flex bg-gray-50">
       <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-navy text-white">
         <div className="flex items-center gap-2.5 p-5">
@@ -154,5 +178,6 @@ export function AdminLayout() {
         </div>
       </main>
     </div>
+    </MenuBadges.Provider>
   )
 }

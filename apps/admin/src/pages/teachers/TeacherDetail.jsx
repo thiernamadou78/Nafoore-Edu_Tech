@@ -20,6 +20,8 @@ import { LevelPicker } from '../../components/LevelPicker'
 import { formatLevels } from '../../lib/levels'
 import { DocumentViewer } from '../../components/DocumentViewer'
 import { TeacherReviewsCard } from '../../components/TeacherReviewsCard'
+import { TeacherReliabilityCard } from '../../components/TeacherReliabilityCard'
+import { useAuth } from '../../context/AuthContext'
 import { useCitySuggestions } from '../../lib/useCitySuggestions'
 
 const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
@@ -144,12 +146,13 @@ const timeOf = (date) =>
 function pointageLabel(session) {
   if (!session.checkinAt) return null
   return `${timeOf(session.checkinAt)} → ${session.checkoutAt ? timeOf(session.checkoutAt) : 'en cours'} · ${
-    session.pointageMethod === 'qr_scan' ? 'Scan QR' : 'Manuel'
+    session.pointageMethod === 'qr_scan' ? 'Scan QR' : session.pointageMethod === 'admin' ? 'Saisi par l’équipe' : 'Manuel'
   }`
 }
 
 export function TeacherDetail() {
   const { id } = useParams()
+  const { can } = useAuth()
   const [viewing, setViewing] = useState(null) // document ouvert dans le lecteur
   const [teacher, setTeacher] = useState(null)
   const [form, setForm] = useState({
@@ -543,6 +546,8 @@ export function TeacherDetail() {
           PDF, JPG ou PNG. Documents consultables uniquement (pas de téléchargement), chaque consultation est enregistrée.
         </p>
       </Collapsible>
+
+      {can('attendance') && <TeacherReliabilityCard teacherId={id} />}
 
       <TeacherReviewsCard teacherId={id} />
 

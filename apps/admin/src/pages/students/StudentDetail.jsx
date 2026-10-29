@@ -126,7 +126,7 @@ function AdminSessionCard({ session, onSave, studentId, onChanged }) {
           {log.checkoutAt &&
             ` → ${new Date(log.checkoutAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}
           {' · '}
-          {log.method === 'qr_scan' ? 'Scan QR' : 'Manuel'}
+          {ATTENDANCE_METHOD_LABELS[log.method] ?? 'Manuel'}
         </p>
       )}
       <div className="mt-1">
@@ -187,7 +187,7 @@ function SessionRow({ session, onSave }) {
               </>
             )}
             {' · '}
-            {session.attendanceLogs[0].method === 'qr_scan' ? 'Scan QR' : 'Manuel'}
+            {ATTENDANCE_METHOD_LABELS[session.attendanceLogs[0].method] ?? 'Manuel'}
           </Badge>
         )}
       </div>
